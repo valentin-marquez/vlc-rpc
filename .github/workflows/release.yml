@@ -1,9 +1,14 @@
-name: Build and Release
+name: Release
 
 on:
   push:
     tags:
-      - 'v*'  # Trigger on any tag starting with 'v', like v1.0, v2.3.1, etc.
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
 
 jobs:
   build:
