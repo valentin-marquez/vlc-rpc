@@ -1,0 +1,76 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on any tag starting with 'v', like v1.0, v2.3.1, etc.
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.12.6
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12.6'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          $VERSION = "${{ github.ref_name }}"
+          $VERSION = $VERSION -replace "^v", ""
+          echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Build application
+        run: |
+          python build.py build
+
+      - name: Build installer
+        run: |
+          python build.py installer
+
+      - name: Create release package
+        run: |
+          python build.py package
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-artifacts
+          path: |
+            dist/VLC Discord Presence.exe
+            dist/VLC Discord RP Setup.exe
+            VLC_Discord_RP.zip
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: VLC Discord Rich Presence ${{ steps.get_version.outputs.version }}
+          body: |
+            # VLC Discord Rich Presence ${{ steps.get_version.outputs.version }}
+
+            ## Installation
+            Download and run the installer (`VLC Discord RP Setup.exe`), or use the standalone application.
+
+            ## Requirements
+            - Windows
+            - VLC Media Player
+            - Discord
+          files: |
+            dist/VLC Discord RP Setup.exe
+            VLC_Discord_RP.zip
+          draft: false
+          prerelease: false
