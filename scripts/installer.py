@@ -3,9 +3,18 @@ import os
 import shutil
 import subprocess
 import sys
-import tkinter as tk
 import winreg
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
+
+import customtkinter as ctk
+
+# Discord color palette
+DISCORD_DARK = "#36393F"  # Main background
+DISCORD_DARKER = "#2F3136"  # Secondary background
+DISCORD_BLURPLE = "#5865F2"  # Primary accent color
+DISCORD_GREEN = "#57F287"  # Success color
+DISCORD_TEXT = "#FFFFFF"  # Primary text
+DISCORD_TEXT_MUTED = "#B9BBBE"  # Secondary text
 
 
 def is_admin():
@@ -52,7 +61,6 @@ def find_vlc_path():
 
 def get_extension_dir():
     """Get VLC extension directory"""
-
     appdata_path = os.path.join(
         os.environ.get("APPDATA", ""), "vlc", "lua", "extensions"
     )
@@ -109,18 +117,24 @@ def create_uninstaller(
         f.write('rmdir /s /q "%s" >nul 2>&1\n' % install_dir)
         f.write("echo Uninstallation complete\n")
         f.write("pause\n")
-
         f.write('(goto) 2>nul & del "%~f0"\n')
 
     return uninstall_script
 
 
-class InstallerGUI:
+class InstallerGUI(ctk.CTk):
     def __init__(self):
-        self.root = tk.Tk()
+        # Set appearance mode and default color theme
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
+
+        self.root = ctk.CTk()
         self.root.title("VLC Discord Rich Presence Installer")
-        self.root.geometry("600x500")
+        self.root.geometry(
+            "650x450"
+        )  # Reduced height since we removed VLC directory section
         self.root.resizable(False, False)
+        self.root.configure(fg_color=DISCORD_DARK)
 
         try:
             icon_path = resource_path(os.path.join("assets", "icon.ico"))
@@ -129,17 +143,9 @@ class InstallerGUI:
         except Exception as e:
             print(f"Error setting icon: {e}")
 
-        self.style = ttk.Style()
-        self.style.configure("TButton", padding=6, relief="flat", font=("Segoe UI", 10))
-        self.style.configure("TLabel", font=("Segoe UI", 10))
-        self.style.configure("Header.TLabel", font=("Segoe UI", 14, "bold"))
-
-        self.style.configure(
-            "Action.TButton", padding=10, font=("Segoe UI", 10, "bold")
-        )
-
         self.create_widgets()
 
+        # Center window
         self.root.update_idletasks()
         width = self.root.winfo_width()
         height = self.root.winfo_height()
@@ -147,107 +153,172 @@ class InstallerGUI:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
-        self.root.update_idletasks()
-
     def create_widgets(self):
-        """Create GUI widgets"""
+        """Create GUI widgets with CustomTkinter - simplified version"""
+        main_frame = ctk.CTkFrame(self.root, fg_color=DISCORD_DARK)
+        main_frame.pack(fill="both", expand=True, padx=25, pady=25)
 
-        main_frame = ttk.Frame(self.root)
-        main_frame.pack(fill="both", expand=True)
+        # Header with icon and text
+        header_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        header_frame.pack(fill="x", pady=(0, 20))
 
-        header_frame = ttk.Frame(main_frame, padding="20 20 20 10")
-        header_frame.pack(fill="x")
+        # Try to load and display app icon
+        try:
+            icon_path = resource_path(os.path.join("assets", "vlc_ios.png"))
+            if os.path.exists(icon_path):
+                icon_img = ctk.CTkImage(
+                    light_image=ctk.Image.open(icon_path),
+                    dark_image=ctk.Image.open(icon_path),
+                    size=(64, 64),
+                )
+                icon_label = ctk.CTkLabel(header_frame, image=icon_img, text="")
+                icon_label.pack(side="left", padx=(0, 15))
+        except Exception as e:
+            print(f"Error loading icon image: {e}")
 
-        ttk.Label(
-            header_frame, text="VLC Discord Rich Presence", style="Header.TLabel"
-        ).pack(side="left")
+        title_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        title_frame.pack(side="left", fill="y")
 
-        ttk.Label(
-            header_frame,
-            text="This wizard will install VLC Discord Rich Presence on your computer.",
-            wraplength=550,
-        ).pack(side="top", anchor="w", pady=(25, 0))
+        ctk.CTkLabel(
+            title_frame, text="VLC Discord Rich Presence", font=("Segoe UI", 20, "bold")
+        ).pack(anchor="w")
 
-        dir_frame = ttk.LabelFrame(
-            main_frame, text="Installation Directory", padding="20 10"
-        )
-        dir_frame.pack(fill="x", padx=20)
+        ctk.CTkLabel(
+            title_frame,
+            text="Share what you're watching or listening to with your Discord friends",
+            font=("Segoe UI", 12),
+            text_color=DISCORD_TEXT_MUTED,
+        ).pack(anchor="w")
 
-        self.install_dir = tk.StringVar()
+        # Divider
+        divider = ctk.CTkFrame(main_frame, height=1, fg_color=DISCORD_DARKER)
+        divider.pack(fill="x", pady=15)
+
+        # Installation directory
+        dir_frame = ctk.CTkFrame(main_frame, fg_color=DISCORD_DARKER)
+        dir_frame.pack(fill="x", pady=(0, 15), padx=5, ipady=5)
+
+        ctk.CTkLabel(
+            dir_frame, text="Installation Directory", font=("Segoe UI", 12, "bold")
+        ).pack(anchor="w", padx=10, pady=(10, 5))
+
+        dir_input_frame = ctk.CTkFrame(dir_frame, fg_color="transparent")
+        dir_input_frame.pack(fill="x", padx=10, pady=(0, 10))
+
+        self.install_dir = ctk.StringVar()
         self.install_dir.set(
             os.path.join(os.environ.get("LOCALAPPDATA", ""), "VLC Discord RP")
         )
 
-        dir_entry = ttk.Entry(dir_frame, textvariable=self.install_dir, width=50)
+        dir_entry = ctk.CTkEntry(
+            dir_input_frame, textvariable=self.install_dir, width=520, height=32
+        )
         dir_entry.pack(side="left", padx=(0, 10), fill="x", expand=True)
 
-        dir_btn = ttk.Button(
-            dir_frame, text="Browse...", command=self.browse_install_dir
+        dir_btn = ctk.CTkButton(
+            dir_input_frame,
+            text="Browse...",
+            command=self.browse_install_dir,
+            width=80,
+            height=32,
+            fg_color="#4f545c",
+            hover_color="#686d73",
         )
         dir_btn.pack(side="right")
 
-        vlc_frame = ttk.LabelFrame(main_frame, text="VLC Installation", padding="20 10")
-        vlc_frame.pack(fill="x", padx=20, pady=(20, 0))
+        # Options
+        options_frame = ctk.CTkFrame(main_frame, fg_color=DISCORD_DARKER)
+        options_frame.pack(fill="x", pady=(0, 15), padx=5, ipady=5)
 
-        self.vlc_dir = tk.StringVar()
-        vlc_path = find_vlc_path()
-        if vlc_path:
-            self.vlc_dir.set(vlc_path)
+        ctk.CTkLabel(options_frame, text="Options", font=("Segoe UI", 12, "bold")).pack(
+            anchor="w", padx=10, pady=(10, 5)
+        )
 
-        vlc_entry = ttk.Entry(vlc_frame, textvariable=self.vlc_dir, width=50)
-        vlc_entry.pack(side="left", padx=(0, 10), fill="x", expand=True)
+        startup_option = ctk.CTkFrame(options_frame, fg_color="transparent")
+        startup_option.pack(fill="x", padx=10, pady=(0, 5))
 
-        vlc_btn = ttk.Button(vlc_frame, text="Browse...", command=self.browse_vlc_dir)
-        vlc_btn.pack(side="right")
-
-        options_frame = ttk.LabelFrame(main_frame, text="Options", padding="20 10")
-        options_frame.pack(fill="x", padx=20, pady=(20, 0))
-
-        startup_frame = ttk.Frame(options_frame)
-        startup_frame.pack(fill="x", anchor="w")
-
-        self.add_startup = tk.BooleanVar(value=True)
-        startup_cb = ttk.Checkbutton(
-            startup_frame, text="Add to Windows startup", variable=self.add_startup
+        self.add_startup = ctk.BooleanVar(value=True)
+        startup_cb = ctk.CTkCheckBox(
+            startup_option,
+            text="Add to Windows startup",
+            variable=self.add_startup,
+            border_color=DISCORD_BLURPLE,
+            hover_color=DISCORD_BLURPLE,
+            fg_color=DISCORD_BLURPLE,
         )
         startup_cb.pack(side="left")
 
-        ttk.Label(
-            startup_frame,
+        ctk.CTkLabel(
+            startup_option,
             text="(Recommended - Required for automatic start with VLC)",
-            foreground="#0066CC",
-            font=("Segoe UI", 9, "italic"),
+            font=("Segoe UI", 10),
+            text_color=DISCORD_TEXT_MUTED,
         ).pack(side="left", padx=(5, 0))
 
-        self.create_shortcut = tk.BooleanVar(value=True)
-        ttk.Checkbutton(
-            options_frame, text="Create desktop shortcut", variable=self.create_shortcut
-        ).pack(anchor="w")
+        # Desktop shortcut option
+        self.create_shortcut = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(
+            options_frame,
+            text="Create desktop shortcut",
+            variable=self.create_shortcut,
+            border_color=DISCORD_BLURPLE,
+            hover_color=DISCORD_BLURPLE,
+            fg_color=DISCORD_BLURPLE,
+        ).pack(anchor="w", padx=10, pady=(0, 10))
 
-        self.status_var = tk.StringVar()
+        # Status and progress
+        status_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        status_frame.pack(fill="x", pady=(15, 10))
+
+        self.status_var = ctk.StringVar()
         self.status_var.set("Ready to install")
 
-        status_frame = ttk.Frame(main_frame, padding="20 10")
-        status_frame.pack(fill="x", padx=20, pady=(20, 0))
+        ctk.CTkLabel(
+            status_frame,
+            textvariable=self.status_var,
+            font=("Segoe UI", 10),
+            text_color=DISCORD_TEXT_MUTED,
+        ).pack(anchor="w")
 
-        ttk.Label(status_frame, textvariable=self.status_var, foreground="gray").pack(
-            anchor="w"
+        self.progress = ctk.CTkProgressBar(
+            main_frame,
+            width=600,
+            height=10,
+            fg_color=DISCORD_DARKER,
+            progress_color=DISCORD_BLURPLE,
         )
+        self.progress.pack(fill="x", pady=(0, 20))
+        self.progress.set(0)
 
-        self.progress = ttk.Progressbar(main_frame, length=560, mode="determinate")
-        self.progress.pack(pady=(10, 0), padx=20)
+        # Action buttons
+        btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        btn_frame.pack(fill="x", side="bottom")
 
-        btn_frame = ttk.Frame(main_frame, padding="20")
-        btn_frame.pack(fill="x", side="bottom", pady=(20, 0))
+        # Button width adjustment for consistent size
+        button_width = 120
 
-        install_btn = ttk.Button(
-            btn_frame, text="Install Now", command=self.install, style="Action.TButton"
+        cancel_btn = ctk.CTkButton(
+            btn_frame,
+            text="Cancel",
+            command=self.root.destroy,
+            width=button_width,
+            height=36,
+            fg_color="#4f545c",
+            hover_color="#686d73",
+        )
+        cancel_btn.pack(side="right", padx=(10, 0))
+
+        install_btn = ctk.CTkButton(
+            btn_frame,
+            text="Install Now",
+            command=self.install,
+            width=button_width,
+            height=36,
+            fg_color=DISCORD_BLURPLE,
+            hover_color="#4752C4",
+            font=("Segoe UI", 12, "bold"),
         )
         install_btn.pack(side="right")
-
-        ttk.Button(btn_frame, text="Cancel", command=self.root.destroy).pack(
-            side="right", padx=10
-        )
 
     def browse_install_dir(self):
         directory = filedialog.askdirectory(
@@ -264,127 +335,110 @@ class InstallerGUI:
         if directory:
             self.vlc_dir.set(directory)
 
+    def create_desktop_shortcut(self, exe_path, install_dir):
+        """Create desktop shortcut using PowerShell"""
+        # Use Windows shell special folders to reliably get desktop path
+        # This works with OneDrive redirection and localized folder names
+        ps_get_desktop = """
+        [Environment]::GetFolderPath("Desktop")
+        """
+
+        try:
+            desktop_result = subprocess.run(
+                ["powershell", "-Command", ps_get_desktop],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            desktop_path = desktop_result.stdout.strip()
+
+            if desktop_path and os.path.exists(desktop_path):
+                shortcut_path = os.path.join(desktop_path, "VLC Discord Presence.lnk")
+
+                ps_script = f"""
+                $WshShell = New-Object -ComObject WScript.Shell
+                $Shortcut = $WshShell.CreateShortcut("{shortcut_path}")
+                $Shortcut.TargetPath = "{exe_path}"
+                $Shortcut.WorkingDirectory = "{install_dir}"
+                $Shortcut.Description = "VLC Discord Rich Presence"
+                $Shortcut.IconLocation = "{exe_path},0"
+                $Shortcut.Save()
+                """
+
+                result = subprocess.run(
+                    ["powershell", "-Command", ps_script],
+                    capture_output=True,
+                    text=True,
+                )
+
+                if not os.path.exists(shortcut_path):
+                    raise Exception(f"Failed to create shortcut: {result.stderr}")
+            else:
+                raise Exception(f"Invalid desktop path: {desktop_path}")
+
+        except Exception as e:
+            print(f"Error creating desktop shortcut: {e}")
+            messagebox.showwarning(
+                "Warning",
+                "Could not create desktop shortcut. You may need to do this manually.",
+            )
+
     def update_progress(self, value, message):
-        self.progress["value"] = value
+        self.progress.set(value / 100)  # CustomTkinter uses 0-1 range
         self.status_var.set(message)
         self.root.update_idletasks()
 
     def install(self):
-
         install_dir = self.install_dir.get()
-        vlc_dir = self.vlc_dir.get()
-
-        if not os.path.exists(vlc_dir):
-            messagebox.showerror("Error", "VLC installation directory not found.")
-            return
 
         try:
-
             self.update_progress(10, "Creating installation directory...")
             os.makedirs(install_dir, exist_ok=True)
 
-            self.update_progress(20, "Installing main application...")
+            self.update_progress(30, "Installing main application...")
             exe_path = os.path.join(install_dir, "VLC Discord Presence.exe")
 
             bundled_exe = resource_path("VLC Discord Presence.exe")
             if os.path.exists(bundled_exe):
-
                 shutil.copy2(bundled_exe, exe_path)
             else:
-
                 shutil.copy2(sys.executable, exe_path)
 
-            self.update_progress(30, "Installing assets...")
-            assets_dir = os.path.join(install_dir, "assets")
-            os.makedirs(assets_dir, exist_ok=True)
-
+            # Copy assets in one operation
+            self.update_progress(40, "Installing assets...")
             assets_source = resource_path("assets")
+            assets_dir = os.path.join(install_dir, "assets")
             if os.path.isdir(assets_source):
-                for file in os.listdir(assets_source):
-                    src_file = os.path.join(assets_source, file)
-                    dst_file = os.path.join(assets_dir, file)
-                    if os.path.isfile(src_file):
-                        shutil.copy2(src_file, dst_file)
+                if os.path.exists(assets_dir):
+                    shutil.rmtree(assets_dir)
+                shutil.copytree(assets_source, assets_dir)
 
-            self.update_progress(50, "Installing VLC extension...")
+            # Install VLC extension directly to AppData
+            self.update_progress(60, "Installing VLC extension...")
             extension_dir = get_extension_dir()
             lua_source = resource_path(os.path.join("lua", "discord-rp.lua"))
             extension_path = os.path.join(extension_dir, "discord-rp.lua")
-
             shutil.copy2(lua_source, extension_path)
 
+            # Create shortcuts if requested
             if self.add_startup.get():
-                self.update_progress(70, "Adding to startup...")
-                if not add_to_startup(exe_path):
-                    messagebox.showwarning(
-                        "Warning",
-                        "Could not add to startup. You may need to do this manually.",
-                    )
+                self.update_progress(75, "Adding to startup...")
+                add_to_startup(exe_path)
 
             if self.create_shortcut.get():
-                self.update_progress(80, "Creating desktop shortcut...")
+                self.update_progress(85, "Creating desktop shortcut...")
+                self.create_desktop_shortcut(exe_path, install_dir)
 
-                # Use Windows shell special folders to reliably get desktop path
-                # This works with OneDrive redirection and localized folder names
-                ps_get_desktop = """
-                [Environment]::GetFolderPath("Desktop")
-                """
-
-                try:
-
-                    desktop_result = subprocess.run(
-                        ["powershell", "-Command", ps_get_desktop],
-                        capture_output=True,
-                        text=True,
-                        check=True,
-                    )
-
-                    desktop_path = desktop_result.stdout.strip()
-
-                    if desktop_path and os.path.exists(desktop_path):
-                        shortcut_path = os.path.join(
-                            desktop_path, "VLC Discord Presence.lnk"
-                        )
-
-                        ps_script = f"""
-                        $WshShell = New-Object -ComObject WScript.Shell
-                        $Shortcut = $WshShell.CreateShortcut("{shortcut_path}")
-                        $Shortcut.TargetPath = "{exe_path}"
-                        $Shortcut.WorkingDirectory = "{install_dir}"
-                        $Shortcut.Description = "VLC Discord Rich Presence"
-                        $Shortcut.IconLocation = "{exe_path},0"
-                        $Shortcut.Save()
-                        """
-
-                        result = subprocess.run(
-                            ["powershell", "-Command", ps_script],
-                            capture_output=True,
-                            text=True,
-                        )
-
-                        if not os.path.exists(shortcut_path):
-                            raise Exception(
-                                f"Failed to create shortcut: {result.stderr}"
-                            )
-                    else:
-                        raise Exception(f"Invalid desktop path: {desktop_path}")
-
-                except Exception as e:
-
-                    print(f"Error creating desktop shortcut: {e}")
-                    messagebox.showwarning(
-                        "Warning",
-                        "Could not create desktop shortcut. You may need to do this manually.",
-                    )
-
+            # Create uninstaller
             self.update_progress(90, "Creating uninstaller...")
             create_uninstaller(install_dir, extension_path)
 
+            # Start the application
             self.update_progress(95, "Starting application...")
             subprocess.Popen([exe_path], cwd=install_dir)
 
             self.update_progress(100, "Installation complete!")
-
             messagebox.showinfo(
                 "Installation Complete",
                 "VLC Discord Rich Presence has been installed successfully!\n\n"
@@ -400,7 +454,6 @@ class InstallerGUI:
             self.update_progress(0, "Installation failed.")
 
     def run(self):
-
         self.root.update_idletasks()
 
         required_height = self.root.winfo_reqheight()
@@ -412,5 +465,12 @@ class InstallerGUI:
 
 
 if __name__ == "__main__":
+    # First, ensure customtkinter is installed
+    try:
+        import customtkinter
+    except ImportError:
+        print("CustomTkinter is required. Install with: pip install customtkinter")
+        sys.exit(1)
+
     app = InstallerGUI()
     app.run()

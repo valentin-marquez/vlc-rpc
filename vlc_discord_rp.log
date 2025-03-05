@@ -1,0 +1,4 @@
+2025-03-05 18:40:26,810 - VLC-Discord-RP - INFO - Found status file at: C:\Users\valen\AppData\Roaming\vlc\vlc_discord_status.json
+2025-03-05 18:40:26,811 - VLC-Discord-RP - INFO - Starting VLC Discord Rich Presence Handler
+2025-03-05 18:40:36,838 - VLC-Discord-RP - ERROR - Invalid JSON in status file
+2025-03-05 18:40:46,741 - VLC-Discord-RP - INFO - Connected to Discord

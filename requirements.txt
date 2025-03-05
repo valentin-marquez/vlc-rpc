@@ -1,2 +1,4 @@
 pypresence @ git+https://github.com/qwertyquerty/pypresence.git
 pyinstaller==6.1.0
+customtkinter==5.2.2
+requests==2.32.3

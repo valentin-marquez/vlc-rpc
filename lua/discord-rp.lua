@@ -1,6 +1,6 @@
 local presence_active = false
 local status_file_path = nil
-local debug_mode = true
+local debug_mode = true -- Change to false to disable debug messages
 
 function debug_log(message)
     if debug_mode then
@@ -8,16 +8,18 @@ function debug_log(message)
     end
 end
 
+local discord_ext_info = {
+    title = "Discord Rich Presence",
+    version = "1.1.0",
+    author = "Valentin Marquez",
+    url = 'https://github.com/valentin-marquez/vlc-discord-rp',
+    shortdesc = "Discord RP",
+    description = "Display your currently playing media in Discord Rich Presence",
+    capabilities = {"menu", "input-listener", "meta-listener", "playing-listener", "playlist-listener"}
+}
+
 function descriptor()
-    return {
-        title = "Discord Rich Presence",
-        version = "1.1.0",
-        author = "Valentin Marquez",
-        url = 'https://github.com/valentin-marquez/vlc-discord-rp',
-        shortdesc = "Discord RP",
-        description = "Display your currently playing media in Discord Rich Presence",
-        capabilities = {"menu","input-listener", "meta-listener", "playing-listener", "playlist-listener"}
-    }
+    return discord_ext_info
 end
 
 function setup_status_file()
@@ -95,7 +97,7 @@ function activate()
 
     local write_ok, write_err = pcall(write_status, {
         active = true,
-        status = "idle",
+        status = "stopped",
         timestamp = os.time()
     })
 
@@ -114,6 +116,7 @@ function deactivate()
 
     pcall(write_status, {
         active = false,
+        status = "stopped",
         timestamp = os.time()
     })
 end
@@ -131,10 +134,24 @@ function trigger_menu(id)
 end
 
 function show_credits()
-    local d = vlc.dialog("About")
-    d:add_label("Discord Rich Presence for VLC", 1, 1, 3, 1)
-    d:add_label("by Valentin Marquez", 1, 2, 3, 1)
-    d:add_label("Version 1.1.0", 1, 2, 3, 1)
+    local d = vlc.dialog("About Discord Rich Presence")
+
+    -- Combine all HTML content into a single element
+    local html_content = [[
+        <h1>Discord Rich Presence for VLC</h1>
+        <p><b>Version:</b> ]] .. discord_ext_info.version .. [[</p>
+        <p><b>Author:</b> ]] .. discord_ext_info.author .. [[</p>
+        <p>]] .. discord_ext_info.description .. [[</p>
+        <p><a href=']] .. discord_ext_info.url .. [['>]] .. discord_ext_info.url .. [[</a></p>
+    ]]
+
+    d:add_html(html_content, 1, 1, 4, 5)
+
+    -- Add a close button
+    d:add_button("Close", function()
+        d:delete()
+    end, 2, 6, 2, 1)
+
     d:show()
 end
 
@@ -161,6 +178,7 @@ function write_status(status)
         for k in pairs(t) do
             table.insert(keys, k)
         end
+        table.sort(keys) -- Sort for consistent output
 
         for i, k in ipairs(keys) do
             local v = t[k]
@@ -169,7 +187,9 @@ function write_status(status)
             if type(v) == "table" then
                 json = json .. table_to_json(v, indent + 1)
             elseif type(v) == "string" then
-                json = json .. "\"" .. v:gsub('"', '\\"') .. "\""
+                -- Escape special characters in JSON strings
+                local escaped = v:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\n', '\\n'):gsub('\r', '\\r')
+                json = json .. "\"" .. escaped .. "\""
             elseif type(v) == "number" or type(v) == "boolean" then
                 json = json .. tostring(v)
             else
@@ -181,10 +201,6 @@ function write_status(status)
             else
                 json = json .. "\n"
             end
-        end
-
-        if json:sub(-2) == ",\n" then
-            json = json:sub(1, -3) .. "\n"
         end
 
         return json .. spaces .. "}"
@@ -203,6 +219,86 @@ function write_status(status)
     return true
 end
 
+function detect_media_type(input_item)
+    local media_type = "unknown"
+
+    -- Check if we have artist or album metadata (likely audio)
+    local metas = input_item:metas() or {}
+    if metas["artist"] or metas["album"] then
+        return "audio"
+    end
+
+    -- Check file extension
+    local uri = input_item:uri() or ""
+    local extension = uri:match("%.([^%.]+)$")
+
+    if extension then
+        extension = extension:lower()
+
+        -- Common audio formats
+        local audio_extensions = {
+            mp3 = true,
+            wav = true,
+            ogg = true,
+            flac = true,
+            aac = true,
+            m4a = true,
+            wma = true,
+            aiff = true,
+            alac = true
+        }
+
+        -- Common video formats
+        local video_extensions = {
+            mp4 = true,
+            mkv = true,
+            avi = true,
+            mov = true,
+            wmv = true,
+            flv = true,
+            webm = true,
+            m4v = true,
+            mpg = true,
+            mpeg = true,
+            ts = true,
+            ["3gp"] = true,
+            asf = true,
+            rm = true
+        }
+
+        if audio_extensions[extension] then
+            return "audio"
+        elseif video_extensions[extension] then
+            return "video"
+        end
+    end
+
+    -- Check media information
+    local info = input_item:info() or {}
+
+    -- Look for video track in the streams
+    if info["Stream 0"] then
+        for k, v in pairs(info["Stream 0"]) do
+            if k:lower():match("video") then
+                return "video"
+            end
+        end
+    end
+
+    -- If we have an audio codec but no detected video
+    if info["Audio"] or info["Stream 0"] and info["Stream 0"]["Codec"] and
+        info["Stream 0"]["Codec"]:lower():match("audio") then
+        return "audio"
+    end
+
+    -- Default to video for streaming URLs
+    if uri:match("^https?://") then
+        return "video"
+    end
+
+    return media_type
+end
+
 function update_presence()
     debug_log("Updating presence")
 
@@ -212,7 +308,7 @@ function update_presence()
 
     if not vlc.input.is_playing() then
         write_status({
-            active = false,
+            active = true,
             status = "stopped",
             timestamp = os.time()
         })
@@ -222,25 +318,33 @@ function update_presence()
     local input_item = nil
     local success = pcall(function()
         input_item = vlc.input.item()
-        input_item = vlc.input.item()
     end)
 
     if not success or not input_item then
         debug_log("Could not retrieve playback item")
         write_status({
             active = true,
-            status = "idle",
+            status = "stopped",
             timestamp = os.time()
         })
         return
     end
 
-    local title = input_item:name() or "Unknown"
+    local filename = input_item:uri():match("([^/\\]+)%.%w+$") or ""
     local metas = input_item:metas() or {}
+    local title = metas["title"] or input_item:name() or filename
     local artist = metas["artist"] or ""
     local album = metas["album"] or ""
-
     local duration = input_item:duration() or 0
+
+    -- Detect media type
+    local media_type = detect_media_type(input_item)
+    debug_log("Detected media type: " .. media_type)
+
+    -- For videos, use showName if available, otherwise title, and finally filename
+    if media_type == "video" then
+        title = metas["showName"] or metas["title"] or input_item:name() or filename
+    end
 
     local input = vlc.object.input()
     local is_playing = true
@@ -252,9 +356,18 @@ function update_presence()
         local state = vlc.var.get(input, "state")
         is_playing = (state == 2)
 
-        position = math.floor(vlc.var.get(input, "time") / 1000000)
-        rate = vlc.var.get(input, "rate")
-        audio_delay = vlc.var.get(input, "audio-delay") / 1000000
+        position = 0
+        pcall(function()
+            position = math.floor(vlc.var.get(input, "time") / 1000000)
+        end)
+
+        pcall(function()
+            rate = vlc.var.get(input, "rate")
+        end)
+
+        pcall(function()
+            audio_delay = vlc.var.get(input, "audio-delay") / 1000000
+        end)
     end
 
     local now_playing = {
@@ -266,6 +379,7 @@ function update_presence()
         date = metas["date"] or ""
     }
 
+    -- Get format information
     local format = ""
     local info = input_item:info() or {}
     if info["General"] then
@@ -277,9 +391,21 @@ function update_presence()
         end
     end
 
+    -- Get resolution for videos
+    local width, height = 0, 0
+    if media_type == "video" and info["Video 0"] then
+        for k, v in pairs(info["Video 0"]) do
+            if k:lower():match("resolution") then
+                width, height = v:match("(%d+)x(%d+)")
+                break
+            end
+        end
+    end
+
     local status = {
         active = true,
         status = is_playing and "playing" or "paused",
+        media_type = media_type,
         media = {
             title = title,
             artist = artist,
@@ -292,10 +418,14 @@ function update_presence()
         playback = {
             duration = math.floor(duration),
             position = position,
-            remaining = math.floor(duration) - position,
+            remaining = math.max(0, math.floor(duration) - position),
             rate = rate,
             audio_delay = audio_delay
         },
+        video_info = media_type == "video" and {
+            width = tonumber(width) or 0,
+            height = tonumber(height) or 0
+        } or nil,
         timestamp = os.time()
     }
 

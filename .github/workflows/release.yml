@@ -9,7 +9,6 @@ permissions:
   contents: write
   packages: write
 
-
 jobs:
   build:
     name: Build and Release
@@ -38,6 +37,17 @@ jobs:
           echo "version=$VERSION" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
+      - name: Update version info
+        run: |
+          $VERSION = "${{ steps.get_version.outputs.version }}"
+          $CONTENT = Get-Content -Path spec/version_info.txt -Raw
+          $CONTENT = $CONTENT -replace "filevers=\(\d+, \d+, \d+, \d+\)", "filevers=($($VERSION.Split('.') -join ', '), 0)"
+          $CONTENT = $CONTENT -replace "prodvers=\(\d+, \d+, \d+, \d+\)", "prodvers=($($VERSION.Split('.') -join ', '), 0)"
+          $CONTENT = $CONTENT -replace "u'FileVersion', u'\d+\.\d+\.\d+'", "u'FileVersion', u'$VERSION'"
+          $CONTENT = $CONTENT -replace "u'ProductVersion', u'\d+\.\d+\.\d+'", "u'ProductVersion', u'$VERSION'"
+          $CONTENT | Set-Content -Path version_info.txt
+        shell: pwsh
+
       - name: Build application
         run: |
           python build.py build
@@ -59,6 +69,16 @@ jobs:
             dist/VLC Discord RP Setup.exe
             VLC_Discord_RP.zip
 
+      - name: Read Changelog
+        id: changelog
+        run: |
+          $CHANGELOG = Get-Content -Path CHANGELOG.md -Raw
+          $CHANGELOG = $CHANGELOG -replace '##\s*\[\d+\.\d+\.\d+\]', '##'
+          $RELEVANT = ([regex]::Match($CHANGELOG, '##[^#]+').Value)
+          $FORMATTED = $RELEVANT -replace '\n', '%0A'
+          echo "text=$FORMATTED" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -67,13 +87,10 @@ jobs:
           body: |
             # VLC Discord Rich Presence ${{ steps.get_version.outputs.version }}
 
+            ${{ steps.changelog.outputs.text }}
+
             ## Installation
             Download and run the installer (`VLC Discord RP Setup.exe`), or use the standalone application.
-
-            ## Requirements
-            - Windows
-            - VLC Media Player
-            - Discord
           files: |
             dist/VLC Discord RP Setup.exe
             VLC_Discord_RP.zip

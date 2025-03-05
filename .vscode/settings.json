@@ -1,5 +1,4 @@
 {
-
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.organizeImports": "always"
@@ -7,11 +6,19 @@
     "python.analysis.extraPaths": [
         "${workspaceFolder}"
     ],
+    "files.associations": {
+        "*.spec": "python"
+    },
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
         "editor.tabSize": 4,
-        "editor.insertSpaces": true
+        "editor.insertSpaces": true,
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
     },
+    "isort.args": ["--profile", "black"],
     "files.exclude": {
         "**/__pycache__": true,
         "**/.pytest_cache": true,
@@ -19,5 +26,16 @@
     },
     "terminal.integrated.env.windows": {
         "PYTHONPATH": "${workspaceFolder}"
+    },
+    "[lua]": {
+        "editor.quickSuggestions": {
+            "other": true,
+            "comments": true,
+            "strings": true
+        },
+        "editor.tabCompletion": "on",
+        "editor.quickSuggestionsDelay": 1,
+        "editor.suggest.snippetsPreventQuickSuggestions": false,
+        "editor.defaultFormatter": "yinfei.luahelper"
     }
 }
