@@ -50,3 +50,4 @@ $RECYCLE.BIN/
 # Project specific
 release/
 VLC_Discord_RP.zip
+!spec/*.spec
