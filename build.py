@@ -35,7 +35,7 @@ def clean():
         return False
 
 
-def build_app(version=None):
+def build_app(version=None, dev=False):
     """Build the VLC Discord RP application executable"""
     print("Building VLC Discord Rich Presence application...")
 
@@ -43,14 +43,39 @@ def build_app(version=None):
     if version:
         update_version_info(version)
 
+    # Modify app.spec for dev mode if needed
+    spec_file_path = os.path.join("spec", "app.spec")
+    if dev:
+        print("Development mode: Building with console window...")
+        # Read the spec file
+        with open(spec_file_path, "r") as f:
+            spec_content = f.read()
+
+        # Backup original spec file
+        with open(f"{spec_file_path}.bak", "w") as f:
+            f.write(spec_content)
+
+        # Replace console=False with console=True
+        spec_content = spec_content.replace("console=False", "console=True")
+
+        # Write modified spec file
+        with open(spec_file_path, "w") as f:
+            f.write(spec_content)
+
     # Run PyInstaller for the main application
     try:
         subprocess.run(["pyinstaller", "--clean", "spec/app.spec"], check=True)
         print("Application build complete!")
-        return os.path.exists(os.path.join("dist", "VLC Discord Presence.exe"))
+        success = os.path.exists(os.path.join("dist", "VLC Discord Presence.exe"))
     except subprocess.CalledProcessError:
         print("Application build failed!")
-        return False
+        success = False
+
+    # Restore original spec file if modified
+    if dev and os.path.exists(f"{spec_file_path}.bak"):
+        shutil.move(f"{spec_file_path}.bak", spec_file_path)
+
+    return success
 
 
 def update_version_info(version):
@@ -180,13 +205,18 @@ if __name__ == "__main__":
         "--version",
         help="Version number to update in version_info.txt",
     )
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="Build in development mode with console window enabled",
+    )
 
     args = parser.parse_args()
 
     if args.command == "clean":
         clean()
     elif args.command == "build":
-        build_app(version=args.version)
+        build_app(version=args.version, dev=args.dev)
     elif args.command == "installer":
         build_installer()
     elif args.command == "package":
@@ -196,7 +226,7 @@ if __name__ == "__main__":
     elif args.command == "all":
         if not clean():
             exit(1)
-        if not build_app(args.version):
+        if not build_app(args.version, dev=args.dev):
             exit(1)
         if not build_installer():
             exit(1)
