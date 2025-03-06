@@ -10,15 +10,13 @@
         "*.spec": "python"
     },
     "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter",
-        "editor.tabSize": 4,
-        "editor.insertSpaces": true,
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
             "source.organizeImports": "explicit"
-        }
+        },
+        "editor.defaultFormatter": "charliermarsh.ruff"
     },
-    "isort.args": ["--profile", "black"],
     "files.exclude": {
         "**/__pycache__": true,
         "**/.pytest_cache": true,
@@ -27,7 +25,9 @@
     "terminal.integrated.env.windows": {
         "PYTHONPATH": "${workspaceFolder}"
     },
-
+    "ruff.lint.select": ["E", "F", "I"],
+    "ruff.organizeImports": true,
+    "ruff.lineLength": 88,
 
     "[lua]": {
         "editor.quickSuggestions": {
