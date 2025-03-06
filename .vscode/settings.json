@@ -27,6 +27,8 @@
     "terminal.integrated.env.windows": {
         "PYTHONPATH": "${workspaceFolder}"
     },
+
+
     "[lua]": {
         "editor.quickSuggestions": {
             "other": true,

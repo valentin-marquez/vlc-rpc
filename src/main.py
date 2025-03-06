@@ -16,7 +16,12 @@ Main components:
 - Media states (Playing, Paused, etc.): Manages different display modes
 """
 
+import os
+import threading
 import time
+
+import pystray
+from PIL import Image
 
 from config import Config
 from discord_client import DiscordRPCClient
@@ -24,11 +29,56 @@ from media_states import NoStatusState, PausedState, PlayingState, StoppedState
 from status_reader import StatusReader
 
 
+def create_tray_icon(handler):
+    def on_exit(icon, item):
+        handler.config.logger.info("Exiting from tray menu...")
+        icon.stop()
+        handler.running = False
+
+    # Use the existing icon from assets
+    try:
+        # Get icon path, handling both development and PyInstaller environments
+        icon_path = handler.config.resource_path("assets/icon.ico")
+        if os.path.exists(icon_path):
+            icon_image = Image.open(icon_path)
+        else:
+            handler.config.logger.warning(f"Icon not found at: {icon_path}")
+            icon_image = Image.new("RGB", (64, 64), (90, 0, 175))
+    except Exception as e:
+        handler.config.logger.error(f"Failed to load icon: {e}")
+        # Fallback to a basic icon if the asset can't be loaded
+        icon_image = Image.new("RGB", (64, 64), (90, 0, 175))
+
+    icon = pystray.Icon(
+        "vlc_discord_rp",
+        icon_image,
+        "VLC Discord RP",  # Tooltip text
+        menu=pystray.Menu(pystray.MenuItem("Exit", on_exit)),
+    )
+
+    def run_icon():
+        icon.run()
+
+    threading.Thread(target=run_icon, daemon=True).start()
+    handler.config.logger.info("System tray icon initialized")
+
+
 class VLCDiscordRP:
     def __init__(self):
         self.config = Config()
         self.discord_client = DiscordRPCClient()
         self.status_reader = StatusReader()
+        self.running = True
+
+        # Check if HTTP interface is enabled
+        if not self.config.HTTP_ENABLED:
+            self.config.logger.warning(
+                "VLC HTTP interface is not enabled. Please run the setup command or configure VLC manually."
+            )
+        else:
+            self.config.logger.info(
+                f"Using VLC HTTP interface on port {self.config.HTTP_PORT}"
+            )
 
         self.playing_state = PlayingState(self.discord_client, self.config)
         self.paused_state = PausedState(self.discord_client, self.config)
@@ -81,12 +131,32 @@ class VLCDiscordRP:
         current_time = int(time.time())
         status = self.status_reader.read_status(self.force_update)
 
+        if not status:
+            # If we can't get status, provide more detailed logging
+            if self.current_state != self.no_status_state:
+                self.current_state = self.no_status_state
+                self.current_state.update_presence(None)
+
+                # Check VLC status for better diagnostics
+                is_running, message = self.status_reader.check_vlc_status()
+                if not is_running:
+                    self.config.logger.info(f"VLC status: {message}")
+
+            return False
+
         if not self.should_update_presence(status, current_time):
             return True
 
         self.last_presence_update = current_time
         self.last_check_time = current_time
         self.force_update = False
+
+        # Enhance video content information if it's a video
+        if status.get("media_type") == "video":
+            from video import VideoDetector
+
+            video_detector = VideoDetector()
+            status = video_detector.analyze(status)
 
         self.current_state = self.determine_state(status)
         return self.current_state.update_presence(status)
@@ -97,9 +167,21 @@ class VLCDiscordRP:
         self.last_presence_update = 0
         self.force_update = True
 
-        while True:
+        connection_failures = 0
+
+        while self.running:
             try:
-                self.update_presence()
+                success = self.update_presence()
+
+                if not success:
+                    connection_failures += 1
+                    # If we're having trouble connecting, slow down the polling
+                    if connection_failures > 5:
+                        time.sleep(5)  # Wait longer between attempts
+                        connection_failures = 5  # Cap the failures count
+                    continue
+                else:
+                    connection_failures = 0
 
                 time.sleep(self.config.FAST_CHECK_INTERVAL)
 
@@ -126,4 +208,5 @@ class VLCDiscordRP:
 
 if __name__ == "__main__":
     handler = VLCDiscordRP()
+    create_tray_icon(handler)
     handler.run()

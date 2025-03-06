@@ -10,7 +10,7 @@ from config import Config
 class CoverArt:
     def __init__(self):
         self.config = Config()
-        self.cache = {}  # Memory cache for recently fetched cover art URLs
+        self.cache = {}
         self.cache_ttl = 3600  # Cache TTL in seconds (1 hour)
 
     def fetch(self, media_info):
@@ -22,12 +22,10 @@ class CoverArt:
         Returns:
             str: URL to cover art or None if not found
         """
-        # Extract media data from input
         media = self._extract_media_data(media_info)
         if not media:
             return None
 
-        # Create a cache key for this request
         cache_key = self._create_cache_key(media)
         if cache_key in self.cache:
             cached_result = self.cache[cache_key]
@@ -37,10 +35,8 @@ class CoverArt:
                 )
                 return cached_result["url"]
 
-        # Try to fetch from MusicBrainz
         cover_url = self._fetch_from_musicbrainz(media)
 
-        # Cache the result (even if None, to avoid repeated failed lookups)
         if cache_key:
             self.cache[cache_key] = {"url": cover_url, "timestamp": time.time()}
 
@@ -52,7 +48,6 @@ class CoverArt:
             self.config.logger.debug("No valid media info provided for cover art")
             return None
 
-        # Handle both full status object or just the media section
         if "media" in media_info:
             return media_info["media"]
         return media_info
@@ -64,7 +59,6 @@ class CoverArt:
 
         key_parts = []
 
-        # Use the most identifying fields for the cache key
         for field in ["artist", "album", "title"]:
             if field in media and media[field]:
                 key_parts.append(f"{field}:{media[field]}")
@@ -72,61 +66,49 @@ class CoverArt:
         if not key_parts:
             return None
 
-        # Create a hash of the key parts
         return hashlib.md5("|".join(key_parts).encode("utf-8")).hexdigest()
 
     def _build_query(self, media):
-        """Build the optimal MusicBrainz query based on available information"""
-        # Case 1: We have artist, title and album - most specific search
         if media.get("artist") and media.get("title") and media.get("album"):
             return f'{media["title"]} AND artist:{media["artist"]} AND release:"{media["album"]}"'
 
-        # Case 2: We have artist and title - good for recording search
         if media.get("artist") and media.get("title"):
             return f'{media["title"]} AND artist:{media["artist"]}'
 
-        # Case 3: We have artist and album - good for release search
         if media.get("artist") and media.get("album"):
             return f'artist:"{media["artist"]}" AND release:"{media["album"]}"'
 
-        # Case 4: We have just album
         if media.get("album"):
             return f'release:"{media["album"]}"'
 
-        # Case 5: We have just artist
         if media.get("artist"):
             return f'artist:"{media["artist"]}"'
 
-        # Case 6: We have just title
         if media.get("title"):
             return f'recording:"{media["title"]}"'
 
-        # No useful information
         self.config.logger.debug("Insufficient media information for cover art search")
         return None
 
     def _fetch_from_musicbrainz(self, media):
         """Fetch cover art from MusicBrainz using multiple strategies"""
         try:
-            # Build the query
+
             query = self._build_query(media)
             if not query:
                 return None
 
-            # Strategy 1: Try the most specific endpoint based on available data
             if media.get("album") and (media.get("artist") or media.get("title")):
-                # If we have album info, prioritize release search
+
                 url = self._search_releases(query, media)
                 if url:
                     return url
 
-            # Strategy 2: If we have title and artist but no album match, try recordings
             if media.get("title") and media.get("artist"):
                 url = self._search_recordings(query, media)
                 if url:
                     return url
 
-            # Strategy 3: If all else fails, try a more generic search
             fallback_query = self._build_fallback_query(media)
             if fallback_query and fallback_query != query:
                 self.config.logger.debug(f"Trying fallback search: {fallback_query}")
@@ -143,7 +125,7 @@ class CoverArt:
     def _build_fallback_query(self, media):
         """Build a fallback query with less constraints"""
         if media.get("artist") and media.get("title"):
-            # Just use artist without title constraints
+
             return f'artist:"{media["artist"]}"'
         return None
 
@@ -182,14 +164,12 @@ class CoverArt:
                 self.config.logger.debug("No recordings found in MusicBrainz response")
                 return None
 
-            # Score and sort recordings
             scored_releases = []
 
             for recording in data["recordings"]:
                 if not recording.get("releases") or len(recording["releases"]) == 0:
                     continue
 
-                # Calculate match score for each release of this recording
                 for release in recording["releases"]:
                     score = self._calculate_release_score(recording, release, media)
                     scored_releases.append(
@@ -203,10 +183,8 @@ class CoverArt:
                         }
                     )
 
-            # Sort by score (highest first)
             scored_releases.sort(key=lambda x: x["score"], reverse=True)
 
-            # Try releases in order until we find cover art
             for release_info in scored_releases:
                 if release_info["score"] < 30:  # Skip low-quality matches
                     continue
@@ -238,7 +216,6 @@ class CoverArt:
                 self.config.logger.debug("No releases found in MusicBrainz response")
                 return None
 
-            # Score and sort releases
             scored_releases = []
 
             for release in data["releases"]:
@@ -252,10 +229,8 @@ class CoverArt:
                     }
                 )
 
-            # Sort by score (highest first)
             scored_releases.sort(key=lambda x: x["score"], reverse=True)
 
-            # Try releases in order until we find cover art
             for release_info in scored_releases:
                 if release_info["score"] < 30:  # Skip low-quality matches
                     continue
@@ -282,11 +257,9 @@ class CoverArt:
         """Calculate a match score for a release based on our metadata"""
         score = 0
 
-        # Basic score from API
         base_score = recording.get("score", release.get("score", 0))
         score += min(base_score, 100)  # Cap at 100 to avoid overweighting
 
-        # Artist matching (up to 100 points)
         if media.get("artist"):
             artist_names = []
             for artist_credit in release.get("artist-credit", []):
@@ -305,7 +278,6 @@ class CoverArt:
             ):
                 score += 70
 
-        # Album matching (up to 100 points)
         if media.get("album") and release.get("title"):
             media_album = media["album"].lower()
             release_title = release["title"].lower()
@@ -315,7 +287,6 @@ class CoverArt:
             elif media_album in release_title or release_title in media_album:
                 score += 70
 
-        # Title matching for recordings (up to 80 points)
         if media.get("title") and recording and recording.get("title"):
             media_title = media["title"].lower()
             recording_title = recording["title"].lower()
@@ -325,7 +296,6 @@ class CoverArt:
             elif media_title in recording_title or recording_title in media_title:
                 score += 50
 
-        # Match on date/year (up to 40 points)
         if media.get("date") or media.get("year"):
             media_year = str(media.get("date") or media.get("year"))
             if len(media_year) >= 4:
@@ -335,21 +305,18 @@ class CoverArt:
                 if release_date and release_date.startswith(media_year):
                     score += 40
 
-        # Prefer official releases over bootlegs, live albums, etc. (up to 30 points)
         if release.get("status") == "Official":
             score += 30
 
-        # Penalize secondary release types like compilations, live albums when we're looking for studio
         secondary_types = []
         if release.get("release-group", {}).get("secondary-types"):
             secondary_types = release["release-group"]["secondary-types"]
         elif release.get("release-group", {}).get("secondary-type-ids"):
-            # We have the IDs but not the names
+
             has_secondary = bool(release["release-group"]["secondary-type-ids"])
             if has_secondary:
                 score -= 20
 
-        # Specific penalties
         if "Compilation" in secondary_types:
             score -= 15
         if "Live" in secondary_types:

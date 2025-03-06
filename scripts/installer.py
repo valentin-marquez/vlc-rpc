@@ -1,9 +1,14 @@
 import ctypes
+import logging
 import os
+import platform
+import random
+import re
 import shutil
+import string
 import subprocess
 import sys
-import winreg
+from pathlib import Path
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
@@ -31,44 +36,202 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
-def find_vlc_path():
-    """Find VLC installation path from registry"""
+def get_vlc_config_path():
+    """Get the VLC config file path based on OS"""
+    system = platform.system()
+
+    if system == "Windows":
+        return os.path.join(os.environ.get("APPDATA", ""), "vlc", "vlcrc")
+    elif system == "Darwin":  # macOS
+        return os.path.join(
+            Path.home(), "Library", "Preferences", "org.videolan.vlc", "vlcrc"
+        )
+    elif system == "Linux":
+        return os.path.join(Path.home(), ".config", "vlc", "vlcrc")
+    else:
+        return None
+
+
+def setup_vlc_config(port=9080, enable_http=True, password=None, logger=None):
+    """
+    Configure VLC for Discord Rich Presence with proper TOML section handling
+
+    Args:
+        port: HTTP port to set (defaults to 9080)
+        enable_http: Whether to enable HTTP interface
+        password: HTTP password to set (generates random if None)
+        logger: Logger to use (creates a new one if None)
+
+    Returns:
+        tuple: (success, port, password)
+
+    Raises:
+        FileNotFoundError: When VLC config file doesn't exist and can't be created
+    """
+    # Set up logging if not provided
+    if logger is None:
+        logger = logging.getLogger("VLC-Discord-RP")
+        logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        logger.addHandler(handler)
+
+    vlcrc_path = get_vlc_config_path()
+
+    if not vlcrc_path:
+        logger.error("Could not determine VLC config path")
+        raise FileNotFoundError("Could not determine VLC config path for this OS")
+
+    # Create directory if it doesn't exist
     try:
-        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\VideoLAN\VLC") as key:
-            return winreg.QueryValueEx(key, "InstallDir")[0]
-    except WindowsError:
-        # Try 32-bit registry view on 64-bit Windows
-        try:
-            with winreg.OpenKey(
-                winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\VideoLAN\VLC"
-            ) as key:
-                return winreg.QueryValueEx(key, "InstallDir")[0]
-        except WindowsError:
-            pass
+        os.makedirs(os.path.dirname(vlcrc_path), exist_ok=True)
+    except Exception as e:
+        logger.error(f"Failed to create directory for VLC config: {str(e)}")
+        raise FileNotFoundError(
+            f"Failed to create VLC configuration directory: {str(e)}"
+        )
 
-    # Try common paths
-    common_paths = [
-        r"C:\Program Files\VideoLAN\VLC",
-        r"C:\Program Files (x86)\VideoLAN\VLC",
-    ]
+    # Generate random password if not provided
+    if password is None and enable_http:
+        # Generate a random 12 character password
+        password = "".join(random.choices(string.ascii_letters + string.digits, k=12))
+        logger.info("Generated random HTTP password for VLC")
 
-    for path in common_paths:
-        if os.path.exists(path):
-            return path
+    try:
+        # Parse the VLC config file (TOML format)
+        sections = {}
+        current_section = None
 
-    return None
+        if os.path.exists(vlcrc_path):
+            with open(vlcrc_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
 
+            # Parse file into sections
+            for line in lines:
+                stripped = line.strip()
 
-def get_extension_dir():
-    """Get VLC extension directory"""
-    appdata_path = os.path.join(
-        os.environ.get("APPDATA", ""), "vlc", "lua", "extensions"
-    )
+                # Skip empty lines and comments-only lines
+                if (
+                    not stripped
+                    or stripped.startswith("#")
+                    and not stripped.startswith("#[")
+                ):
+                    if current_section is not None:
+                        sections[current_section].append(line)
+                    else:
+                        sections.setdefault("top", []).append(line)
+                    continue
 
-    if not os.path.exists(appdata_path):
-        os.makedirs(appdata_path, exist_ok=True)
+                # Check for section headers
+                section_match = re.match(r"^\s*\[([^\]]+)\]\s*", stripped)
+                if section_match:
+                    current_section = section_match.group(1)
+                    sections.setdefault(current_section, []).append(line)
+                else:
+                    if current_section is not None:
+                        sections[current_section].append(line)
+                    else:
+                        sections.setdefault("top", []).append(line)
 
-    return appdata_path
+            # Ensure required sections exist
+            sections.setdefault("core", ["[core]\n"])
+            sections.setdefault("lua", ["[lua]\n"])
+
+            # Update settings in their correct sections
+
+            # Handle extraintf in [core] section
+            if enable_http:
+                extraintf_updated = False
+                for i, line in enumerate(sections["core"]):
+                    if re.match(r"^extraintf=", line.strip()):
+                        # Update existing line
+                        current_value = re.search(
+                            r"extraintf=(.*)", line.strip()
+                        ).group(1)
+                        if "http" not in current_value:
+                            if current_value:
+                                new_value = f"{current_value},http"
+                            else:
+                                new_value = "http"
+                            sections["core"][i] = f"extraintf={new_value}\n"
+                        extraintf_updated = True
+                        break
+                    elif re.match(r"^#extraintf=", line.strip()):
+                        # Uncomment and set value
+                        sections["core"][i] = f"extraintf=http\n"
+                        extraintf_updated = True
+                        break
+
+                # Add extraintf if not found
+                if not extraintf_updated:
+                    sections["core"].append("extraintf=http\n")
+
+            # Handle http-port in [core] section
+            port_updated = False
+            for i, line in enumerate(sections["core"]):
+                if re.match(r"^http-port=", line.strip()):
+                    sections["core"][i] = f"http-port={port}\n"
+                    port_updated = True
+                    break
+                elif re.match(r"^#http-port=", line.strip()):
+                    sections["core"][i] = f"http-port={port}\n"
+                    port_updated = True
+                    break
+
+            if not port_updated:
+                sections["core"].append(f"http-port={port}\n")
+
+            # Handle password in [lua] section if provided
+            if password:
+                password_updated = False
+                for i, line in enumerate(sections["lua"]):
+                    if re.match(r"^http-password=", line.strip()):
+                        sections["lua"][i] = f"http-password={password}\n"
+                        password_updated = True
+                        break
+                    elif re.match(r"^#http-password=", line.strip()):
+                        sections["lua"][i] = f"http-password={password}\n"
+                        password_updated = True
+                        break
+
+                if not password_updated:
+                    sections["lua"].append(f"http-password={password}\n")
+
+            # Rebuild the file content
+            content = []
+            if "top" in sections:
+                content.extend(sections["top"])
+                del sections["top"]
+
+            # Add remaining sections
+            for section_name, section_lines in sections.items():
+                content.extend(section_lines)
+
+            # Write back to the file
+            with open(vlcrc_path, "w", encoding="utf-8") as f:
+                f.writelines(content)
+
+        else:
+            # Create a new minimal config file
+            with open(vlcrc_path, "w", encoding="utf-8") as f:
+                f.write("[core]\n")
+                f.write(f"http-port={port}\n")
+                if enable_http:
+                    f.write("extraintf=http\n")
+                f.write("\n")
+                f.write("[lua]\n")
+                if password:
+                    f.write(f"http-password={password}\n")
+
+        logger.info(f"Successfully configured VLC with HTTP port {port}")
+        logger.info(f"HTTP interface enabled: {enable_http}")
+        if password:
+            logger.info("HTTP password configured")
+
+        return True, port, password
+
+    except Exception as e:
+        logger.error(f"Error configuring VLC: {str(e)}")
+        raise RuntimeError(f"Failed to configure VLC: {str(e)}")
 
 
 def add_to_startup(exe_path):
@@ -96,9 +259,7 @@ def add_to_startup(exe_path):
     return os.path.exists(shortcut_path)
 
 
-def create_uninstaller(
-    install_dir, extension_path, exe_name="VLC Discord Presence.exe"
-):
+def create_uninstaller(install_dir, exe_name="VLC Discord Presence.exe"):
     """Create an uninstaller batch file"""
     uninstall_script = os.path.join(install_dir, "uninstall.bat")
     startup_shortcut = os.path.join(
@@ -113,7 +274,6 @@ def create_uninstaller(
         f.write('taskkill /f /im "%s" >nul 2>&1\n' % exe_name)
         f.write("timeout /t 1 /nobreak >nul\n")
         f.write('del "%s" >nul 2>&1\n' % startup_shortcut)
-        f.write('del "%s" >nul 2>&1\n' % extension_path)
         f.write('rmdir /s /q "%s" >nul 2>&1\n' % install_dir)
         f.write("echo Uninstallation complete\n")
         f.write("pause\n")
@@ -130,18 +290,22 @@ class InstallerGUI(ctk.CTk):
 
         self.root = ctk.CTk()
         self.root.title("VLC Discord Rich Presence Installer")
-        self.root.geometry(
-            "650x450"
-        )  # Reduced height since we removed VLC directory section
+        self.root.geometry("650x550")  # Increased height for VLC configuration section
         self.root.resizable(False, False)
         self.root.configure(fg_color=DISCORD_DARK)
+
+        # Set up logging
+        self.logger = logging.getLogger("VLC-Discord-RP")
+        self.logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        self.logger.addHandler(handler)
 
         try:
             icon_path = resource_path(os.path.join("assets", "icon.ico"))
             if os.path.exists(icon_path):
                 self.root.iconbitmap(icon_path)
         except Exception as e:
-            print(f"Error setting icon: {e}")
+            self.logger.error(f"Error setting icon: {e}")
 
         self.create_widgets()
 
@@ -154,7 +318,7 @@ class InstallerGUI(ctk.CTk):
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
     def create_widgets(self):
-        """Create GUI widgets with CustomTkinter - simplified version"""
+        """Create GUI widgets with CustomTkinter"""
         main_frame = ctk.CTkFrame(self.root, fg_color=DISCORD_DARK)
         main_frame.pack(fill="both", expand=True, padx=25, pady=25)
 
@@ -174,7 +338,7 @@ class InstallerGUI(ctk.CTk):
                 icon_label = ctk.CTkLabel(header_frame, image=icon_img, text="")
                 icon_label.pack(side="left", padx=(0, 15))
         except Exception as e:
-            print(f"Error loading icon image: {e}")
+            self.logger.error(f"Error loading icon image: {e}")
 
         title_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
         title_frame.pack(side="left", fill="y")
@@ -225,6 +389,87 @@ class InstallerGUI(ctk.CTk):
             hover_color="#686d73",
         )
         dir_btn.pack(side="right")
+
+        # VLC Configuration Section
+        vlc_frame = ctk.CTkFrame(main_frame, fg_color=DISCORD_DARKER)
+        vlc_frame.pack(fill="x", pady=(0, 15), padx=5, ipady=5)
+
+        ctk.CTkLabel(
+            vlc_frame, text="VLC Configuration", font=("Segoe UI", 12, "bold")
+        ).pack(anchor="w", padx=10, pady=(10, 5))
+
+        vlc_port_frame = ctk.CTkFrame(vlc_frame, fg_color="transparent")
+        vlc_port_frame.pack(fill="x", padx=10, pady=(0, 5))
+
+        ctk.CTkLabel(
+            vlc_port_frame, text="HTTP Interface Port:", width=150, anchor="w"
+        ).pack(side="left")
+
+        self.vlc_port = ctk.StringVar(value="9080")
+        port_entry = ctk.CTkEntry(vlc_port_frame, textvariable=self.vlc_port, width=100)
+        port_entry.pack(side="left", padx=5)
+
+        self.configure_vlc = ctk.BooleanVar(value=True)
+        vlc_auto_config_cb = ctk.CTkCheckBox(
+            vlc_frame,
+            text="Configure VLC automatically",
+            variable=self.configure_vlc,
+            border_color=DISCORD_BLURPLE,
+            hover_color=DISCORD_BLURPLE,
+            fg_color=DISCORD_BLURPLE,
+            command=self.toggle_vlc_manual_config,
+        )
+        vlc_auto_config_cb.pack(anchor="w", padx=10, pady=5)
+
+        vlc_note = ctk.CTkLabel(
+            vlc_frame,
+            text="Note: This will modify your VLC configuration to enable the HTTP interface, \n"
+            "which is required for Discord Rich Presence to work.",
+            font=("Segoe UI", 10),
+            text_color=DISCORD_TEXT_MUTED,
+        )
+        vlc_note.pack(anchor="w", padx=10, pady=(0, 10))
+
+        # Manual configuration frame - initially hidden
+        self.manual_config_frame = ctk.CTkFrame(vlc_frame, fg_color="transparent")
+
+        # Password field
+        vlc_password_frame = ctk.CTkFrame(
+            self.manual_config_frame, fg_color="transparent"
+        )
+        vlc_password_frame.pack(fill="x", pady=(0, 5))
+
+        ctk.CTkLabel(
+            vlc_password_frame, text="HTTP Password:", width=150, anchor="w"
+        ).pack(side="left")
+
+        self.vlc_password = ctk.StringVar(value="")
+        password_entry = ctk.CTkEntry(
+            vlc_password_frame, textvariable=self.vlc_password, width=200, show="•"
+        )
+        password_entry.pack(side="left", padx=5)
+
+        ctk.CTkLabel(
+            vlc_password_frame,
+            text="(Optional)",
+            font=("Segoe UI", 10),
+            text_color=DISCORD_TEXT_MUTED,
+        ).pack(side="left", padx=(5, 0))
+
+        # Manual configuration instructions
+        manual_config_instructions = ctk.CTkLabel(
+            self.manual_config_frame,
+            text="To configure VLC manually:\n"
+            "1. Open VLC and go to Tools > Preferences\n"
+            "2. Set Show settings to 'All' at the bottom left\n"
+            "3. Go to Interface > Main interfaces and check 'Web'\n"
+            "4. Go to Interface > Main interfaces > Lua and set the password\n"
+            "5. Set the HTTP port to match the one specified above",
+            font=("Segoe UI", 10),
+            text_color=DISCORD_TEXT_MUTED,
+            justify="left",
+        )
+        manual_config_instructions.pack(anchor="w", padx=10, pady=(5, 10))
 
         # Options
         options_frame = ctk.CTkFrame(main_frame, fg_color=DISCORD_DARKER)
@@ -320,20 +565,20 @@ class InstallerGUI(ctk.CTk):
         )
         install_btn.pack(side="right")
 
+    def toggle_vlc_manual_config(self):
+        """Show or hide manual VLC configuration options based on checkbox state"""
+        if self.configure_vlc.get():
+            self.manual_config_frame.pack_forget()
+        else:
+            self.manual_config_frame.pack(fill="x", padx=10, pady=(5, 10))
+
     def browse_install_dir(self):
+        """Browse for installation directory"""
         directory = filedialog.askdirectory(
             initialdir=self.install_dir.get(), title="Select Installation Directory"
         )
         if directory:
             self.install_dir.set(directory)
-
-    def browse_vlc_dir(self):
-        directory = filedialog.askdirectory(
-            initialdir=self.vlc_dir.get() if self.vlc_dir.get() else "/",
-            title="Select VLC Installation Directory",
-        )
-        if directory:
-            self.vlc_dir.set(directory)
 
     def create_desktop_shortcut(self, exe_path, install_dir):
         """Create desktop shortcut using PowerShell"""
@@ -378,21 +623,32 @@ class InstallerGUI(ctk.CTk):
                 raise Exception(f"Invalid desktop path: {desktop_path}")
 
         except Exception as e:
-            print(f"Error creating desktop shortcut: {e}")
+            self.logger.error(f"Error creating desktop shortcut: {e}")
             messagebox.showwarning(
                 "Warning",
                 "Could not create desktop shortcut. You may need to do this manually.",
             )
 
     def update_progress(self, value, message):
+        """Update progress bar and status message"""
         self.progress.set(value / 100)  # CustomTkinter uses 0-1 range
         self.status_var.set(message)
         self.root.update_idletasks()
 
     def install(self):
+        """Main installation procedure"""
         install_dir = self.install_dir.get()
 
         try:
+            # Validate port number
+            try:
+                port = int(self.vlc_port.get())
+                if port < 1 or port > 65535:
+                    raise ValueError("Port must be between 1 and 65535")
+            except ValueError as e:
+                messagebox.showerror("Error", f"Invalid port number: {str(e)}")
+                return
+
             self.update_progress(10, "Creating installation directory...")
             os.makedirs(install_dir, exist_ok=True)
 
@@ -414,12 +670,35 @@ class InstallerGUI(ctk.CTk):
                     shutil.rmtree(assets_dir)
                 shutil.copytree(assets_source, assets_dir)
 
-            # Install VLC extension directly to AppData
-            self.update_progress(60, "Installing VLC extension...")
-            extension_dir = get_extension_dir()
-            lua_source = resource_path(os.path.join("lua", "discord-rp.lua"))
-            extension_path = os.path.join(extension_dir, "discord-rp.lua")
-            shutil.copy2(lua_source, extension_path)
+            # Configure VLC if requested
+            if self.configure_vlc.get():
+                self.update_progress(50, "Configuring VLC...")
+                try:
+                    success, port, password = setup_vlc_config(
+                        port=port, enable_http=True, logger=self.logger
+                    )
+                    if success:
+                        self.status_var.set(f"VLC configured with HTTP port {port}")
+                        messagebox.showinfo(
+                            "VLC Configuration",
+                            f"VLC has been configured with HTTP interface on port {port}.\n"
+                            f"If a password was set, please remember it for the application.",
+                        )
+                except Exception as e:
+                    self.logger.error(f"Failed to configure VLC: {str(e)}")
+                    messagebox.showwarning(
+                        "Warning",
+                        f"Could not configure VLC automatically: {str(e)}\n"
+                        "You may need to configure the HTTP interface manually.",
+                    )
+            else:
+                # Manual configuration - just show a reminder
+                self.update_progress(50, "Using manual VLC configuration...")
+                messagebox.showinfo(
+                    "Manual VLC Configuration",
+                    f"Please configure VLC manually with the HTTP interface on port {port}.\n"
+                    "Remember to enable the web interface in VLC preferences.",
+                )
 
             # Create shortcuts if requested
             if self.add_startup.get():
@@ -432,7 +711,7 @@ class InstallerGUI(ctk.CTk):
 
             # Create uninstaller
             self.update_progress(90, "Creating uninstaller...")
-            create_uninstaller(install_dir, extension_path)
+            create_uninstaller(install_dir=install_dir)
 
             # Start the application
             self.update_progress(95, "Starting application...")
@@ -448,12 +727,14 @@ class InstallerGUI(ctk.CTk):
             self.root.destroy()
 
         except Exception as e:
+            self.logger.error(f"Installation error: {str(e)}")
             messagebox.showerror(
                 "Error", f"An error occurred during installation:\n\n{str(e)}"
             )
             self.update_progress(0, "Installation failed.")
 
     def run(self):
+        """Run the application"""
         self.root.update_idletasks()
 
         required_height = self.root.winfo_reqheight()

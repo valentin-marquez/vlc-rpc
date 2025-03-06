@@ -24,7 +24,6 @@ wheels/
 # PyInstaller
 *.manifest
 *.spec
-!vlc_discord_rp.spec
 
 # Environments
 .env
@@ -51,3 +50,4 @@ $RECYCLE.BIN/
 release/
 VLC_Discord_RP.zip
 !spec/*.spec
+vlc_discord_rp.log

@@ -6,7 +6,6 @@ a = Analysis(
     datas=[
         ("../dist/VLC Discord Presence.exe", "."),
         ("../assets", "assets"),
-        ("../lua", "lua"),
     ],
     hiddenimports=[],
     hookspath=[],
