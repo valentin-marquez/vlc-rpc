@@ -43,10 +43,9 @@ def build_app(version=None, dev=False):
     if version:
         update_version_info(version)
 
-    # Modify app.spec for dev mode if needed
+    # Modify app.spec for console mode based on dev flag
     spec_file_path = os.path.join("spec", "app.spec")
-    if dev:
-        print("Development mode: Building with console window...")
+    if os.path.exists(spec_file_path):
         # Read the spec file
         with open(spec_file_path, "r") as f:
             spec_content = f.read()
@@ -55,8 +54,15 @@ def build_app(version=None, dev=False):
         with open(f"{spec_file_path}.bak", "w") as f:
             f.write(spec_content)
 
-        # Replace console=False with console=True
-        spec_content = spec_content.replace("console=False", "console=True")
+        # Set console mode according to dev flag
+        if dev:
+            print("Development mode: Building with console window...")
+            spec_content = re.sub(r"console=(True|False)", "console=True", spec_content)
+        else:
+            print("Release mode: Building without console window...")
+            spec_content = re.sub(
+                r"console=(True|False)", "console=False", spec_content
+            )
 
         # Write modified spec file
         with open(spec_file_path, "w") as f:
@@ -72,7 +78,7 @@ def build_app(version=None, dev=False):
         success = False
 
     # Restore original spec file if modified
-    if dev and os.path.exists(f"{spec_file_path}.bak"):
+    if os.path.exists(f"{spec_file_path}.bak"):
         shutil.move(f"{spec_file_path}.bak", spec_file_path)
 
     return success

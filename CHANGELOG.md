@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.0] - 2023-03-15
+## [2.0.0] - 2025-03-06
 ### Added
 - HTTP interface integration using `http://localhost:port/requests/status.json` for media data
 - System tray icon with auto-detection
