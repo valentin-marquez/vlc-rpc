@@ -9,13 +9,17 @@
     "files.associations": {
         "*.spec": "python"
     },
+    "editor.insertSpaces": false,
+    "editor.tabSize": 4,
     "[python]": {
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
             "source.fixAll": "explicit",
             "source.organizeImports": "explicit"
         },
-        "editor.defaultFormatter": "charliermarsh.ruff"
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.insertSpaces": false,
+        "editor.tabSize": 4
     },
     "files.exclude": {
         "**/__pycache__": true,
@@ -25,19 +29,6 @@
     "terminal.integrated.env.windows": {
         "PYTHONPATH": "${workspaceFolder}"
     },
-    "ruff.lint.select": ["E", "F", "I"],
-    "ruff.organizeImports": true,
-    "ruff.lineLength": 88,
 
-    "[lua]": {
-        "editor.quickSuggestions": {
-            "other": true,
-            "comments": true,
-            "strings": true
-        },
-        "editor.tabCompletion": "on",
-        "editor.quickSuggestionsDelay": 1,
-        "editor.suggest.snippetsPreventQuickSuggestions": false,
-        "editor.defaultFormatter": "yinfei.luahelper"
-    }
+
 }

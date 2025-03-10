@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.0.1] - 2025-03-09
+### Fixed
+- Setup screen not resizable (Fixes #4)
+
+### Changed
+- Removed PIL/Pillow as a dependency for pystray
+- Implemented a minimal Image class that mimics PIL functionality needed by pystray
+- Avoids potential false positives in antivirus software related to PIL/Pillow
+
 ## [2.0.0] - 2025-03-06
 ### Added
 - HTTP interface integration using `http://localhost:port/requests/status.json` for media data
