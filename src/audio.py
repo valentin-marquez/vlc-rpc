@@ -1,3 +1,32 @@
+"""
+CoverArt Module
+==============
+
+This module provides functionality to fetch album cover art for audio files based on their metadata.
+It uses the MusicBrainz API to search for matching recordings/releases and the Cover Art Archive
+to retrieve the actual cover images.
+
+Key features:
+- Intelligent search using available metadata (artist, album, title)
+- Multiple search strategies for best results (release search, recording search)
+- Sophisticated scoring system to find the most relevant matches
+- Local caching mechanism to avoid redundant API calls
+- Fallback mechanisms when primary search doesn't yield results
+
+The main class CoverArt handles the cover art retrieval process:
+1. Extracts media metadata from the input structure
+2. Checks if result is already in local cache
+3. Builds an optimized search query for MusicBrainz
+4. Searches for releases or recordings that match the metadata
+5. Scores potential matches based on multiple criteria
+6. Fetches the cover art from Cover Art Archive for the best match
+7. Caches results to improve performance on subsequent requests
+
+Usage example:
+    cover = CoverArt()
+    url = cover.fetch({"artist": "Pink Floyd", "album": "The Dark Side of the Moon", "title": "Money"})
+"""
+
 import hashlib
 import re
 import time
