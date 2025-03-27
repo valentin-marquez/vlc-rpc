@@ -1,8 +1,21 @@
 {
-  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
-  "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*"],
-  "compilerOptions": {
-    "composite": true,
-    "types": ["electron-vite/node"]
-  }
+	"extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
+	"include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*", "src/shared/**/*"],
+	"exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts"],
+	"compilerOptions": {
+		"composite": true,
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"types": ["electron-vite/node"],
+		"baseUrl": ".",
+		"paths": {
+			"@main/*": ["src/main/*"],
+			"@preload/*": ["src/preload/*"],
+			"@shared/*": ["src/shared/*"],
+			"@resources/*": ["resources/*"]
+		},
+		"incremental": true,
+		"tsBuildInfoFile": "./.tsbuildinfo-node",
+		"skipLibCheck": true
+	}
 }

@@ -1,45 +1,105 @@
-appId: com.electron.app
-productName: kokt
+appId: com.valentinmarquez.vlcdiscordrp
+productName: VLC Discord RP
 directories:
   buildResources: build
 files:
-  - '!**/.vscode/*'
-  - '!src/*'
-  - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
-  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - "!**/.vscode/*"
+  - "!src/*"
+  - "!electron.vite.config.{js,ts,mjs,cjs}"
+  - "!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
+  - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
+  - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
 asarUnpack:
   - resources/**
+compression: normal
 win:
-  executableName: kokt
+  executableName: VLC Discord RP
+  requestedExecutionLevel: asInvoker
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  artifactName: ${name}-${version}-${os}-${arch}.${ext}
+  publisherName: "Valentin Marquez"
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
+  shortcutName: VLC Discord RP
+  uninstallDisplayName: VLC Discord RP
   createDesktopShortcut: always
+  createStartMenuShortcut: true
+  runAfterFinish: true
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
+  menuCategory: true
+  differentialPackage: true
+portable:
+  artifactName: ${name}-${version}-portable.${ext}
+  requestExecutionLevel: user
 mac:
+  entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  icon: build/icon.icns
+  category: public.app-category.utilities
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
   extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
-  notarize: false
+    LSUIElement: true
+    NSUserNotificationAlertStyle: alert
 dmg:
   artifactName: ${name}-${version}.${ext}
+  icon: build/icon.icns
+  iconSize: 128
+  contents:
+    - x: 380
+      y: 240
+      type: link
+      path: /Applications
+    - x: 122
+      y: 240
+      type: file
 linux:
-  target:
-    - AppImage
-    - snap
-    - deb
-  maintainer: electronjs.org
+  icon: build/icons
   category: Utility
+  description: Discord Rich Presence integration for VLC Media Player
+  desktop:
+    Name: VLC Discord RP
+    Comment: Discord Rich Presence for VLC Media Player
+    StartupNotify: true
+    StartupWMClass: VLC Discord RP
+    X-GNOME-Autostart-enabled: true
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+    - target: rpm
+      arch: [x64]
 appImage:
   artifactName: ${name}-${version}.${ext}
+deb:
+  depends:
+    - libnotify4
+    - libxtst6
+    - libnss3
+rpm:
+  depends:
+    - libnotify
+    - libXtst
+    - nss
 npmRebuild: false
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
-electronDownload:
-  mirror: https://npmmirror.com/mirrors/electron/
+  provider: github
+  owner: valentin-marquez
+  repo: vlc-rpc
+  private: false
+  releaseType: release
+  publishAutoUpdate: true
+  channel: latest

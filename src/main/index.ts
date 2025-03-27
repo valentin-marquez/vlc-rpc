@@ -1,74 +1,122 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import { electronApp, optimizer } from "@electron-toolkit/utils"
+import { app } from "electron"
+import { mainHandlers } from "./handlers"
+import { autoUpdaterService } from "./services/auto-updater"
+import { configService } from "./services/config"
+import { logger } from "./services/logger"
+import { startupService } from "./services/startup"
+import { trayService } from "./services/tray"
+import { windowService } from "./services/window"
 
-function createWindow(): void {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
-    show: false,
-    autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
-    }
-  })
-
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
-  })
-
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
-
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
+// Add isQuitting property and wasLaunchedAtStartup property to app
+declare global {
+	namespace Electron {
+		interface App {
+			isQuitting: boolean
+			wasLaunchedAtStartup: boolean
+		}
+	}
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+// Initialize flags
+app.isQuitting = false
+app.wasLaunchedAtStartup = false
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
-  })
+// Check if this is the first instance of the app
+const gotTheLock = app.requestSingleInstanceLock()
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+if (!gotTheLock) {
+	logger.info("Another instance is already running. Quitting this one.")
+	app.quit()
+} else {
+	// This is the first instance - continue normally
 
-  createWindow()
+	// Try to detect if launched at startup by checking startup/login arguments
+	const launchArgs = process.argv.slice(1).join(" ").toLowerCase()
+	app.wasLaunchedAtStartup =
+		launchArgs.includes("--autostart") ||
+		launchArgs.includes("--startup") ||
+		launchArgs.includes("--launch-at-login") ||
+		launchArgs.includes("--autorun")
 
-  app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
-})
+	// Handle second instance attempt - focus our window instead
+	app.on("second-instance", () => {
+		logger.info("Another instance tried to launch, focusing our window instead")
+		windowService.showWindow()
+	})
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
+	// Handle window-all-closed event
+	app.on("window-all-closed", (): void => {
+		if (process.platform !== "darwin") {
+			const minimizeToTray = configService.get<boolean>("minimizeToTray")
+			if (!minimizeToTray) {
+				app.quit()
+			}
+		}
+	})
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
+	// This method will be called when Electron has finished
+	// initialization and is ready to create browser windows.
+	app.whenReady().then(() => {
+		// Initialize logger
+		logger.info("Application starting", {
+			version: app.getVersion(),
+			platform: process.platform,
+			arch: process.arch,
+			argv: process.argv,
+			wasLaunchedAtStartup: app.wasLaunchedAtStartup,
+		})
+
+		// Set app user model id for windows
+		electronApp.setAppUserModelId("com.electron")
+
+		// Default open or close DevTools by F12 in development
+		// and ignore CommandOrControl + R in production.
+		// see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+		app.on("browser-window-created", (_, window) => {
+			optimizer.watchWindowShortcuts(window)
+		})
+
+		// Initialize services & handlers
+		configService // Initialize config service
+
+		// Set the app version in the configuration
+		configService.set("version", app.getVersion())
+		logger.info(`Set app version in config: ${app.getVersion()}`)
+
+		mainHandlers // Initialize main handlers
+
+		// Initialize tray service first (so it's available when window decides to hide)
+		trayService
+
+		// Initialize window service (will check if should start minimized)
+		const mainWindowPromise = windowService.createWindow()
+
+		// Initialize auto-updater service after window is created
+		mainWindowPromise.then((mainWindow) => {
+			autoUpdaterService.setMainWindow(mainWindow)
+		})
+
+		// Set startup based on config
+		const startWithSystem = configService.get<boolean>("startWithSystem")
+		startupService.setStartAtLogin(startWithSystem)
+
+		// Start Discord presence update loop
+		mainHandlers.discordRpcHandler.startUpdateLoop()
+
+		// Check for updates after a short delay
+		setTimeout(() => {
+			autoUpdaterService.checkForUpdates(true)
+		}, 3000)
+
+		// Handle macOS activate event
+		app.on("activate", () => {
+			windowService.showWindow()
+		})
+
+		// Handle before-quit event
+		app.on("before-quit", () => {
+			app.isQuitting = true
+		})
+	})
+}
