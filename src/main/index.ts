@@ -67,8 +67,8 @@ if (!gotTheLock) {
 			wasLaunchedAtStartup: app.wasLaunchedAtStartup,
 		})
 
-		// Set app user model id for windows
-		electronApp.setAppUserModelId("com.electron")
+		// Set app user model id for windows - use the same ID as in electron-builder.yml
+		electronApp.setAppUserModelId("com.valentinmarquez.vlcdiscordrp")
 
 		// Default open or close DevTools by F12 in development
 		// and ignore CommandOrControl + R in production.
