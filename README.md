@@ -9,6 +9,7 @@
 
 🎉 **Major Update Alert!** 🎉
 
+- **Cross-Platform Support**: Now available for Windows, macOS, and Linux!
 - **Automatic Updates**: Never miss a new feature with our new built-in update system
 - **Smart Content Detection**: Better identification of TV shows, movies, and anime
 - **Activity Type Precision**: Shows "Listening to" for music and "Watching" for videos
@@ -42,8 +43,11 @@ Built initially during a questionable 10-hour coding marathon and now significan
 
 ### The Easy Way
 
-1. Download the latest installer from the [releases page](https://github.com/valentin-marquez/vlc-discord-rp/releases)
-2. Run the installer (`VLC Discord RP Setup.exe`)
+1. Download the latest installer for your platform from the [releases page](https://github.com/valentin-marquez/vlc-discord-rp/releases)
+- Windows: `vlc-rpc-setup.exe` or `vlc-rpc-portable.exe`
+- macOS: `vlc-rpc.dmg` or `VLC-Discord-RP-arm64-mac.zip` for Apple Silicon
+- Linux: `vlc-rpc_amd64.deb`, `vlc-rpc.x86_64.rpm`, or `vlc-rpc.AppImage`
+2. Run the installer
 3. Follow the on-screen instructions
 4. Enjoy your new Discord flex powers!
 
@@ -52,7 +56,10 @@ Built initially during a questionable 10-hour coding marathon and now significan
 1. Clone this repo
 2. Install dependencies: `npm install`
 3. Start development server: `npm run dev`
-4. Build for production: `npm run build:win` (or `build:mac`/`build:linux`)
+4. Build for production: 
+   - Windows: `npm run build:win`
+   - macOS: `npm run build:mac`
+   - Linux: `npm run build:linux`
 
 ## How It Works
 
@@ -74,16 +81,19 @@ Built initially during a questionable 10-hour coding marathon and now significan
 5. If issues persist, try the reconnect button in settings
 
 ### Q: How do I close/exit the app?
-**A:** Right-click the app icon in your system tray and select "Exit". Or use the close button in the main window.
+**A:** Right-click the app icon in your system tray (Windows/Linux) or menu bar (macOS) and select "Exit". Or use the close button in the main window.
 
 ### Q: Where is it installed?
-**A:** By default, the app installs to `%LOCALAPPDATA%\VLC Discord RP`.
+**A:** Default installation locations:
+- Windows: `%LOCALAPPDATA%\VLC Discord RP`
+- macOS: `/Applications/VLC Discord RP.app`
+- Linux: `/opt/vlc-discord-rp` or `/usr/bin/vlc-discord-rp`
 
 ### Q: Does it work on Mac/Linux?
-**A:** Yes! Version 3.0 now includes proper Mac and Linux builds with native installers.
+**A:** Yes! Version 3.0 fully supports Windows, macOS, and Linux with native installers for each platform.
 
 ### Q: How much of my privacy am I giving up?
-**A:** Only the title, artist, album info, and cover art from your media files are shared - and only with your Discord friends. We don't collect any data. Also, you can pause the sharing via the tray icon menu.
+**A:** Only the title, artist, album info, and cover art from your media files are shared - and only with your Discord friends. We don't collect any data. Also, you can pause the sharing via the tray/menu bar icon.
 
 ### Q: I found a bug!
 **A:** That's not a question, but I respect your enthusiasm. Please open an issue on GitHub with details about what went wrong.
@@ -103,12 +113,12 @@ If you enjoy this app and want to support its development, consider buying me a 
 ## Development Notes
 
 This project has evolved from a sleepless-night hack to a robust application with:
+- Cross-platform compatibility
 - Proper error handling
-- System tray integration
+- System tray/menu bar integration
 - Web interface utilization
 - Cover art extraction and display
 - Automatic updates
-- Cross-platform support
 
 Pull requests are welcome if you want to help improve things further!
 
