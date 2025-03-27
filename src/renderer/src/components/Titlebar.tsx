@@ -8,7 +8,6 @@ export function Titlebar(): JSX.Element {
 	const [platform, setPlatform] = useState<string>("win32")
 
 	useEffect(() => {
-		// Get the initial window state
 		async function initWindowState() {
 			try {
 				const maximized = await window.api.app.isMaximized()
@@ -17,14 +16,12 @@ export function Titlebar(): JSX.Element {
 				const plat = await window.api.app.getPlatform()
 				setPlatform(plat)
 
-				// Set up listener for maximized state changes
 				const removeListener = window.api.app.onMaximizedChange(setIsMaximized)
 
-				// Return cleanup function
 				return removeListener
 			} catch (error) {
 				console.error("Failed to initialize window state", error)
-				return () => {} // Return a no-op cleanup function in case of error
+				return () => {}
 			}
 		}
 
@@ -47,7 +44,6 @@ export function Titlebar(): JSX.Element {
 		await window.api.app.close()
 	}
 
-	// Different ordering for macOS
 	const isMac = platform === "darwin"
 
 	return (
@@ -63,7 +59,6 @@ export function Titlebar(): JSX.Element {
 				<span className="text-sm font-medium">VLC Discord RP</span>
 			</div>
 
-			{/* Window Controls - macOS style is handled by the OS itself */}
 			{!isMac && (
 				<div className="flex no-drag">
 					<button

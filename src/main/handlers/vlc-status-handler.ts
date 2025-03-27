@@ -15,7 +15,6 @@ export class VlcStatusHandler {
 	 * Register IPC handlers for VLC status operations
 	 */
 	private registerIpcHandlers(): void {
-		// Get the current VLC status
 		ipcMain.handle(
 			`${IpcChannels.VLC}:${IpcEvents.VLC_STATUS_GET}`,
 			async (_, forceUpdate = false) => {
@@ -24,7 +23,6 @@ export class VlcStatusHandler {
 			},
 		)
 
-		// Check VLC connection status
 		ipcMain.handle(`${IpcChannels.VLC}:${IpcEvents.VLC_STATUS_CHECK}`, async () => {
 			logger.info("Checking VLC connection status") // Changed to debug
 			return await vlcStatusService.checkVlcStatus()

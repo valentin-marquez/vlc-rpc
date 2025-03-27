@@ -29,17 +29,14 @@ export function FirstRun(): JSX.Element {
 		setConnectionStatus("testing")
 
 		try {
-			// Try to load existing VLC config first
 			await loadVlcConfig()
 
-			// Now save the config (with HTTP interface enabled)
 			const updatedConfig = await saveVlcConfig({
 				...vlcConfig,
 				httpEnabled: true,
 			})
 
 			if (updatedConfig) {
-				// Update local state with the updated config from the backend
 				setVlcConfig(updatedConfig)
 				setConnectionStatus("success")
 				setCurrentStep("testing")
@@ -62,13 +59,11 @@ export function FirstRun(): JSX.Element {
 		setIsLoading(true)
 
 		try {
-			// Mark first run as complete
 			await saveFullConfig({
 				isFirstRun: false,
 				vlc: vlcConfig,
 			})
 
-			// Redirect to home page
 			window.location.hash = "/"
 		} catch (error) {
 			logger.error(`Error completing setup: ${error}`)

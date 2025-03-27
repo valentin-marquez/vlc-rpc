@@ -59,26 +59,22 @@ export function UpdateNotification(): JSX.Element | null {
 		return cleanup
 	}, [])
 
-	// Manually check for updates
 	const checkForUpdates = () => {
 		window.api.update.check(false).catch((err) => {
 			logger.error(`Error checking for updates:${err}`)
 		})
 	}
 
-	// Download the update
 	const downloadUpdate = () => {
 		window.api.update.download().catch((err) => {
 			logger.error(`Error downloading update: ${err}`)
 		})
 	}
 
-	// Close the notification
 	const closeNotification = () => {
 		setVisible(false)
 	}
 
-	// Format bytes to human readable format
 	const formatBytes = (bytes: number): string => {
 		if (bytes === 0) return "0 B"
 
@@ -88,7 +84,6 @@ export function UpdateNotification(): JSX.Element | null {
 		return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`
 	}
 
-	// Format date to human readable format
 	const formatDate = (dateString: string): string => {
 		const date = new Date(dateString)
 		return date.toLocaleDateString(undefined, {

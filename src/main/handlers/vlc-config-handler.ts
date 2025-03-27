@@ -17,7 +17,6 @@ export class VlcConfigHandler {
 	constructor() {
 		this.determineVlcConfigPath()
 		this.registerIpcHandlers()
-		// Synchronize VLC config at startup
 		this.synchronizeConfig()
 	}
 
@@ -69,7 +68,6 @@ export class VlcConfigHandler {
 		}
 
 		try {
-			// Check if VLC config file exists
 			try {
 				await fs.access(this.vlcConfigPath)
 			} catch (error) {
@@ -78,14 +76,9 @@ export class VlcConfigHandler {
 				return configService.get<VlcConfig>("vlc")
 			}
 
-			// Read VLC config file
 			const content = await fs.readFile(this.vlcConfigPath, "utf-8")
 			logger.info(`VLC config file content length: ${content.length} bytes`)
 
-			// Try different patterns to detect settings
-			// Here we'll use more patterns to detect HTTP settings, some VLC versions use different formats
-
-			// HTTP password pattern - try multiple formats
 			const httpPasswordPatterns = [
 				/\[lua\][\s\S]*?(?:#)?http-password\s*=\s*([^\r\n]+)/i,
 				/(?:#)?http-password\s*=\s*([^\r\n]+)/i,
@@ -104,7 +97,6 @@ export class VlcConfigHandler {
 				}
 			}
 
-			// HTTP port pattern - try multiple formats
 			const httpPortPatterns = [
 				/\[core\][\s\S]*?(?:#)?http-port\s*=\s*(\d+)/i,
 				/(?:#)?http-port\s*=\s*(\d+)/i,
@@ -123,10 +115,8 @@ export class VlcConfigHandler {
 				}
 			}
 
-			// HTTP interface enabled patterns - check for multiple indicators
 			let httpEnabled = false
 
-			// Check for extraintf
 			const extraIntfPattern = /(?:#)?extraintf\s*=\s*([^\r\n]+)/i
 			const extraIntfMatch = content.match(extraIntfPattern)
 			if (extraIntfMatch && !extraIntfMatch[0].trim().startsWith("#")) {
@@ -137,7 +127,6 @@ export class VlcConfigHandler {
 				}
 			}
 
-			// Check for main interface
 			const mainIntfPattern = /(?:#)?intf\s*=\s*([^\r\n]+)/i
 			const mainIntfMatch = content.match(mainIntfPattern)
 			if (mainIntfMatch && !mainIntfMatch[0].trim().startsWith("#")) {
@@ -148,30 +137,23 @@ export class VlcConfigHandler {
 				}
 			}
 
-			// Check for http interface specific settings
 			if (content.includes("[http]") && !content.includes("[#http]")) {
 				httpEnabled = true
 				logger.info("HTTP section present and not commented")
 			}
 
-			// If we found a port but no indication that HTTP is enabled,
-			// let's assume it's enabled - VLC can be inconsistent in how it stores this setting
 			if (!httpEnabled && (httpPort !== 8080 || httpPassword)) {
 				httpEnabled = true
 				logger.info("Assuming HTTP is enabled based on port/password settings")
 			}
 
-			// Create and return final VLC config object
 			const vlcConfig: VlcConfig = {
 				httpPort,
 				httpPassword: httpPassword || configService.get<VlcConfig>("vlc").httpPassword,
 				httpEnabled,
 			}
 
-			// Update config service with current values
 			configService.set("vlc", vlcConfig)
-
-			// Force update connection info in the VLC status service
 			vlcStatusService.updateConnectionInfo()
 
 			logger.info("VLC configuration retrieved", {
@@ -197,10 +179,8 @@ export class VlcConfigHandler {
 		}
 
 		try {
-			// Create directory if it doesn't exist
 			await fs.mkdir(path.dirname(this.vlcConfigPath), { recursive: true })
 
-			// Generate random password if httpEnabled and no password
 			if (config.httpEnabled && !config.httpPassword) {
 				config.httpPassword = this.generateRandomPassword(12)
 				logger.info("Generated random HTTP password for VLC")
@@ -209,12 +189,10 @@ export class VlcConfigHandler {
 			let configContent: string[] = []
 			let configModified = false
 
-			// Check if config file exists
 			try {
 				const content = await fs.readFile(this.vlcConfigPath, "utf-8")
 				configContent = content.split("\n")
 
-				// Track sections for proper positioning of settings
 				let luaSectionIndex = -1
 				let coreSectionIndex = -1
 				let portLineIndex = -1
@@ -224,7 +202,6 @@ export class VlcConfigHandler {
 				let extraIntfLineIndex = -1
 				let commentedExtraIntfLineIndex = -1
 
-				// Find sections and existing config lines
 				configContent.forEach((line, index) => {
 					if (line.trim() === "[lua]") {
 						luaSectionIndex = index
@@ -245,7 +222,6 @@ export class VlcConfigHandler {
 					}
 				})
 
-				// Create sections if they don't exist
 				if (luaSectionIndex === -1) {
 					configContent.push("[lua]")
 					luaSectionIndex = configContent.length - 1
@@ -258,35 +234,27 @@ export class VlcConfigHandler {
 					configModified = true
 				}
 
-				// Update port in [core] section
 				if (portLineIndex >= 0) {
-					// Port line exists uncommented, just update it
 					configContent[portLineIndex] = `http-port=${config.httpPort}`
 					configModified = true
 				} else if (commentedPortLineIndex >= 0) {
-					// Port line exists but is commented out, uncomment and update it
 					configContent[commentedPortLineIndex] = `http-port=${config.httpPort}`
 					configModified = true
 				} else {
-					// Add after [core] section
 					if (coreSectionIndex >= 0) {
 						configContent.splice(coreSectionIndex + 1, 0, `http-port=${config.httpPort}`)
 						configModified = true
 					}
 				}
 
-				// Update password in [lua] section
 				if (config.httpPassword) {
 					if (passwordLineIndex >= 0) {
-						// Password line exists uncommented, just update it
 						configContent[passwordLineIndex] = `http-password=${config.httpPassword}`
 						configModified = true
 					} else if (commentedPasswordLineIndex >= 0) {
-						// Password line exists but is commented out, uncomment and update it
 						configContent[commentedPasswordLineIndex] = `http-password=${config.httpPassword}`
 						configModified = true
 					} else {
-						// Add after [lua] section
 						if (luaSectionIndex >= 0) {
 							configContent.splice(luaSectionIndex + 1, 0, `http-password=${config.httpPassword}`)
 							configModified = true
@@ -294,29 +262,23 @@ export class VlcConfigHandler {
 					}
 				}
 
-				// Update extraintf in [core] section if HTTP is enabled
 				if (config.httpEnabled) {
 					if (extraIntfLineIndex >= 0) {
-						// extraintf line exists uncommented
 						const extraIntf = configContent[extraIntfLineIndex]
 						if (!extraIntf.includes("http")) {
-							// Add http to existing extraintf value
 							const parts = extraIntf.split("=")
 							configContent[extraIntfLineIndex] =
 								`${parts[0]}=${parts[1] ? `${parts[1]},` : ""}http`
 							configModified = true
 						}
 					} else if (commentedExtraIntfLineIndex >= 0) {
-						// extraintf line exists but is commented out, uncomment and add http
 						const commentedExtraIntf = configContent[commentedExtraIntfLineIndex]
 						const extraIntfValue = commentedExtraIntf.replace(/^#extraintf=/, "")
 						configContent[commentedExtraIntfLineIndex] =
 							`extraintf=${extraIntfValue ? `${extraIntfValue},` : ""}http`
 						configModified = true
 					} else {
-						// Add after [core] section or http-port line
 						if (coreSectionIndex >= 0) {
-							// Add after port setting or right after [core]
 							const portIndex =
 								portLineIndex >= 0
 									? portLineIndex
@@ -333,7 +295,6 @@ export class VlcConfigHandler {
 						}
 					}
 				} else {
-					// If HTTP is disabled but extraintf is set with http, remove http (but leave other interfaces)
 					if (extraIntfLineIndex >= 0) {
 						const extraIntf = configContent[extraIntfLineIndex]
 						if (extraIntf.includes("http")) {
@@ -342,7 +303,6 @@ export class VlcConfigHandler {
 							if (interfaces.length > 0) {
 								configContent[extraIntfLineIndex] = `${parts[0]}=${interfaces.join(",")}`
 							} else {
-								// If no other interfaces, comment out the line
 								configContent[extraIntfLineIndex] = `#${extraIntf}`
 							}
 							configModified = true
@@ -350,7 +310,6 @@ export class VlcConfigHandler {
 					}
 				}
 			} catch (error) {
-				// Create new config if file doesn't exist
 				configContent = [
 					"# VLC Configuration File",
 					"# Configured by VLC Discord Rich Presence",
@@ -371,12 +330,10 @@ export class VlcConfigHandler {
 				configModified = true
 			}
 
-			// Write config if modified
 			if (configModified) {
 				await fs.writeFile(this.vlcConfigPath, configContent.join("\n"), "utf-8")
 			}
 
-			// Update config service
 			configService.set("vlc", config)
 
 			logger.info("VLC configuration updated successfully", config)
@@ -410,13 +367,9 @@ export class VlcConfigHandler {
 		try {
 			logger.info("Synchronizing VLC configuration at startup")
 
-			// Get VLC config from file
 			const fileConfig = await this.getVlcConfig()
-
-			// Get current app config
 			const appConfig = configService.get<VlcConfig>("vlc")
 
-			// Check if configs are different
 			const isDifferent =
 				fileConfig.httpPort !== appConfig.httpPort ||
 				fileConfig.httpPassword !== appConfig.httpPassword ||
@@ -425,10 +378,7 @@ export class VlcConfigHandler {
 			if (isDifferent) {
 				logger.info("VLC configuration has changed, updating app configuration")
 
-				// Update app config with values from file
 				configService.set("vlc", fileConfig)
-
-				// Update VLC status service connection info
 				vlcStatusService.updateConnectionInfo()
 
 				logger.info("VLC configuration synchronized successfully", {

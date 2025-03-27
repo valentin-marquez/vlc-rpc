@@ -2,16 +2,9 @@ import type { AppStatus, ConnectionStatus } from "@shared/types"
 import type { MediaInfo, MediaStatus } from "@shared/types/media"
 import { atom } from "nanostores"
 
-// Store for app status
 export const appStatusStore = atom<AppStatus>("idle")
-
-// Store for Discord connection status
 export const discordStatusStore = atom<ConnectionStatus>("disconnected")
-
-// Store for media playback status
 export const mediaStatusStore = atom<MediaStatus>("stopped")
-
-// Store for current media info
 export const mediaInfoStore = atom<MediaInfo>({
 	title: null,
 	artist: null,
@@ -20,11 +13,11 @@ export const mediaInfoStore = atom<MediaInfo>({
 	position: null,
 	artwork: null,
 })
-
-// Store for app error messages
 export const errorStore = atom<string | null>(null)
 
-// Update Discord connection status
+/**
+ * Update Discord connection status
+ */
 export async function updateDiscordStatus(): Promise<void> {
 	try {
 		const isConnected = await window.api.discord.getStatus()
@@ -34,15 +27,14 @@ export async function updateDiscordStatus(): Promise<void> {
 	}
 }
 
-// Initialize app status
+/**
+ * Initialize app status
+ */
 export async function initializeAppStatus(): Promise<void> {
 	appStatusStore.set("loading")
 
 	try {
-		// Check Discord connection status
 		await updateDiscordStatus()
-
-		// Set app as ready
 		appStatusStore.set("ready")
 	} catch (error) {
 		appStatusStore.set("error")

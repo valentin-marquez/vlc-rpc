@@ -19,10 +19,7 @@ class ConfigService {
 
 		logger.info("Configuration loaded", { path: this.conf.fileName })
 
-		// Register IPC handlers for renderer
 		this.registerIpcHandlers()
-
-		// Register renderer listener
 		this.conf.registerRendererListener()
 	}
 

@@ -12,12 +12,10 @@ export class AutoUpdaterService {
 	private mainWindow: BrowserWindow | null = null
 
 	private constructor() {
-		// Configure autoUpdater
 		autoUpdater.logger = logger
 		autoUpdater.autoDownload = false
 		autoUpdater.autoInstallOnAppQuit = true
 
-		// Register event handlers
 		this.registerAutoUpdateEvents()
 
 		logger.info("Auto updater service initialized")

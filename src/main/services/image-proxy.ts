@@ -32,7 +32,6 @@ export class ImageProxyService {
 			return null
 		}
 
-		// Check cache first
 		const cached = this.cache.get(source)
 		if (cached && Date.now() / 1000 - cached.timestamp < this.cacheTtl) {
 			logger.info(`Using cached image data for: ${this.sanitizeUrl(source)}`)
@@ -43,15 +42,12 @@ export class ImageProxyService {
 			let buffer: Buffer
 			let contentType: string
 
-			// Handle local file paths
 			if (source.startsWith("file://")) {
 				const filePath = source.replace("file://", "")
 				logger.info(`Loading local file: ${this.sanitizeUrl(filePath)}`)
 				buffer = await fs.readFile(filePath)
 				contentType = this.getContentTypeFromFileName(filePath)
-			}
-			// Handle HTTP/HTTPS URLs
-			else if (source.startsWith("http://") || source.startsWith("https://")) {
+			} else if (source.startsWith("http://") || source.startsWith("https://")) {
 				logger.info(`Fetching remote image: ${this.sanitizeUrl(source)}`)
 				const response = await fetch(source, {
 					headers: {
@@ -66,17 +62,13 @@ export class ImageProxyService {
 				buffer = Buffer.from(await response.arrayBuffer())
 				contentType =
 					response.headers.get("content-type") || this.getContentTypeFromFileName(source)
-			}
-			// Invalid source
-			else {
+			} else {
 				logger.warn(`Unsupported image source format: ${this.sanitizeUrl(source)}`)
 				return null
 			}
 
-			// Convert to data URL
 			const dataUrl = `data:${contentType};base64,${buffer.toString("base64")}`
 
-			// Cache the result
 			this.cache.set(source, {
 				dataUrl,
 				timestamp: Math.floor(Date.now() / 1000),
@@ -118,7 +110,7 @@ export class ImageProxyService {
 			case "bmp":
 				return "image/bmp"
 			default:
-				return "image/jpeg" // Default to JPEG as fallback
+				return "image/jpeg"
 		}
 	}
 
@@ -126,13 +118,11 @@ export class ImageProxyService {
 	 * Sanitize URL for logging (remove sensitive parts)
 	 */
 	private sanitizeUrl(url: string): string {
-		// For local files, only show the last part of the path
 		if (url.startsWith("file://") || (!url.startsWith("http://") && !url.startsWith("https://"))) {
 			const parts = url.split(/[/\\]/)
 			return `.../${parts.slice(-2).join("/")}`
 		}
 
-		// For HTTP URLs, show everything
 		return url
 	}
 }

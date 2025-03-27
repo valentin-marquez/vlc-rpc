@@ -4,7 +4,6 @@ import { logger } from "@main/services/logger"
 import type { VlcConfig } from "@shared/types"
 import type { VlcConnectionStatus, VlcRawStatus, VlcStatus } from "@shared/types/vlc"
 
-// Define types for VLC metadata objects
 interface VlcMetadata {
 	title?: string
 	filename?: string
@@ -52,7 +51,6 @@ export class VlcStatusService {
 		this.baseUrl = `http://localhost:${vlcConfig.httpPort}/requests/`
 		this.authHeader = this.createAuthHeader(vlcConfig.httpPassword)
 		logger.info(`VLC status service configured for ${this.baseUrl}`)
-		// Log auth header (but mask password value)
 		logger.info(`Auth headers created: ${Object.keys(this.authHeader).length > 0 ? "Yes" : "No"}`)
 	}
 
@@ -61,21 +59,16 @@ export class VlcStatusService {
 	 */
 	private createAuthHeader(password: string): Record<string, string> {
 		// VLC requires empty username and password in a specific format
-		// To ensure we're building the auth string correctly, we'll be more explicit
-
-		// Even if password is empty, VLC still requires Basic auth with empty password
-		const username = "" // VLC uses empty username
+		const username = "" 
 		const authString = `${username}:${password || ""}`
 		const base64Auth = Buffer.from(authString).toString("base64")
 
-		// Log the auth string creation (without exposing the password)
 		logger.info(
 			`Creating auth header with username: '' and password length: ${password ? password.length : 0}`,
 		)
 
 		return {
 			Authorization: `Basic ${base64Auth}`,
-			// Add standard headers to help with request
 			Accept: "application/json",
 		}
 	}
@@ -98,11 +91,9 @@ export class VlcStatusService {
 			const statusUrl = new URL("status.json", this.baseUrl).toString()
 			logger.info(`Fetching VLC status from: ${statusUrl}`)
 
-			// Using native fetch (available in Node.js since 18.x)
 			const controller = new AbortController()
-			const timeoutId = setTimeout(() => controller.abort(), 2000) // 2 second timeout
+			const timeoutId = setTimeout(() => controller.abort(), 2000)
 
-			// Log complete request details for debugging
 			logger.info(
 				`Making request with headers: ${JSON.stringify({
 					...this.authHeader,
@@ -123,12 +114,9 @@ export class VlcStatusService {
 				if (response.status === 404) {
 					logger.info("VLC is not running or HTTP interface is misconfigured")
 				} else if (response.status === 401) {
-					// Show more debug information about the auth failure
 					logger.error(
 						`Authentication failed. Check your HTTP password. Auth header: ${this.authHeader.Authorization ? "Present" : "Missing"}`,
 					)
-
-					// Try again with a different auth approach if the current one fails
 					return await this.retryWithAlternativeAuth(statusUrl)
 				} else {
 					logger.error(`Failed to get VLC status: HTTP ${response.status}`)
@@ -141,7 +129,6 @@ export class VlcStatusService {
 
 			const contentHash = createHash("md5").update(content).digest("hex")
 
-			// Use cached status if hash hasn't changed and we're not forcing an update
 			if (contentHash === this.lastStatusHash && !forceUpdate && this.lastStatus) {
 				return this.lastStatus
 			}
@@ -177,7 +164,6 @@ export class VlcStatusService {
 			logger.info("Trying alternative authentication method...")
 			const vlcConfig = configService.get<VlcConfig>("vlc")
 
-			// Try with URL-based authentication which sometimes works better
 			const urlWithAuth = new URL(statusUrl)
 			urlWithAuth.username = ""
 			urlWithAuth.password = vlcConfig.httpPassword || ""
@@ -205,7 +191,6 @@ export class VlcStatusService {
 				this.lastStatus = status
 				this.lastStatusHash = createHash("md5").update(content).digest("hex")
 
-				// Update our auth approach for future requests
 				this.updateAuthStrategy(vlcConfig.httpPassword)
 
 				return status
@@ -222,8 +207,6 @@ export class VlcStatusService {
 	 * Update authentication strategy based on what works
 	 */
 	private updateAuthStrategy(password: string): void {
-		// Modify auth header creation based on successful strategy
-		// This would be populated with whatever auth approach worked
 		const username = ""
 		const authString = `${username}:${password || ""}`
 		const base64Auth = Buffer.from(authString).toString("base64")
@@ -261,7 +244,6 @@ export class VlcStatusService {
 		const information = vlcStatus.information || {}
 		const category = information.category || {}
 
-		// Determine if video or audio
 		const isVideo = Object.entries(category).some(([key, stream]) => {
 			if (key !== "meta" && stream) {
 				const typedStream = stream as VlcStream
@@ -272,7 +254,6 @@ export class VlcStatusService {
 
 		status.mediaType = isVideo ? "video" : "audio"
 
-		// Extract metadata
 		const meta = (category.meta as VlcMetadata) || {}
 		if (meta) {
 			status.media.title = meta.title || meta.filename || "Unknown"
@@ -284,7 +265,6 @@ export class VlcStatusService {
 			}
 		}
 
-		// Extract video resolution if available
 		for (const [streamName, stream] of Object.entries(category)) {
 			if (streamName !== "meta" && stream) {
 				const typedStream = stream as VlcStream
@@ -358,7 +338,6 @@ export class VlcStatusService {
 							message: "VLC is not running or HTTP interface is not enabled",
 						}
 					}
-					// Add return for non-connection errors to prevent fall-through
 					return { isRunning: false, message: `Error checking VLC status: ${err.message}` }
 				default:
 					return { isRunning: false, message: `Error checking VLC status: ${err.message}` }

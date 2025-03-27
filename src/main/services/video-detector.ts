@@ -66,7 +66,6 @@ export class VideoDetectorService {
 			clean_title: cleanTitle,
 		}
 
-		// TV Show patterns
 		const tvPatterns = [
 			/(.*?)[\.\s_-]*S(\d{1,2})[\.\s_-]*E(\d{1,2})/i,
 			/(.*?)[\.\s_-]*(\d{1,2})x(\d{1,2})/i,
@@ -84,7 +83,6 @@ export class VideoDetectorService {
 			}
 		}
 
-		// Movie pattern
 		const moviePattern = /(.+?)[\.\s\[\(_-]+(19\d{2}|20\d{2})[\]\)\._\s-]/
 		const movieMatch = cleanTitle.match(moviePattern)
 		if (movieMatch) {
@@ -94,7 +92,6 @@ export class VideoDetectorService {
 			return ["movie", metadata]
 		}
 
-		// Anime pattern
 		if (
 			(cleanTitle.includes("[") && cleanTitle.includes("]")) ||
 			/\.(sub|dub)\./i.test(cleanTitle)
@@ -113,7 +110,6 @@ export class VideoDetectorService {
 			return ["anime", metadata]
 		}
 
-		// Generic video
 		const genericName = cleanTitle.replace(/\[.*?\]|\(.*?\)|\.mkv|\.mp4|\.avi|[._-]/g, " ").trim()
 		metadata.title = genericName
 		return ["video", metadata]
@@ -178,26 +174,23 @@ export class VideoDetectorService {
 			const html = await response.text()
 			const $ = cheerio.load(html)
 
-			// Try to find image URLs in the page
 			let imageUrl: string | null = null
 
-			// First check <img> tags
 			$("img").each((_, img) => {
 				const src = $(img).attr("src")
 				if (src?.startsWith("http") && !src.endsWith(".gif")) {
 					if (src.includes("gstatic.com")) {
 						imageUrl = src
-						return false // break the loop
+						return false
 					}
 				}
-				return true // continue the loop
+				return true
 			})
 
 			if (imageUrl) {
 				return imageUrl
 			}
 
-			// Then try to extract from scripts
 			const imgRegex = /https?:\/\/\S+?\.(?:jpg|jpeg|png)/g
 			$("script").each((_, script) => {
 				const content = $(script).html()
@@ -207,12 +200,12 @@ export class VideoDetectorService {
 						for (const url of matches) {
 							if (!/icon|emoji|favicon/i.test(url)) {
 								imageUrl = url
-								return false // break the loop
+								return false
 							}
 						}
 					}
 				}
-				return true // continue the loop
+				return true
 			})
 
 			return imageUrl

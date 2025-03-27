@@ -13,7 +13,6 @@ import { logger } from "@main/services/logger"
 export class MainHandlers {
 	private static instance: MainHandlers | null = null
 
-	// Handlers
 	public vlcConfigHandler: VlcConfigHandler
 	public vlcStatusHandler: VlcStatusHandler
 	public discordRpcHandler: DiscordRpcHandler
@@ -23,7 +22,6 @@ export class MainHandlers {
 	private constructor() {
 		logger.info("Initializing main process handlers")
 
-		// Initialize handlers
 		this.vlcConfigHandler = new VlcConfigHandler()
 		this.vlcStatusHandler = new VlcStatusHandler()
 		this.discordRpcHandler = new DiscordRpcHandler()
@@ -44,5 +42,4 @@ export class MainHandlers {
 	}
 }
 
-// Export singleton instance
 export const mainHandlers = MainHandlers.getInstance()

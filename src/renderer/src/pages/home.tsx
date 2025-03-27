@@ -24,32 +24,22 @@ export function Home(): JSX.Element {
 	const vlcError = useStore(vlcErrorStore)
 	const [proxiedArtworkUrl, setProxiedArtworkUrl] = useState<string | null>(null)
 
-	// Run a status check when the component mounts
 	useEffect(() => {
 		const checkStatus = async () => {
-			// Check VLC connection status
 			await checkVlcConnection()
-
-			// Check Discord connection status
 			await checkDiscordStatus()
 
-			// Get current media status if connected
 			if (vlcStatusStore.get() === "connected") {
 				await refreshVlcStatus()
-				// Also refresh enhanced media info
 				await refreshEnhancedMediaInfo()
 			}
 		}
 
 		checkStatus()
-
-		// Refresh status every 5 seconds while on this page
 		const intervalId = setInterval(checkStatus, 5000)
-
 		return () => clearInterval(intervalId)
 	}, [])
 
-	// Handle artwork URL proxy when it changes
 	useEffect(() => {
 		const updateProxiedArtwork = async () => {
 			const artworkUrl = enhancedMedia.contentImageUrl || mediaInfo.artwork
@@ -64,10 +54,7 @@ export function Home(): JSX.Element {
 		updateProxiedArtwork()
 	}, [enhancedMedia.contentImageUrl, mediaInfo.artwork])
 
-	// Get the appropriate title to display
 	const displayTitle = enhancedMedia.enhancedTitle || mediaInfo.title
-
-	// Get additional metadata to display
 	const isEpisode = enhancedMedia.season !== null && enhancedMedia.episode !== null
 	const isMovie = enhancedMedia.contentType === "movie" && enhancedMedia.year !== null
 

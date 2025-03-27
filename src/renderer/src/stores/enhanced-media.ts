@@ -3,7 +3,6 @@ import type { ContentType } from "@shared/types/media"
 import { atom } from "nanostores"
 import { vlcStatusStore } from "./vlc"
 
-// Enhanced media information store
 export const enhancedMediaStore = atom<{
 	contentType: ContentType | null
 	contentImageUrl: string | null
@@ -25,7 +24,6 @@ export const enhancedMediaStore = atom<{
 // Fetch enhanced media information from the main process
 export async function refreshEnhancedMediaInfo(): Promise<void> {
 	try {
-		// Only fetch if VLC is connected
 		if (vlcStatusStore.get() !== "connected") {
 			return
 		}
@@ -33,7 +31,6 @@ export async function refreshEnhancedMediaInfo(): Promise<void> {
 		const enhancedInfo = await window.api.media.getEnhancedInfo()
 
 		if (!enhancedInfo || !enhancedInfo.active) {
-			// Clear enhanced media info if nothing is playing
 			enhancedMediaStore.set({
 				contentType: null,
 				contentImageUrl: null,
@@ -46,7 +43,6 @@ export async function refreshEnhancedMediaInfo(): Promise<void> {
 			return
 		}
 
-		// Update enhanced media store with the new information
 		enhancedMediaStore.set({
 			contentType: enhancedInfo.content_type || null,
 			contentImageUrl: enhancedInfo.content_image_url || null,

@@ -7,9 +7,7 @@ import { logger } from "./logger"
 export class StartupService {
 	private static instance: StartupService | null = null
 
-	private constructor() {
-		// Initialize
-	}
+	private constructor() {}
 
 	/**
 	 * Get the singleton instance of the startup service

@@ -14,9 +14,6 @@ import { videoDetectorService } from "./video-detector"
  * Base class for media states
  */
 abstract class MediaState {
-	/**
-	 * Format text to fit Discord's character limits
-	 */
 	protected formatText(text: string, maxLength = 128): string {
 		if (!text) return ""
 		if (text.length > maxLength) {
@@ -25,15 +22,9 @@ abstract class MediaState {
 		return text
 	}
 
-	/**
-	 * Update Discord presence based on media info
-	 */
 	public abstract updatePresence(mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null>
 }
 
-/**
- * State when media is stopped
- */
 class StoppedState extends MediaState {
 	public async updatePresence(_mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
 		logger.info("Cleared presence (VLC stopped)")
@@ -41,9 +32,6 @@ class StoppedState extends MediaState {
 	}
 }
 
-/**
- * State when no status is available
- */
 class NoStatusState extends MediaState {
 	public async updatePresence(_mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
 		logger.info("Cleared presence (no status data)")
@@ -51,9 +39,6 @@ class NoStatusState extends MediaState {
 	}
 }
 
-/**
- * State when media is playing
- */
 class PlayingState extends MediaState {
 	public async updatePresence(mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
 		if (!mediaInfo) {
@@ -63,7 +48,6 @@ class PlayingState extends MediaState {
 		const config = configService.get<AppConfig>()
 		const currentTime = Math.floor(Date.now() / 1000)
 
-		// Enhance media info with content type detection for videos
 		const enhancedInfo =
 			mediaInfo.mediaType === "video"
 				? await videoDetectorService.analyze(mediaInfo)
@@ -167,7 +151,6 @@ class PlayingState extends MediaState {
 			smallText += ` • ${resolution}`
 		}
 
-		// Try to fetch cover art for audio if no content image
 		if (!contentImageUrl && mediaType === "audio" && media) {
 			const coverArtUrl = await coverArtService.fetch(mediaInfo)
 			if (coverArtUrl) {
@@ -194,9 +177,6 @@ class PlayingState extends MediaState {
 	}
 }
 
-/**
- * State when media is paused
- */
 class PausedState extends MediaState {
 	public async updatePresence(mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
 		if (!mediaInfo) {
@@ -205,7 +185,6 @@ class PausedState extends MediaState {
 
 		const config = configService.get<AppConfig>()
 
-		// Enhance media info with content type detection for videos
 		const enhancedInfo =
 			mediaInfo.mediaType === "video"
 				? await videoDetectorService.analyze(mediaInfo)
@@ -284,7 +263,6 @@ class PausedState extends MediaState {
 			smallText += ` • ${resolution}`
 		}
 
-		// Try to fetch cover art for audio if no content image
 		if (!contentImageUrl && mediaType === "audio" && media) {
 			const coverArtUrl = await coverArtService.fetch(mediaInfo)
 			if (coverArtUrl) {
@@ -327,9 +305,6 @@ export class MediaStateService {
 		logger.info("Media state service initialized")
 	}
 
-	/**
-	 * Get the singleton instance of the media state service
-	 */
 	public static getInstance(): MediaStateService {
 		if (!MediaStateService.instance) {
 			MediaStateService.instance = new MediaStateService()
@@ -337,9 +312,6 @@ export class MediaStateService {
 		return MediaStateService.instance
 	}
 
-	/**
-	 * Get a Discord presence update based on VLC status
-	 */
 	public async getDiscordPresence(
 		vlcStatus: VlcStatus | null,
 	): Promise<DiscordPresenceData | null> {

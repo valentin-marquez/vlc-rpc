@@ -28,18 +28,10 @@ function App(): JSX.Element {
 	useEffect(() => {
 		async function init() {
 			try {
-				// Load app configuration first
 				await loadConfig()
-
-				// Initialize VLC store
 				await initializeVlcStore()
-
-				// Initialize Discord store
 				await initializeDiscordStore()
-
-				// Initialize general app status
 				await initializeAppStatus()
-
 				console.log("App initialized")
 			} catch (error) {
 				console.error("Failed to initialize app", error)
@@ -69,7 +61,6 @@ function App(): JSX.Element {
 	}, [])
 
 	useEffect(() => {
-		// Check every 2 minutes if Discord is disconnected
 		const interval = setInterval(() => {
 			if (discordStatus !== "connected") {
 				checkDiscordStatus().then((isConnected) => {
@@ -81,7 +72,6 @@ function App(): JSX.Element {
 			}
 		}, 120000) // 2 minutes
 
-		// Check when the window regains visibility
 		const handleVisibilityChange = () => {
 			if (document.visibilityState === "visible" && discordStatus !== "connected") {
 				logger.info("Document became visible, checking Discord connection")
@@ -112,7 +102,6 @@ function App(): JSX.Element {
 		)
 	}
 
-	// Show first run wizard if this is the first run
 	if (firstRun) {
 		return <FirstRun />
 	}
@@ -120,10 +109,8 @@ function App(): JSX.Element {
 	return (
 		<Router hook={useHashLocation}>
 			<div className="min-h-screen flex flex-col bg-background text-foreground antialiased overflow-hidden">
-				{/* Custom titlebar */}
 				<Titlebar />
 
-				{/* Navigation header */}
 				<header className="flex-shrink-0 h-14 px-4 border-b border-border flex items-center justify-center bg-card/50 text-card-foreground z-10">
 					<nav className="flex space-x-2">
 						<NavLink to="/" active={location === "/"}>
@@ -158,7 +145,6 @@ function App(): JSX.Element {
 				</footer>
 			</div>
 
-			{/* Add the update notification component */}
 			<UpdateNotification />
 		</Router>
 	)

@@ -15,7 +15,6 @@ export class WindowService {
 	private mainWindow: BrowserWindow | null = null
 
 	private constructor() {
-		// Register window control IPC listeners
 		this.registerIpcHandlers()
 	}
 
@@ -57,7 +56,6 @@ export class WindowService {
 			return process.platform
 		})
 
-		// Listen for maximize/unmaximize events to update the UI
 		ipcMain.on("window:maximized-change-subscribe", () => {
 			if (this.mainWindow) {
 				const sendMaximizeState = () => {
@@ -81,9 +79,7 @@ export class WindowService {
 			return this.mainWindow
 		}
 
-		// Wait for tray to be ready before creating window
 		try {
-			// Make sure tray is initialized before hiding window
 			await trayService.whenReady()
 			logger.info("Tray is ready, proceeding with window creation")
 		} catch (error) {
@@ -103,7 +99,6 @@ export class WindowService {
 			})
 		})
 
-		// Set vibrancy effect for macOS
 		const vibrancy = process.platform === "darwin" ? "under-window" : undefined
 		const backgroundColor =
 			process.platform === "darwin"
@@ -134,7 +129,6 @@ export class WindowService {
 			},
 		})
 
-		// Listen for maximize/unmaximize events
 		this.mainWindow.on("maximize", () => {
 			this.mainWindow?.webContents.send("window:maximized-change", true)
 		})
@@ -144,12 +138,9 @@ export class WindowService {
 		})
 
 		this.mainWindow.on("ready-to-show", async () => {
-			// Check if we should start minimized to tray
 			const isFirstRun = configService.get<boolean>("isFirstRun")
 			const minimizeToTray = configService.get<boolean>("minimizeToTray")
 			const startWithSystem = configService.get<boolean>("startWithSystem")
-
-			// Determine if this is a system startup launch
 			const launchedAtStartup = this.wasLaunchedAtStartup()
 
 			// Only start minimized if:
@@ -184,7 +175,6 @@ export class WindowService {
 			}
 		})
 
-		// Handle close to tray behavior
 		this.mainWindow.on("close", (event) => {
 			if (!app.isQuitting) {
 				const minimizeToTray = configService.get<boolean>("minimizeToTray")
@@ -216,7 +206,6 @@ export class WindowService {
 			}
 		})
 
-		// Load the app
 		if (is.dev && process.env.ELECTRON_RENDERER_URL) {
 			this.mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
 		} else {
@@ -232,8 +221,6 @@ export class WindowService {
 	 */
 	private wasLaunchedAtStartup(): boolean {
 		// Different ways to detect if app was launched on startup
-
-		// Check if app has the launch info from main.ts
 		if (
 			Object.prototype.hasOwnProperty.call(app, "wasLaunchedAtStartup") &&
 			app.wasLaunchedAtStartup
@@ -241,7 +228,6 @@ export class WindowService {
 			return true
 		}
 
-		// Check command line arguments
 		const launchArgs = process.argv.slice(1).join(" ").toLowerCase()
 		if (
 			launchArgs.includes("--autostart") ||

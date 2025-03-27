@@ -2,19 +2,12 @@ import { logger } from "@renderer/lib/utils"
 import { discordStatusStore } from "@renderer/stores/app-status"
 import { atom } from "nanostores"
 
-// Store for Discord errors
 export const discordErrorStore = atom<string | null>(null)
-
-// Store for update loop status
 export const discordUpdateLoopStore = atom<boolean>(false)
-
-// Store to track last reconnection attempt time
 export const lastReconnectAttemptStore = atom<number>(0)
 
-// Minimum time between reconnection attempts in milliseconds (30 seconds)
 const RECONNECT_COOLDOWN = 30000
 
-// Get Discord connection status
 export async function checkDiscordStatus(): Promise<boolean> {
 	try {
 		const isConnected = await window.api.discord.getStatus()
@@ -25,7 +18,6 @@ export async function checkDiscordStatus(): Promise<boolean> {
 		if (isConnected) {
 			discordErrorStore.set(null)
 		} else if (wasConnected) {
-			// Was previously connected but now disconnected
 			logger.info("Discord disconnected - will try to reconnect")
 			tryReconnect()
 		}
@@ -47,7 +39,6 @@ export async function tryReconnect(): Promise<void> {
 	const now = Date.now()
 	const lastAttempt = lastReconnectAttemptStore.get()
 
-	// Don't attempt reconnect too frequently
 	if (now - lastAttempt < RECONNECT_COOLDOWN) {
 		logger.info("Reconnect attempt too soon, skipping")
 		return
@@ -63,7 +54,6 @@ export async function tryReconnect(): Promise<void> {
 			discordErrorStore.set(null)
 			logger.info("Successfully reconnected to Discord")
 
-			// Restart update loop
 			await startDiscordUpdateLoop()
 		} else {
 			logger.warn("Failed to reconnect to Discord")
@@ -73,7 +63,6 @@ export async function tryReconnect(): Promise<void> {
 	}
 }
 
-// Connect to Discord
 export async function connectToDiscord(): Promise<boolean> {
 	try {
 		discordStatusStore.set("connecting")
@@ -98,7 +87,6 @@ export async function connectToDiscord(): Promise<boolean> {
 	}
 }
 
-// Disconnect from Discord
 export async function disconnectFromDiscord(): Promise<boolean> {
 	try {
 		const success = await window.api.discord.disconnect()
@@ -115,7 +103,6 @@ export async function disconnectFromDiscord(): Promise<boolean> {
 	}
 }
 
-// Start Discord presence update loop
 export async function startDiscordUpdateLoop(): Promise<boolean> {
 	try {
 		const success = await window.api.discord.startUpdateLoop()
@@ -132,7 +119,6 @@ export async function startDiscordUpdateLoop(): Promise<boolean> {
 	}
 }
 
-// Stop Discord presence update loop
 export async function stopDiscordUpdateLoop(): Promise<boolean> {
 	try {
 		const success = await window.api.discord.stopUpdateLoop()
@@ -149,7 +135,6 @@ export async function stopDiscordUpdateLoop(): Promise<boolean> {
 	}
 }
 
-// Manually update Discord presence
 export async function updateDiscordPresence(): Promise<boolean> {
 	try {
 		const success = await window.api.discord.updatePresence()
@@ -167,21 +152,16 @@ export async function updateDiscordPresence(): Promise<boolean> {
 	}
 }
 
-// Initialize Discord store
 export async function initializeDiscordStore(): Promise<void> {
-	// Check current connection status
 	const isConnected = await checkDiscordStatus()
 
-	// If connected, check if update loop is active
 	if (isConnected) {
 		try {
-			// Start update loop if not already running
 			await startDiscordUpdateLoop()
 		} catch (error) {
 			logger.error(`Error initializing Discord update loop: ${error}`)
 		}
 	} else {
-		// Try to connect if not connected
 		logger.info("Discord not connected on app start, attempting connection")
 		await connectToDiscord()
 	}

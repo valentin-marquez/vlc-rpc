@@ -15,14 +15,12 @@ export class UpdateHandler {
 	 * Register IPC handlers for update operations
 	 */
 	private registerIpcHandlers(): void {
-		// Check for updates
 		ipcMain.handle(`${IpcChannels.UPDATE}:check`, async (_, silent = true) => {
 			logger.info(`Requested update check (silent: ${silent})`)
 			autoUpdaterService.checkForUpdates(silent)
 			return true
 		})
 
-		// Download update
 		ipcMain.handle(`${IpcChannels.UPDATE}:download`, async () => {
 			logger.info("Requested update download")
 			autoUpdaterService.downloadUpdate()

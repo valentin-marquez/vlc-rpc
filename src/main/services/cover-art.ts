@@ -7,9 +7,7 @@ interface CachedCoverArt {
 	timestamp: number
 }
 
-/**
- * Media data structure for cover art searching
- */
+/** Media data structure for cover art searching */
 interface MediaData {
 	title?: string
 	artist?: string
@@ -20,9 +18,7 @@ interface MediaData {
 	[key: string]: string | undefined
 }
 
-/**
- * MusicBrainz artist credit object
- */
+/** MusicBrainz artist credit object */
 interface ArtistCredit {
 	name?: string
 	artist?: {
@@ -30,9 +26,7 @@ interface ArtistCredit {
 	}
 }
 
-/**
- * MusicBrainz release object
- */
+/** MusicBrainz release object */
 interface MusicBrainzRelease {
 	id: string
 	title?: string
@@ -46,9 +40,7 @@ interface MusicBrainzRelease {
 	}
 }
 
-/**
- * MusicBrainz recording object
- */
+/** MusicBrainz recording object */
 interface MusicBrainzRecording {
 	id: string
 	title?: string
@@ -57,9 +49,7 @@ interface MusicBrainzRecording {
 	releases?: MusicBrainzRelease[]
 }
 
-/**
- * Scored release result
- */
+/** Scored release result */
 interface ScoredRelease {
 	score: number
 	release_id: string
@@ -67,9 +57,7 @@ interface ScoredRelease {
 	artist: string
 }
 
-/**
- * Service to fetch album cover art for audio files
- */
+/** Service to fetch album cover art for audio files */
 export class CoverArtService {
 	private static instance: CoverArtService | null = null
 	private cache: Record<string, CachedCoverArt> = {}
@@ -79,9 +67,7 @@ export class CoverArtService {
 		logger.info("Cover art service initialized")
 	}
 
-	/**
-	 * Get the singleton instance of the cover art service
-	 */
+	/** Get the singleton instance of the cover art service */
 	public static getInstance(): CoverArtService {
 		if (!CoverArtService.instance) {
 			CoverArtService.instance = new CoverArtService()
@@ -89,9 +75,7 @@ export class CoverArtService {
 		return CoverArtService.instance
 	}
 
-	/**
-	 * Fetch cover art URL using all available media information
-	 */
+	/** Fetch cover art URL using all available media information */
 	public async fetch(mediaInfo: VlcStatus | null): Promise<string | null> {
 		const media = this.extractMediaData(mediaInfo)
 		if (!media) {
@@ -119,9 +103,7 @@ export class CoverArtService {
 		return coverUrl
 	}
 
-	/**
-	 * Extract media data from the input
-	 */
+	/** Extract media data from the input */
 	private extractMediaData(mediaInfo: VlcStatus | null): MediaData | null {
 		if (!mediaInfo || typeof mediaInfo !== "object") {
 			logger.info("No valid media info provided for cover art")
@@ -131,9 +113,7 @@ export class CoverArtService {
 		return mediaInfo.media as MediaData
 	}
 
-	/**
-	 * Create a unique cache key based on media information
-	 */
+	/** Create a unique cache key based on media information */
 	private createCacheKey(media: MediaData): string | null {
 		if (!media) {
 			return null
@@ -153,9 +133,7 @@ export class CoverArtService {
 		return createHash("md5").update(keyParts.join("|")).digest("hex")
 	}
 
-	/**
-	 * Build query for MusicBrainz search
-	 */
+	/** Build query for MusicBrainz search */
 	private buildQuery(media: MediaData): string | null {
 		if (media.artist && media.title && media.album) {
 			return `${media.title} AND artist:${media.artist} AND release:"${media.album}"`
@@ -185,9 +163,7 @@ export class CoverArtService {
 		return null
 	}
 
-	/**
-	 * Fetch cover art from MusicBrainz
-	 */
+	/** Fetch cover art from MusicBrainz */
 	private async fetchFromMusicBrainz(media: MediaData): Promise<string | null> {
 		try {
 			const query = this.buildQuery(media)
@@ -225,9 +201,7 @@ export class CoverArtService {
 		}
 	}
 
-	/**
-	 * Build a fallback query with less constraints
-	 */
+	/** Build a fallback query with less constraints */
 	private buildFallbackQuery(media: MediaData): string | null {
 		if (media.artist && media.title) {
 			return `artist:"${media.artist}"`
@@ -235,9 +209,7 @@ export class CoverArtService {
 		return null
 	}
 
-	/**
-	 * Search for releases and get the best match
-	 */
+	/** Search for releases and get the best match */
 	private async searchReleases(query: string, media: MediaData): Promise<string | null> {
 		logger.info(`Searching MusicBrainz releases with: ${query}`)
 
@@ -256,9 +228,7 @@ export class CoverArtService {
 		return this.processReleaseResponse(response, media)
 	}
 
-	/**
-	 * Search for recordings and get the best match
-	 */
+	/** Search for recordings and get the best match */
 	private async searchRecordings(query: string, media: MediaData): Promise<string | null> {
 		logger.info(`Searching MusicBrainz recordings with: ${query}`)
 
@@ -277,9 +247,7 @@ export class CoverArtService {
 		return this.processRecordingResponse(response, media)
 	}
 
-	/**
-	 * Process MusicBrainz recording response and extract cover URL
-	 */
+	/** Process MusicBrainz recording response and extract cover URL */
 	private async processRecordingResponse(
 		response: Response,
 		media: MediaData,
@@ -338,9 +306,7 @@ export class CoverArtService {
 		}
 	}
 
-	/**
-	 * Process MusicBrainz release response and extract cover URL
-	 */
+	/** Process MusicBrainz release response and extract cover URL */
 	private async processReleaseResponse(
 		response: Response,
 		media: MediaData,
@@ -393,9 +359,7 @@ export class CoverArtService {
 		}
 	}
 
-	/**
-	 * Calculate a match score for a release based on our metadata
-	 */
+	/** Calculate a match score for a release based on our metadata */
 	private calculateReleaseScore(
 		recording: MusicBrainzRecording | null,
 		release: MusicBrainzRelease,
@@ -494,9 +458,7 @@ export class CoverArtService {
 		return Math.max(0, score)
 	}
 
-	/**
-	 * Simple fuzzy matching for strings
-	 */
+	/** Simple fuzzy matching for strings */
 	private fuzzyMatch(str1: string, str2: string): boolean {
 		const s1 = str1.toLowerCase().replace(/[^\w\s]/g, "")
 		const s2 = str2.toLowerCase().replace(/[^\w\s]/g, "")
@@ -514,9 +476,7 @@ export class CoverArtService {
 		return false
 	}
 
-	/**
-	 * Make an HTTP request with proper error handling
-	 */
+	/** Make an HTTP request with proper error handling */
 	private async makeRequest(url: string, method = "GET"): Promise<Response | null> {
 		try {
 			const controller = new AbortController()

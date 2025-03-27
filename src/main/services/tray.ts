@@ -22,14 +22,12 @@ export class TrayService {
 			this.readyResolver = resolve
 		})
 
-		// Initialize tray after app is ready
 		if (app.isReady()) {
 			this.initTray()
 		} else {
 			app.whenReady().then(() => this.initTray())
 		}
 
-		// Listen for before-quit event to destroy tray properly
 		app.on("before-quit", () => {
 			if (this.tray) {
 				this.tray.destroy()
@@ -38,7 +36,6 @@ export class TrayService {
 			}
 		})
 
-		// Setup a keepalive timer to ensure tray icon persists
 		this.setupTrayKeepalive()
 	}
 
@@ -66,11 +63,9 @@ export class TrayService {
 		try {
 			logger.info("Initializing tray")
 
-			// Use platform-specific icon path
 			const iconPath = this.getTrayIconPath()
 			logger.info(`Loading tray icon from: ${iconPath}`)
 
-			// Create native image from the icon path
 			const trayIcon = nativeImage.createFromPath(iconPath)
 
 			if (trayIcon.isEmpty()) {
@@ -78,25 +73,20 @@ export class TrayService {
 				throw new Error("Empty tray icon")
 			}
 
-			// Create or recreate the tray
 			if (this.tray) {
 				this.tray.destroy()
 			}
 
 			this.tray = new Tray(trayIcon)
 
-			// Make sure icon is visible
 			if (process.platform === "win32") {
 				this.tray.setIgnoreDoubleClickEvents(true)
 			}
 
-			// Set tooltip
 			this.tray.setToolTip("VLC Discord Rich Presence")
 
-			// Create context menu
 			this.updateContextMenu()
 
-			// Add click handler to show window
 			this.tray.on("click", () => {
 				windowService.showWindow()
 			})
@@ -110,7 +100,6 @@ export class TrayService {
 		} catch (error) {
 			logger.error(`Failed to initialize tray: ${error}`)
 
-			// If static import fails, try the simpler approach
 			this.fallbackTrayInit()
 		}
 	}
@@ -119,17 +108,12 @@ export class TrayService {
 	 * Get the appropriate icon path for the current platform
 	 */
 	private getTrayIconPath(): string {
-		// Select icon size based on platform
 		const iconSize = process.platform === "darwin" ? "32x32" : "16x16"
 		const iconName = `${iconSize}.png`
 
-		// Use different paths for development and production
 		if (is.dev) {
-			// In development, use imported asset path
 			return process.platform === "darwin" ? iconPath32 : iconPath16
 		}
-		// In production, use the correct nested path based on directory structure
-		// This handles the nested resources/resources directory structure
 		return join(process.resourcesPath, "resources", "icons", iconName)
 	}
 
@@ -140,7 +124,6 @@ export class TrayService {
 		try {
 			logger.info("Attempting fallback tray initialization")
 
-			// Create a simple SVG-based tray icon
 			const svgIcon = `
 				<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
 					<rect width="16" height="16" fill="#5865F2" />
@@ -174,7 +157,6 @@ export class TrayService {
 	 * Setup a periodic check to ensure tray icon exists
 	 */
 	private setupTrayKeepalive(): void {
-		// Check every 30 seconds if tray still exists
 		setInterval(() => {
 			if (
 				!this.tray ||

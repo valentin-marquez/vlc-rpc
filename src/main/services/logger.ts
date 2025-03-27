@@ -15,13 +15,9 @@ class LoggerService {
 			handleRejections: true,
 		})
 
-		// Register listener for renderer process
 		this.logger.registerRendererListener()
 	}
 
-	/**
-	 * Get the singleton instance of the logger service
-	 */
 	public static getInstance(): LoggerService {
 		if (!LoggerService.instance) {
 			LoggerService.instance = new LoggerService()
