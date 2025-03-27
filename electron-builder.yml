@@ -1,8 +1,10 @@
 appId: com.valentinmarquez.vlcdiscordrp
 productName: VLC Discord RP
 directories:
-  buildResources: build
+  buildResources: resources
+  output: dist
 files:
+  - "out/**/*"
   - "!**/.vscode/*"
   - "!src/*"
   - "!electron.vite.config.{js,ts,mjs,cjs}"
@@ -15,7 +17,7 @@ compression: normal
 win:
   executableName: VLC Discord RP
   requestedExecutionLevel: asInvoker
-  icon: build/icon.ico
+  icon: resources/icon.ico
   target:
     - target: nsis
       arch: [x64]
@@ -32,18 +34,18 @@ nsis:
   runAfterFinish: true
   oneClick: false
   allowToChangeInstallationDirectory: true
-  include: build/installer.nsh
+  include: resources/installer.nsh
   menuCategory: true
   differentialPackage: true
 portable:
   artifactName: ${name}-${version}-portable.${ext}
   requestExecutionLevel: user
 mac:
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
   hardenedRuntime: true
   gatekeeperAssess: false
-  icon: build/icon.icns
+  icon: resources/icon.icns
   category: public.app-category.utilities
   target:
     - target: dmg
@@ -55,7 +57,7 @@ mac:
     NSUserNotificationAlertStyle: alert
 dmg:
   artifactName: ${name}-${version}.${ext}
-  icon: build/icon.icns
+  icon: resources/icon.icns
   iconSize: 128
   contents:
     - x: 380
@@ -66,7 +68,7 @@ dmg:
       y: 240
       type: file
 linux:
-  icon: build/icons
+  icon: resources/icons
   category: Utility
   description: Discord Rich Presence integration for VLC Media Player
   desktop:
@@ -103,3 +105,5 @@ publish:
   releaseType: release
   publishAutoUpdate: true
   channel: latest
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/
