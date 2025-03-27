@@ -1,0 +1,75 @@
+{
+	"name": "vlc-rpc",
+	"version": "3.0.0",
+	"description": "Discord Rich Presence integration for VLC Media Player - Show your friends what you're watching or listening to",
+	"main": "./out/main/index.js",
+	"author": {
+		"name": "Valentin Marquez",
+		"email": "me@nozz.dev",
+		"url": "https://github.com/valentin-marquez"
+	},
+	"homepage": "https://github.com/valentin-marquez/vlc-rpc",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/valentin-marquez/vlc-rpc.git"
+	},
+	"license": "MIT",
+	"keywords": [
+		"vlc",
+		"discord",
+		"rich-presence",
+		"media-player",
+		"discord-rpc",
+		"electron"
+	],
+	"scripts": {
+		"format": "biome format --write .",
+		"lint": "biome check --apply-unsafe .",
+		"lint:fix": "biome check --apply .",
+		"lint:files": "biome check --apply",
+		"typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+		"typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
+		"typecheck": "npm run typecheck:node && npm run typecheck:web",
+		"start": "electron-vite preview",
+		"dev": "electron-vite dev",
+		"build": "npm run typecheck && electron-vite build",
+		"postinstall": "electron-builder install-app-deps",
+		"build:unpack": "npm run build && electron-builder --dir",
+		"build:win": "electron-vite build && electron-builder --win",
+		"build:mac": "electron-vite build && electron-builder --mac",
+		"build:linux": "electron-vite build && electron-builder --linux"
+	},
+	"dependencies": {
+		"@electron-toolkit/preload": "^3.0.1",
+		"@electron-toolkit/utils": "^4.0.0",
+		"@nanostores/persistent": "^0.10.2",
+		"@nanostores/react": "^0.8.4",
+		"@radix-ui/react-icons": "^1.3.2",
+		"@tailwindcss/vite": "^4.0.15",
+		"@xhayper/discord-rpc": "^1.2.1",
+		"cheerio": "^1.0.0",
+		"clsx": "^2.1.1",
+		"electron-conf": "^1.3.0",
+		"electron-updater": "^6.3.9",
+		"electron-winston": "^1.0.0",
+		"nanostores": "^0.11.4",
+		"tailwind-merge": "^3.0.2",
+		"tailwindcss": "^4.0.15",
+		"wouter": "^3.6.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@electron-toolkit/tsconfig": "^1.0.1",
+		"@types/node": "^22.13.4",
+		"@types/react": "^18.3.18",
+		"@types/react-dom": "^18.3.5",
+		"@vitejs/plugin-react": "^4.3.4",
+		"electron": "^34.2.0",
+		"electron-builder": "^25.1.8",
+		"electron-vite": "^3.0.0",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1",
+		"typescript": "^5.7.3",
+		"vite": "^6.1.0"
+	}
+}

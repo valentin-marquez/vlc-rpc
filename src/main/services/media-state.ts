@@ -1,0 +1,365 @@
+import type { AppConfig } from "@shared/types"
+import {
+	type DiscordPresenceData,
+	type EnhancedMediaInfo,
+	MediaActivityType,
+} from "@shared/types/media"
+import type { VlcStatus } from "@shared/types/vlc"
+import { configService } from "./config"
+import { coverArtService } from "./cover-art"
+import { logger } from "./logger"
+import { videoDetectorService } from "./video-detector"
+
+/**
+ * Base class for media states
+ */
+abstract class MediaState {
+	/**
+	 * Format text to fit Discord's character limits
+	 */
+	protected formatText(text: string, maxLength = 128): string {
+		if (!text) return ""
+		if (text.length > maxLength) {
+			return `${text.substring(0, maxLength - 3)}...`
+		}
+		return text
+	}
+
+	/**
+	 * Update Discord presence based on media info
+	 */
+	public abstract updatePresence(mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null>
+}
+
+/**
+ * State when media is stopped
+ */
+class StoppedState extends MediaState {
+	public async updatePresence(_mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
+		logger.info("Cleared presence (VLC stopped)")
+		return null
+	}
+}
+
+/**
+ * State when no status is available
+ */
+class NoStatusState extends MediaState {
+	public async updatePresence(_mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
+		logger.info("Cleared presence (no status data)")
+		return null
+	}
+}
+
+/**
+ * State when media is playing
+ */
+class PlayingState extends MediaState {
+	public async updatePresence(mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
+		if (!mediaInfo) {
+			return null
+		}
+
+		const config = configService.get<AppConfig>()
+		const currentTime = Math.floor(Date.now() / 1000)
+
+		// Enhance media info with content type detection for videos
+		const enhancedInfo =
+			mediaInfo.mediaType === "video"
+				? await videoDetectorService.analyze(mediaInfo)
+				: (mediaInfo as VlcStatus & EnhancedMediaInfo)
+
+		const media = enhancedInfo.media
+		const mediaType = enhancedInfo.mediaType || "unknown"
+		const contentType = enhancedInfo.content_type || ""
+		const contentMetadata = enhancedInfo.content_metadata || {}
+
+		const activityType =
+			mediaType === "audio" ? MediaActivityType.LISTENING : MediaActivityType.WATCHING
+
+		let details = ""
+		let state = ""
+
+		if (contentType === "tv_show" && contentMetadata.show_name) {
+			const showName = contentMetadata.show_name
+			const season = contentMetadata.season || 0
+			const episode = contentMetadata.episode || 0
+
+			if (season > 0 && episode > 0) {
+				details = `${showName} S${season.toString().padStart(2, "0")}E${episode.toString().padStart(2, "0")}`
+			} else {
+				details = showName
+			}
+
+			state = "Now watching"
+		} else if (contentType === "movie" && contentMetadata.movie_name) {
+			const movieName = contentMetadata.movie_name
+			const year = contentMetadata.year || ""
+
+			if (year) {
+				details = `${movieName} (${year})`
+			} else {
+				details = movieName
+			}
+
+			state = "Now watching"
+		} else if (contentType === "anime" && contentMetadata.anime_name) {
+			const animeName = contentMetadata.anime_name
+			const episode = contentMetadata.episode || 0
+
+			if (episode > 0) {
+				details = `${animeName} - Episode ${episode}`
+			} else {
+				details = animeName
+			}
+
+			state = "Now watching anime"
+		} else {
+			details = media.title || "Unknown"
+
+			if (mediaType === "audio") {
+				state = `by ${media.artist || "Unknown Artist"}`
+			} else {
+				state = "Now watching"
+			}
+		}
+
+		details = this.formatText(details)
+		state = this.formatText(state)
+
+		let startTimestamp: number | undefined
+		let endTimestamp: number | undefined
+
+		const playback = mediaInfo.playback
+
+		if (playback) {
+			const duration = playback.duration
+			const position = playback.time
+
+			if (position >= 0 && duration > 0 && duration < 86400) {
+				startTimestamp = currentTime - position
+				endTimestamp = currentTime + (duration - position)
+			} else {
+				startTimestamp = currentTime
+			}
+		}
+
+		let smallText = config.playingImage
+		let largeImage = config.largeImage
+		let largeText = "VLC Media Player"
+
+		const contentImageUrl = enhancedInfo.content_image_url
+		if (contentImageUrl) {
+			largeImage = contentImageUrl
+		}
+
+		if (contentType === "tv_show") {
+			largeText = "Watching TV Show"
+		} else if (contentType === "movie") {
+			largeText = "Watching a Movie"
+		} else if (contentType === "anime") {
+			largeText = "Watching Anime"
+		}
+
+		const videoInfo = enhancedInfo.videoInfo
+		if (mediaType === "video" && videoInfo && videoInfo.width && videoInfo.height) {
+			const resolution = `${videoInfo.width}x${videoInfo.height}`
+			smallText += ` • ${resolution}`
+		}
+
+		// Try to fetch cover art for audio if no content image
+		if (!contentImageUrl && mediaType === "audio" && media) {
+			const coverArtUrl = await coverArtService.fetch(mediaInfo)
+			if (coverArtUrl) {
+				largeImage = coverArtUrl
+			}
+		}
+
+		const presenceData: DiscordPresenceData = {
+			details,
+			state,
+			large_image: largeImage,
+			large_text: largeText,
+			small_image: config.playingImage,
+			small_text: smallText,
+			start_timestamp: startTimestamp,
+			end_timestamp: endTimestamp,
+			activity_type: activityType,
+		}
+
+		const activityName = mediaType === "video" ? "Watching" : "Listening to"
+		logger.info(`Updated presence: ${activityName} ${details} - ${state}`)
+
+		return presenceData
+	}
+}
+
+/**
+ * State when media is paused
+ */
+class PausedState extends MediaState {
+	public async updatePresence(mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
+		if (!mediaInfo) {
+			return null
+		}
+
+		const config = configService.get<AppConfig>()
+
+		// Enhance media info with content type detection for videos
+		const enhancedInfo =
+			mediaInfo.mediaType === "video"
+				? await videoDetectorService.analyze(mediaInfo)
+				: (mediaInfo as VlcStatus & EnhancedMediaInfo)
+
+		const media = enhancedInfo.media
+		const mediaType = enhancedInfo.mediaType || "unknown"
+		const contentType = enhancedInfo.content_type || ""
+		const contentMetadata = enhancedInfo.content_metadata || {}
+
+		const activityType =
+			mediaType === "audio" ? MediaActivityType.LISTENING : MediaActivityType.WATCHING
+
+		let details = ""
+		let state = ""
+
+		if (contentType === "tv_show" && contentMetadata.show_name) {
+			const showName = contentMetadata.show_name
+			const season = contentMetadata.season || 0
+			const episode = contentMetadata.episode || 0
+
+			if (season > 0 && episode > 0) {
+				details = `${showName} S${season.toString().padStart(2, "0")}E${episode.toString().padStart(2, "0")}`
+			} else {
+				details = showName
+			}
+
+			state = "Paused"
+		} else if (contentType === "movie" && contentMetadata.movie_name) {
+			const movieName = contentMetadata.movie_name
+			const year = contentMetadata.year || ""
+
+			if (year) {
+				details = `${movieName} (${year})`
+			} else {
+				details = movieName
+			}
+
+			state = "Paused"
+		} else if (contentType === "anime" && contentMetadata.anime_name) {
+			const animeName = contentMetadata.anime_name
+			const episode = contentMetadata.episode || 0
+
+			if (episode > 0) {
+				details = `${animeName} - Episode ${episode}`
+			} else {
+				details = animeName
+			}
+
+			state = "Paused"
+		} else {
+			details = media.title || "Unknown"
+
+			if (mediaType === "audio") {
+				state = `by ${media.artist || "Unknown Artist"}`
+			} else {
+				state = "Paused"
+			}
+		}
+
+		details = this.formatText(details)
+		state = this.formatText(state)
+
+		let smallText = "Paused"
+		let largeImage = config.largeImage
+		const largeText = "VLC Media Player (Paused)"
+
+		const contentImageUrl = enhancedInfo.content_image_url
+		if (contentImageUrl) {
+			largeImage = contentImageUrl
+		}
+
+		const videoInfo = enhancedInfo.videoInfo
+		if (mediaType === "video" && videoInfo && videoInfo.width && videoInfo.height) {
+			const resolution = `${videoInfo.width}x${videoInfo.height}`
+			smallText += ` • ${resolution}`
+		}
+
+		// Try to fetch cover art for audio if no content image
+		if (!contentImageUrl && mediaType === "audio" && media) {
+			const coverArtUrl = await coverArtService.fetch(mediaInfo)
+			if (coverArtUrl) {
+				largeImage = coverArtUrl
+			}
+		}
+
+		const presenceData: DiscordPresenceData = {
+			details,
+			state,
+			large_image: largeImage,
+			large_text: largeText,
+			small_image: config.pausedImage,
+			small_text: smallText,
+			activity_type: activityType,
+		}
+
+		const activityName = mediaType === "video" ? "Watching" : "Listening to"
+		logger.info(`Updated presence (paused): ${activityName} ${details} - ${state}`)
+
+		return presenceData
+	}
+}
+
+/**
+ * Service to manage media state and update Discord presence
+ */
+export class MediaStateService {
+	private static instance: MediaStateService | null = null
+	private states: Record<string, MediaState>
+
+	private constructor() {
+		this.states = {
+			stopped: new StoppedState(),
+			noStatus: new NoStatusState(),
+			playing: new PlayingState(),
+			paused: new PausedState(),
+		}
+
+		logger.info("Media state service initialized")
+	}
+
+	/**
+	 * Get the singleton instance of the media state service
+	 */
+	public static getInstance(): MediaStateService {
+		if (!MediaStateService.instance) {
+			MediaStateService.instance = new MediaStateService()
+		}
+		return MediaStateService.instance
+	}
+
+	/**
+	 * Get a Discord presence update based on VLC status
+	 */
+	public async getDiscordPresence(
+		vlcStatus: VlcStatus | null,
+	): Promise<DiscordPresenceData | null> {
+		if (!vlcStatus) {
+			return this.states.noStatus.updatePresence(null)
+		}
+
+		if (!vlcStatus.active) {
+			return this.states.stopped.updatePresence(vlcStatus)
+		}
+
+		switch (vlcStatus.status) {
+			case "playing":
+				return this.states.playing.updatePresence(vlcStatus)
+			case "paused":
+				return this.states.paused.updatePresence(vlcStatus)
+			default:
+				return this.states.stopped.updatePresence(vlcStatus)
+		}
+	}
+}
+
+export const mediaStateService = MediaStateService.getInstance()

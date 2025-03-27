@@ -1,16 +1,10 @@
-name: Release
+name: Build
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-on:
-  push:
-    tags:
-      - v*.*.*
-
-permissions:
-  contents: write
+on: pull_request
 
 jobs:
   build:
@@ -56,7 +50,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:win
 
-      - name: Upload artifacts
+      - name: Create artifact
         uses: actions/upload-artifact@v4
         with:
           name: Build-${{ matrix.os }}
@@ -71,40 +65,3 @@ jobs:
             dist/*.tar.gz
             dist/*.yml
             dist/*.blockmap
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: Display structure of downloaded files
-        run: ls -R artifacts/
-
-      - name: Prepare release files
-        run: |
-          mkdir -p dist
-          cp -r artifacts/* dist/
-          ls -la dist/
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: true
-          files: |
-            dist/*.exe
-            dist/*.zip
-            dist/*.dmg
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.rpm
-            dist/*.tar.gz
-            dist/*.yml
-            dist/*.blockmap
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

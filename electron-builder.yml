@@ -1,0 +1,64 @@
+appId: com.valentinmarquez.vlcdiscordrp
+productName: VLC Discord RP
+directories:
+  buildResources: build
+files:
+  - "!**/.vscode/*"
+  - "!src/*"
+  - "!electron.vite.config.{js,ts,mjs,cjs}"
+  - "!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
+  - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
+  - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
+asarUnpack:
+  - resources/**
+  - "**/*.png"
+extraResources:
+  - from: "resources"
+    to: "resources"
+win:
+  executableName: VLC Discord RP
+  target:
+    - nsis
+    - portable
+  icon: resources/icon.ico
+  publisherName: "Valentin Marquez"
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: VLC Discord RP
+  uninstallDisplayName: VLC Discord RP
+  createDesktopShortcut: always
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
+  differentialPackage: true
+portable:
+  artifactName: ${name}-${version}-portable.${ext}
+mac:
+  icon: resources/icon.icns
+  category: public.app-category.utilities
+  target:
+    - dmg
+    - zip
+  entitlementsInherit: resources/entitlements.mac.plist
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  icon: resources/icons
+  category: Utility
+  description: Discord Rich Presence integration for VLC Media Player
+  target:
+    - AppImage
+    - deb
+    - rpm
+
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
+publish:
+  provider: github
+  owner: valentin-marquez
+  repo: vlc-rpc
+  releaseType: release
+  publishAutoUpdate: true
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/
