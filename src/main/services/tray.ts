@@ -1,7 +1,8 @@
+import { join } from "node:path"
 import { is } from "@electron-toolkit/utils"
-import icon16 from "@resources/icons/16x16.png?asset"
-import icon32 from "@resources/icons/32x32.png?asset"
-import { Menu, type NativeImage, Tray, app, nativeImage } from "electron"
+import { Menu, Tray, app, nativeImage } from "electron"
+import iconPath16 from "../../../resources/icons/16x16.png?asset"
+import iconPath32 from "../../../resources/icons/32x32.png?asset"
 import { configService } from "./config"
 import { logger } from "./logger"
 import { startupService } from "./startup"
@@ -65,8 +66,17 @@ export class TrayService {
 		try {
 			logger.info("Initializing tray")
 
-			// Use platform-specific icon size
-			const trayIcon = this.getTrayIcon()
+			// Use platform-specific icon path
+			const iconPath = this.getTrayIconPath()
+			logger.info(`Loading tray icon from: ${iconPath}`)
+
+			// Create native image from the icon path
+			const trayIcon = nativeImage.createFromPath(iconPath)
+
+			if (trayIcon.isEmpty()) {
+				logger.error("Tray icon is empty, will try fallback")
+				throw new Error("Empty tray icon")
+			}
 
 			// Create or recreate the tray
 			if (this.tray) {
@@ -106,16 +116,21 @@ export class TrayService {
 	}
 
 	/**
-	 * Get the appropriate icon for the current platform
+	 * Get the appropriate icon path for the current platform
 	 */
-	private getTrayIcon(): string {
+	private getTrayIconPath(): string {
 		// Select icon size based on platform
-		if (process.platform === "darwin") {
-			// macOS prefers larger icons in the menubar
-			return icon32
+		const iconSize = process.platform === "darwin" ? "32x32" : "16x16"
+		const iconName = `${iconSize}.png`
+
+		// Use different paths for development and production
+		if (is.dev) {
+			// In development, use imported asset path
+			return process.platform === "darwin" ? iconPath32 : iconPath16
 		}
-		// Windows and Linux work better with smaller icons
-		return icon16
+		// In production, use the correct nested path based on directory structure
+		// This handles the nested resources/resources directory structure
+		return join(process.resourcesPath, "resources", "icons", iconName)
 	}
 
 	/**
