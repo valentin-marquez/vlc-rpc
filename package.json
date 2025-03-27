@@ -5,6 +5,7 @@
 	"main": "./out/main/index.js",
 	"author": {
 		"name": "Valentin Marquez",
+		"email": "me@nozz.dev",
 		"url": "https://github.com/valentin-marquez"
 	},
 	"homepage": "https://github.com/valentin-marquez/vlc-rpc",
