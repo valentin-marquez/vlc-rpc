@@ -34,7 +34,6 @@ nsis:
   runAfterFinish: true
   oneClick: false
   allowToChangeInstallationDirectory: true
-  include: resources/installer.nsh
   menuCategory: true
   differentialPackage: true
 portable:
