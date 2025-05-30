@@ -17,9 +17,9 @@
 	"keywords": ["vlc", "discord", "rich-presence", "media-player", "discord-rpc", "electron"],
 	"scripts": {
 		"format": "biome format --write .",
-		"lint": "biome check --apply-unsafe .",
-		"lint:fix": "biome check --apply .",
-		"lint:files": "biome check --apply",
+		"lint": "biome check --write --unsafe .",
+		"lint:fix": "biome check --write .",
+		"lint:files": "biome check --write",
 		"typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
 		"typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
 		"typecheck": "npm run typecheck:node && npm run typecheck:web",
