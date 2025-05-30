@@ -2,7 +2,7 @@ import { discordRpcService } from "@main/services/discord-rpc"
 import { logger } from "@main/services/logger"
 import { mediaStateService } from "@main/services/media-state"
 import { vlcStatusService } from "@main/services/vlc-status"
-import { IpcChannels } from "@shared/types"
+import { IpcChannels, IpcEvents } from "@shared/types"
 import { ipcMain } from "electron"
 
 /**
@@ -51,6 +51,29 @@ export class DiscordRpcHandler {
 		ipcMain.handle(`${IpcChannels.DISCORD}:reconnect`, async () => {
 			logger.info("Forcing Discord reconnection")
 			return await discordRpcService.forceReconnect()
+		})
+
+		// New RPC control handlers
+		ipcMain.handle(`${IpcChannels.DISCORD}:${IpcEvents.RPC_ENABLE}`, () => {
+			discordRpcService.enableRpc()
+			return true
+		})
+
+		ipcMain.handle(`${IpcChannels.DISCORD}:${IpcEvents.RPC_DISABLE}`, () => {
+			discordRpcService.disableRpc()
+			return true
+		})
+
+		ipcMain.handle(
+			`${IpcChannels.DISCORD}:${IpcEvents.RPC_DISABLE_TEMPORARY}`,
+			(_, minutes: number) => {
+				discordRpcService.disableRpcTemporary(minutes)
+				return true
+			},
+		)
+
+		ipcMain.handle(`${IpcChannels.DISCORD}:${IpcEvents.RPC_STATUS}`, () => {
+			return discordRpcService.isRpcEnabled()
 		})
 	}
 

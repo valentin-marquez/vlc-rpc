@@ -1,0 +1,147 @@
+name: Changeset PR Bot
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  changeset-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Check for changesets
+        id: changeset-check
+        run: |
+          if [ ! -d ".changeset" ]; then
+            echo "No .changeset directory found"
+            echo "has_changesets=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Count changeset files (excluding README.md)
+          CHANGESET_COUNT=$(find .changeset -name "*.md" ! -name "README.md" | wc -l)
+
+          if [ "$CHANGESET_COUNT" -gt 0 ]; then
+            echo "Found $CHANGESET_COUNT changeset(s)"
+            echo "has_changesets=true" >> $GITHUB_OUTPUT
+            echo "changeset_count=$CHANGESET_COUNT" >> $GITHUB_OUTPUT
+          else
+            echo "No changesets found"
+            echo "has_changesets=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment PR - No Changeset
+        if: steps.changeset-check.outputs.has_changesets == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+
+            // Check if we already commented
+            const comments = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: number,
+            });
+
+            const botComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('🦋 Changeset Check')
+            );
+
+            const warningMessage = `## 🦋 Changeset Check
+
+            ⚠️ **No changeset detected**
+
+            This PR doesn't include a changeset. If your changes require a version bump, please run:
+
+            \`\`\`bash
+            bun run changeset
+            \`\`\`
+
+            ### When to add a changeset:
+            - ✅ **New features** (minor version bump)
+            - ✅ **Bug fixes** (patch version bump) 
+            - ✅ **Breaking changes** (major version bump)
+
+            ### When you can skip a changeset:
+            - 📝 Documentation updates
+            - 🧪 Test improvements
+            - 🔧 Internal refactoring without API changes
+            - 🚀 CI/CD improvements
+
+            If your changes don't require a version bump, you can safely ignore this warning.`;
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: botComment.id,
+                body: warningMessage
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: number,
+                body: warningMessage
+              });
+            }
+
+      - name: Comment PR - Changeset Found
+        if: steps.changeset-check.outputs.has_changesets == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+            const count = '${{ steps.changeset-check.outputs.changeset_count }}';
+
+            // Check if we already commented
+            const comments = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: number,
+            });
+
+            const botComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('🦋 Changeset Check')
+            );
+
+            const successMessage = `## 🦋 Changeset Check
+
+            ✅ **Changeset detected** (${count} changeset${count > 1 ? 's' : ''} found)
+
+            This PR includes the necessary changesets. Once merged to main, the release workflow will:
+
+            1. 🤖 Create a "Version Packages" PR with updated versions and changelog
+            2. 📦 Build and release binaries automatically when that PR is merged
+            3. 🎉 Create a GitHub release with all the assets
+
+            Thank you for following the contribution guidelines! 🙏`;
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: botComment.id,
+                body: successMessage
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: number,
+                body: successMessage
+              });
+            }

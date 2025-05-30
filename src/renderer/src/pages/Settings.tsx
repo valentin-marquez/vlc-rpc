@@ -39,7 +39,9 @@ export function Settings(): JSX.Element {
 		}
 	}
 
-	async function handleToggleOption(option: "minimizeToTray" | "startWithSystem") {
+	async function handleToggleOption(
+		option: "minimizeToTray" | "startWithSystem" | "persistRpcTimersOnRestart",
+	) {
 		if (!config) return
 		try {
 			const newValue = !config[option]
@@ -193,6 +195,21 @@ export function Settings(): JSX.Element {
 							<Switch
 								checked={config.startWithSystem}
 								onChange={() => handleToggleOption("startWithSystem")}
+							/>
+						</div>
+
+						<div className="flex items-center justify-between bg-background p-3 rounded-md">
+							<div>
+								<p className="text-sm font-medium text-card-foreground">
+									Persist RPC Timers on Restart
+								</p>
+								<p className="text-xs text-muted-foreground">
+									Keep RPC timers active even after restarting the application
+								</p>
+							</div>
+							<Switch
+								checked={config.persistRpcTimersOnRestart}
+								onChange={() => handleToggleOption("persistRpcTimersOnRestart")}
 							/>
 						</div>
 
