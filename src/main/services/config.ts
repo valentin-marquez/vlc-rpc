@@ -75,6 +75,14 @@ class ConfigService {
 	}
 
 	/**
+	 * Delete a configuration value
+	 */
+	public delete(key: string): void {
+		this.conf.delete(key)
+		logger.info(`Config deleted: ${key}`)
+	}
+
+	/**
 	 * Reset configuration to defaults
 	 */
 	public reset(): void {

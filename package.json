@@ -14,19 +14,12 @@
 		"url": "https://github.com/valentin-marquez/vlc-rpc.git"
 	},
 	"license": "MIT",
-	"keywords": [
-		"vlc",
-		"discord",
-		"rich-presence",
-		"media-player",
-		"discord-rpc",
-		"electron"
-	],
+	"keywords": ["vlc", "discord", "rich-presence", "media-player", "discord-rpc", "electron"],
 	"scripts": {
 		"format": "biome format --write .",
-		"lint": "biome check --apply-unsafe .",
-		"lint:fix": "biome check --apply .",
-		"lint:files": "biome check --apply",
+		"lint": "biome check --write --unsafe .",
+		"lint:fix": "biome check --write .",
+		"lint:files": "biome check --write",
 		"typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
 		"typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
 		"typecheck": "npm run typecheck:node && npm run typecheck:web",
@@ -37,7 +30,11 @@
 		"build:unpack": "npm run build && electron-builder --dir",
 		"build:win": "electron-vite build && electron-builder --win",
 		"build:mac": "electron-vite build && electron-builder --mac",
-		"build:linux": "electron-vite build && electron-builder --linux"
+		"build:linux": "electron-vite build && electron-builder --linux",
+		"changeset": "changeset",
+		"changeset:version": "changeset version",
+		"changeset:publish": "npm run build && changeset publish",
+		"changeset:status": "changeset status"
 	},
 	"dependencies": {
 		"@electron-toolkit/preload": "^3.0.1",
@@ -59,6 +56,8 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
+		"@changesets/changelog-github": "^0.5.1",
+		"@changesets/cli": "^2.29.4",
 		"@electron-toolkit/tsconfig": "^1.0.1",
 		"@types/node": "^22.13.4",
 		"@types/react": "^18.3.18",

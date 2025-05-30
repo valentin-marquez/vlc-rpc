@@ -20,6 +20,8 @@ export const DEFAULT_CONFIG: AppConfig = {
 	minimizeToTray: true,
 	startWithSystem: true,
 	version: "3.0.0", // Default version, will be overridden at runtime
+	rpcEnabled: true, // RPC enabled by default
+	persistRpcTimersOnRestart: false, // Don't persist timers by default (more intuitive behavior)
 }
 
 /**

@@ -24,6 +24,11 @@ export enum IpcEvents {
 	VLC_STATUS_GET = "vlc:status:get",
 	VLC_STATUS_CHECK = "vlc:status:check",
 	IMAGE_PROXY = "image:proxy",
+	// RPC control events
+	RPC_ENABLE = "rpc:enable",
+	RPC_DISABLE = "rpc:disable",
+	RPC_DISABLE_TEMPORARY = "rpc:disable:temporary",
+	RPC_STATUS = "rpc:status",
 }
 
 /**
@@ -51,6 +56,10 @@ export interface AppConfig {
 	minimizeToTray: boolean
 	startWithSystem: boolean
 	version: string
+	// RPC control settings
+	rpcEnabled: boolean
+	rpcDisabledUntil?: number // timestamp when RPC should be re-enabled
+	persistRpcTimersOnRestart: boolean // whether RPC timers should persist across app restarts
 }
 
 /**

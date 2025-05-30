@@ -59,7 +59,7 @@ export class VlcStatusService {
 	 */
 	private createAuthHeader(password: string): Record<string, string> {
 		// VLC requires empty username and password in a specific format
-		const username = "" 
+		const username = ""
 		const authString = `${username}:${password || ""}`
 		const base64Auth = Buffer.from(authString).toString("base64")
 

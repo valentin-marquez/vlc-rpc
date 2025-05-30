@@ -1,9 +1,10 @@
 # VLC Discord Rich Presence
+
 <div align="center">
     <img src="resources/icon.png" alt="VLC Discord RP Logo" width="200" height="200" style="border-radius: 10px;" />
 </div>
 
-> *"Because your friends totally need to know you're watching Shrek for the 17th time."*
+> _"Because your friends totally need to know you're watching Shrek for the 17th time."_
 
 ## What's New in Version 3.0.0
 
@@ -44,9 +45,11 @@ Built initially during a questionable 10-hour coding marathon and now significan
 ### The Easy Way
 
 1. Download the latest installer for your platform from the [releases page](https://github.com/valentin-marquez/vlc-discord-rp/releases)
+
 - Windows: `vlc-rpc-setup.exe` or `vlc-rpc-portable.exe`
 - macOS: `vlc-rpc.dmg` or `VLC-Discord-RP-arm64-mac.zip` for Apple Silicon
 - Linux: `vlc-rpc_amd64.deb`, `vlc-rpc.x86_64.rpm`, or `vlc-rpc.AppImage`
+
 2. Run the installer
 3. Follow the on-screen instructions
 4. Enjoy your new Discord flex powers!
@@ -56,7 +59,7 @@ Built initially during a questionable 10-hour coding marathon and now significan
 1. Clone this repo
 2. Install dependencies: `npm install`
 3. Start development server: `npm run dev`
-4. Build for production: 
+4. Build for production:
    - Windows: `npm run build:win`
    - macOS: `npm run build:mac`
    - Linux: `npm run build:linux`
@@ -73,7 +76,9 @@ Built initially during a questionable 10-hour coding marathon and now significan
 ## FAQ
 
 ### Q: Why isn't anything showing up in Discord?
+
 **A:** Make sure:
+
 1. Both VLC and Discord are running
 2. VLC's Web Interface is enabled (the app should enable this automatically)
 3. You're playing a media file
@@ -81,27 +86,35 @@ Built initially during a questionable 10-hour coding marathon and now significan
 5. If issues persist, try the reconnect button in settings
 
 ### Q: How do I close/exit the app?
+
 **A:** Right-click the app icon in your system tray (Windows/Linux) or menu bar (macOS) and select "Exit". Or use the close button in the main window.
 
 ### Q: Where is it installed?
+
 **A:** Default installation locations:
+
 - Windows: `%LOCALAPPDATA%\VLC Discord RP`
 - macOS: `/Applications/VLC Discord RP.app`
 - Linux: `/opt/vlc-discord-rp` or `/usr/bin/vlc-discord-rp`
 
 ### Q: Does it work on Mac/Linux?
+
 **A:** Yes! Version 3.0 fully supports Windows, macOS, and Linux with native installers for each platform.
 
 ### Q: How much of my privacy am I giving up?
+
 **A:** Only the title, artist, album info, and cover art from your media files are shared - and only with your Discord friends. We don't collect any data. Also, you can pause the sharing via the tray/menu bar icon.
 
 ### Q: I found a bug!
+
 **A:** That's not a question, but I respect your enthusiasm. Please open an issue on GitHub with details about what went wrong.
 
 ### Q: Will this get me banned from Discord?
+
 **A:** No! This app uses Discord's official Rich Presence API which is designed exactly for this purpose.
 
 ### Q: Why did you make this?
+
 **A:** The voices told me to. Also, it seemed like a fun project.
 
 ## Support The Project
@@ -113,12 +126,50 @@ If you enjoy this app and want to support its development, consider buying me a 
 ## Development Notes
 
 This project has evolved from a sleepless-night hack to a robust application with:
+
 - Cross-platform compatibility
 - Proper error handling
 - System tray/menu bar integration
 - Web interface utilization
 - Cover art extraction and display
 - Automatic updates
+
+### Contributing
+
+We use [Changesets](https://github.com/changesets/changesets) for version management and changelog generation. Here's how to contribute:
+
+1. **Fork and clone** the repository
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Make your changes** and commit them
+4. **Create a changeset**: `bun run changeset`
+   - Choose the appropriate version bump (patch/minor/major)
+   - Write a clear description of your changes
+5. **Commit the changeset**: `git add .changeset/ && git commit -m "docs: add changeset"`
+6. **Push and create a PR**
+
+For detailed information about our changeset workflow, see [docs/CHANGESETS.md](docs/CHANGESETS.md).
+
+#### Development Scripts
+
+```bash
+# Development
+bun run dev              # Start development server
+bun run build           # Build for production
+
+# Code Quality
+bun run lint            # Run linter
+bun run format          # Format code
+bun run typecheck       # Type checking
+
+# Changesets
+bun run changeset       # Create a changeset
+bun run changeset:status # Check changeset status
+
+# Platform Builds
+bun run build:win       # Build for Windows
+bun run build:mac       # Build for macOS
+bun run build:linux     # Build for Linux
+```
 
 Pull requests are welcome if you want to help improve things further!
 
@@ -128,4 +179,4 @@ MIT License - Feel free to use, modify, and distribute as you see fit.
 
 ---
 
-*Made with ❤️ and significantly less sleep deprivation this time*
+_Made with ❤️ and significantly less sleep deprivation this time_

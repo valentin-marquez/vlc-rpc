@@ -18,10 +18,16 @@ export class DiscordRpcService {
 	private reconnectAttempts = 0
 	private maxReconnectAttempts = 10
 	private reconnectDelay = 5000 // 5 seconds
+	private rpcCheckTimer: NodeJS.Timeout | null = null
 
 	private constructor() {
 		this.clientId = configService.get<string>("clientId")
 		logger.info("Discord RPC service initialized")
+
+		// Check if RPC timers should persist on restart
+		this.checkTimerPersistence()
+
+		this.startRpcCheckTimer()
 	}
 
 	/**
@@ -32,6 +38,97 @@ export class DiscordRpcService {
 			DiscordRpcService.instance = new DiscordRpcService()
 		}
 		return DiscordRpcService.instance
+	}
+
+	/**
+	 * Check if RPC timers should persist and clear them if not
+	 */
+	private checkTimerPersistence(): void {
+		const config = configService.get<AppConfig>()
+
+		// If timer persistence is disabled, clear any existing timer
+		if (!config.persistRpcTimersOnRestart && config.rpcDisabledUntil) {
+			logger.info("RPC timer persistence is disabled, clearing existing timer on startup")
+			configService.delete("rpcDisabledUntil")
+		}
+	}
+
+	/**
+	 * Check if RPC is currently enabled in configuration
+	 */
+	public isRpcEnabled(): boolean {
+		const config = configService.get<AppConfig>()
+
+		// Check if RPC is globally disabled
+		if (!config.rpcEnabled) {
+			return false
+		}
+
+		// Check if there's a temporary disable timer
+		if (config.rpcDisabledUntil && Date.now() < config.rpcDisabledUntil) {
+			return false
+		}
+
+		// If timer expired, re-enable RPC
+		if (config.rpcDisabledUntil && Date.now() >= config.rpcDisabledUntil) {
+			this.enableRpc()
+		}
+
+		return true
+	}
+
+	/**
+	 * Start a timer to periodically check RPC enable/disable status
+	 */
+	private startRpcCheckTimer(): void {
+		this.rpcCheckTimer = setInterval(() => {
+			const config = configService.get<AppConfig>()
+
+			// Check if temporary disable timer expired
+			if (config.rpcDisabledUntil && Date.now() >= config.rpcDisabledUntil) {
+				logger.info("RPC temporary disable timer expired, re-enabling RPC")
+				this.enableRpc()
+			}
+		}, 60000) // Check every minute
+	}
+
+	/**
+	 * Enable RPC permanently
+	 */
+	public enableRpc(): void {
+		configService.set("rpcEnabled", true)
+		configService.delete("rpcDisabledUntil")
+		logger.info("RPC enabled")
+	}
+
+	/**
+	 * Disable RPC permanently
+	 */
+	public disableRpc(): void {
+		configService.set("rpcEnabled", false)
+		configService.delete("rpcDisabledUntil")
+
+		// Clear any active presence
+		this.clear().catch((error) => {
+			logger.error(`Error clearing Discord presence when disabling RPC: ${error}`)
+		})
+
+		logger.info("RPC disabled")
+	}
+
+	/**
+	 * Disable RPC temporarily for specified duration (in minutes)
+	 */
+	public disableRpcTemporary(minutes: number): void {
+		configService.set("rpcEnabled", true) // Keep global state as enabled
+		configService.set("rpcDisabledUntil", Date.now() + minutes * 60 * 1000)
+
+		// Clear any active presence
+		this.clear().catch((error) => {
+			logger.error(`Error clearing Discord presence when temporarily disabling RPC: ${error}`)
+		})
+
+		logger.info(`RPC temporarily disabled for ${minutes} minutes`)
 	}
 
 	/**
@@ -154,6 +251,12 @@ export class DiscordRpcService {
 	 * Update Discord Rich Presence
 	 */
 	public async update(presenceData: DiscordPresenceData): Promise<boolean> {
+		// Check if RPC is enabled before updating
+		if (!this.isRpcEnabled()) {
+			logger.info("RPC is disabled, skipping presence update")
+			return false
+		}
+
 		if (!this.connected && !(await this.connect())) {
 			return false
 		}
@@ -251,6 +354,7 @@ export class DiscordRpcService {
 	 */
 	public async close(): Promise<void> {
 		this.stopReconnectTimer()
+		this.stopRpcCheckTimer()
 
 		if (this.connected && this.rpc) {
 			try {
@@ -265,6 +369,16 @@ export class DiscordRpcService {
 			} finally {
 				this.rpc = null
 			}
+		}
+	}
+
+	/**
+	 * Stop the RPC check timer
+	 */
+	private stopRpcCheckTimer(): void {
+		if (this.rpcCheckTimer) {
+			clearInterval(this.rpcCheckTimer)
+			this.rpcCheckTimer = null
 		}
 	}
 
