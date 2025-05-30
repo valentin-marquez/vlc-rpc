@@ -146,10 +146,11 @@ export class VlcStatusService {
 				logger.info("Connection to VLC timed out")
 			} else if (err.code === "ECONNREFUSED" || err.code === "ECONNRESET") {
 				logger.info("VLC is not running or HTTP interface is not accessible")
+				logger.warn(`Error reading VLC status: ${error}`)
 			} else if (error instanceof SyntaxError) {
 				logger.error("Invalid JSON in VLC response")
 			} else {
-				logger.error(`Error reading VLC status: ${error}`)
+				logger.warn(`Error reading VLC status: ${error}`)
 			}
 			return null
 		}

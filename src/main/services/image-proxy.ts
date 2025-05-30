@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs"
+import { fileURLToPath } from "node:url"
 import { logger } from "./logger"
 
 /**
@@ -43,7 +44,7 @@ export class ImageProxyService {
 			let contentType: string
 
 			if (source.startsWith("file://")) {
-				const filePath = source.replace("file://", "")
+				const filePath = fileURLToPath(source)
 				logger.info(`Loading local file: ${this.sanitizeUrl(filePath)}`)
 				buffer = await fs.readFile(filePath)
 				contentType = this.getContentTypeFromFileName(filePath)

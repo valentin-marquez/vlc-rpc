@@ -14,7 +14,14 @@
 		"url": "https://github.com/valentin-marquez/vlc-rpc.git"
 	},
 	"license": "MIT",
-	"keywords": ["vlc", "discord", "rich-presence", "media-player", "discord-rpc", "electron"],
+	"keywords": [
+		"vlc",
+		"discord",
+		"rich-presence",
+		"media-player",
+		"discord-rpc",
+		"electron"
+	],
 	"scripts": {
 		"format": "biome format --write .",
 		"lint": "biome check --write --unsafe .",
