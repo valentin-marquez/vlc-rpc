@@ -58,8 +58,25 @@ class PlayingState extends MediaState {
 		const contentType = enhancedInfo.content_type || ""
 		const contentMetadata = enhancedInfo.content_metadata || {}
 
-		const activityType =
-			mediaType === "audio" ? MediaActivityType.LISTENING : MediaActivityType.WATCHING
+		// Improved activity type detection
+		let activityType = MediaActivityType.LISTENING
+
+		// Use WATCHING for video content or specific content types
+		if (
+			mediaType === "video" ||
+			contentType === "tv_show" ||
+			contentType === "movie" ||
+			contentType === "anime" ||
+			contentType === "video"
+		) {
+			activityType = MediaActivityType.WATCHING
+		}
+
+		// Override for music even if it has video streams (music videos, visualizations)
+		if (media.artist && media.album && !contentType) {
+			activityType = MediaActivityType.LISTENING
+			logger.info("Detected music with artist/album info, using LISTENING activity")
+		}
 
 		let details = ""
 		let state = ""
@@ -101,7 +118,7 @@ class PlayingState extends MediaState {
 		} else {
 			details = media.title || "Unknown"
 
-			if (mediaType === "audio") {
+			if (activityType === MediaActivityType.LISTENING) {
 				state = `by ${media.artist || "Unknown Artist"}`
 			} else {
 				state = "Now watching"
@@ -143,6 +160,8 @@ class PlayingState extends MediaState {
 			largeText = "Watching a Movie"
 		} else if (contentType === "anime") {
 			largeText = "Watching Anime"
+		} else if (activityType === MediaActivityType.LISTENING) {
+			largeText = "Listening to Music"
 		}
 
 		const videoInfo = enhancedInfo.videoInfo
@@ -170,7 +189,7 @@ class PlayingState extends MediaState {
 			activity_type: activityType,
 		}
 
-		const activityName = mediaType === "video" ? "Watching" : "Listening to"
+		const activityName = activityType === MediaActivityType.WATCHING ? "Watching" : "Listening to"
 		logger.info(`Updated presence: ${activityName} ${details} - ${state}`)
 
 		return presenceData
@@ -195,8 +214,25 @@ class PausedState extends MediaState {
 		const contentType = enhancedInfo.content_type || ""
 		const contentMetadata = enhancedInfo.content_metadata || {}
 
-		const activityType =
-			mediaType === "audio" ? MediaActivityType.LISTENING : MediaActivityType.WATCHING
+		// Improved activity type detection (same as PlayingState)
+		let activityType = MediaActivityType.LISTENING
+
+		// Use WATCHING for video content or specific content types
+		if (
+			mediaType === "video" ||
+			contentType === "tv_show" ||
+			contentType === "movie" ||
+			contentType === "anime" ||
+			contentType === "video"
+		) {
+			activityType = MediaActivityType.WATCHING
+		}
+
+		// Override for music even if it has video streams (music videos, visualizations)
+		if (media.artist && media.album && !contentType) {
+			activityType = MediaActivityType.LISTENING
+			logger.info("Detected music with artist/album info, using LISTENING activity (paused)")
+		}
 
 		let details = ""
 		let state = ""
@@ -238,7 +274,7 @@ class PausedState extends MediaState {
 		} else {
 			details = media.title || "Unknown"
 
-			if (mediaType === "audio") {
+			if (activityType === MediaActivityType.LISTENING) {
 				state = `by ${media.artist || "Unknown Artist"}`
 			} else {
 				state = "Paused"
@@ -250,11 +286,21 @@ class PausedState extends MediaState {
 
 		let smallText = "Paused"
 		let largeImage = config.largeImage
-		const largeText = "VLC Media Player (Paused)"
+		let largeText = "VLC Media Player (Paused)"
 
 		const contentImageUrl = enhancedInfo.content_image_url
 		if (contentImageUrl) {
 			largeImage = contentImageUrl
+		}
+
+		if (contentType === "tv_show") {
+			largeText = "Watching TV Show (Paused)"
+		} else if (contentType === "movie") {
+			largeText = "Watching a Movie (Paused)"
+		} else if (contentType === "anime") {
+			largeText = "Watching Anime (Paused)"
+		} else if (activityType === MediaActivityType.LISTENING) {
+			largeText = "Listening to Music (Paused)"
 		}
 
 		const videoInfo = enhancedInfo.videoInfo
@@ -280,7 +326,7 @@ class PausedState extends MediaState {
 			activity_type: activityType,
 		}
 
-		const activityName = mediaType === "video" ? "Watching" : "Listening to"
+		const activityName = activityType === MediaActivityType.WATCHING ? "Watching" : "Listening to"
 		logger.info(`Updated presence (paused): ${activityName} ${details} - ${state}`)
 
 		return presenceData

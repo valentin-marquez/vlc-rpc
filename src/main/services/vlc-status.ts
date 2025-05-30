@@ -244,7 +244,11 @@ export class VlcStatusService {
 		const information = vlcStatus.information || {}
 		const category = information.category || {}
 
-		const isVideo = Object.entries(category).some(([key, stream]) => {
+		// Improved video detection with multiple methods
+		let isVideo = false
+
+		// Method 1: Check for video streams in category
+		isVideo = Object.entries(category).some(([key, stream]) => {
 			if (key !== "meta" && stream) {
 				const typedStream = stream as VlcStream
 				return typedStream.Type === "Video"
@@ -252,9 +256,79 @@ export class VlcStatusService {
 			return false
 		})
 
+		// Method 2: Check filename extension if stream detection fails
+		const meta = (category.meta as VlcMetadata) || {}
+		if (!isVideo && meta) {
+			const filename = meta.filename || meta.title || ""
+			const videoExtensions = [
+				".mp4",
+				".mkv",
+				".avi",
+				".mov",
+				".wmv",
+				".flv",
+				".webm",
+				".m4v",
+				".mpg",
+				".mpeg",
+				".3gp",
+				".ogv",
+				".ts",
+				".m2ts",
+				".mts",
+				".vob",
+				".divx",
+				".xvid",
+				".asf",
+				".rm",
+				".rmvb",
+			]
+
+			isVideo = videoExtensions.some((ext) => filename.toLowerCase().includes(ext.toLowerCase()))
+
+			if (isVideo) {
+				logger.info(`Detected video by file extension: ${filename}`)
+			}
+		}
+
+		// Method 3: Check for video-related metadata
+		if (!isVideo && meta) {
+			const title = meta.title || meta.filename || ""
+			const videoIndicators = [
+				// TV Show patterns
+				/S\d{1,2}E\d{1,2}/i, // S01E01
+				/\d{1,2}x\d{1,2}/i, // 1x01
+				/Season\s*\d+/i, // Season 1
+				/Episode\s*\d+/i, // Episode 1
+				// Movie patterns
+				/(19|20)\d{2}.*\.(mp4|mkv|avi)/i, // Year in filename with video extension
+				// Quality indicators (usually video)
+				/\b(720p|1080p|4K|UHD|BluRay|WEB-DL|HDRip|BRRip)\b/i,
+				// Video codecs
+				/\b(x264|x265|HEVC|h264|h265)\b/i,
+			]
+
+			isVideo = videoIndicators.some((pattern) => pattern.test(title))
+
+			if (isVideo) {
+				logger.info(`Detected video by content pattern: ${title}`)
+			}
+		}
+
+		// Method 4: Duration-based heuristic (videos tend to be longer)
+		if (!isVideo && length > 0) {
+			// If duration > 10 minutes and no explicit audio markers, likely video
+			const durationMinutes = length / 60
+			const hasAudioMarkers = meta.artist || meta.album
+
+			if (durationMinutes > 10 && !hasAudioMarkers) {
+				isVideo = true
+				logger.info(`Detected video by duration heuristic: ${durationMinutes.toFixed(1)} minutes`)
+			}
+		}
+
 		status.mediaType = isVideo ? "video" : "audio"
 
-		const meta = (category.meta as VlcMetadata) || {}
 		if (meta) {
 			status.media.title = meta.title || meta.filename || "Unknown"
 			status.media.artist = meta.artist || ""
@@ -265,6 +339,7 @@ export class VlcStatusService {
 			}
 		}
 
+		// Extract video resolution info
 		for (const [streamName, stream] of Object.entries(category)) {
 			if (streamName !== "meta" && stream) {
 				const typedStream = stream as VlcStream
@@ -279,6 +354,7 @@ export class VlcStatusService {
 			}
 		}
 
+		logger.info(`Media type detected: ${status.mediaType} for "${status.media.title}"`)
 		return status
 	}
 

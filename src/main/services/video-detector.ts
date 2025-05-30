@@ -66,10 +66,20 @@ export class VideoDetectorService {
 			clean_title: cleanTitle,
 		}
 
+		// Enhanced TV show patterns with more variations
 		const tvPatterns = [
+			// Standard patterns
 			/(.*?)[\.\s_-]*S(\d{1,2})[\.\s_-]*E(\d{1,2})/i,
 			/(.*?)[\.\s_-]*(\d{1,2})x(\d{1,2})/i,
 			/(.*?)[\.\s_-]*Season[\.\s_-]*(\d{1,2})[\.\s_-]*Episode[\.\s_-]*(\d{1,2})/i,
+			// New patterns for better detection
+			/(.*?)[\.\s_-]*S(\d{1,2})E(\d{1,2})/i, // S01E01 without separators
+			/(.*?)[\.\s_-]*(\d{1,2})\.(\d{1,2})/i, // 1.01 format
+			/(.*?)[\.\s_-]*Ep[\.\s_-]*(\d{1,3})/i, // Episode 01
+			/(.*?)[\.\s_-]*Episode[\.\s_-]*(\d{1,3})/i, // Episode 01
+			// Spanish patterns
+			/(.*?)[\.\s_-]*Temporada[\.\s_-]*(\d{1,2})[\.\s_-]*Capitulo[\.\s_-]*(\d{1,2})/i,
+			/(.*?)[\.\s_-]*T(\d{1,2})[\.\s_-]*C(\d{1,2})/i, // T01C01
 		]
 
 		for (const pattern of tvPatterns) {
@@ -77,41 +87,110 @@ export class VideoDetectorService {
 			if (match) {
 				const showName = match[1].replace(/[._-]/g, " ").trim()
 				metadata.show_name = showName
-				metadata.season = Number.parseInt(match[2], 10)
-				metadata.episode = Number.parseInt(match[3], 10)
+
+				// Handle different pattern groups
+				if (match.length >= 4) {
+					metadata.season = Number.parseInt(match[2], 10)
+					metadata.episode = Number.parseInt(match[3], 10)
+				} else if (match.length === 3) {
+					// Single episode number pattern
+					metadata.episode = Number.parseInt(match[2], 10)
+				}
+
+				logger.info(
+					`Detected TV show: ${showName} S${metadata.season || 0}E${metadata.episode || 0}`,
+				)
 				return ["tv_show", metadata]
 			}
 		}
 
-		const moviePattern = /(.+?)[\.\s\[\(_-]+(19\d{2}|20\d{2})[\]\)\._\s-]/
-		const movieMatch = cleanTitle.match(moviePattern)
-		if (movieMatch) {
-			const movieName = movieMatch[1].replace(/[._-]/g, " ").trim()
-			metadata.movie_name = movieName
-			metadata.year = movieMatch[2]
-			return ["movie", metadata]
-		}
+		// Enhanced movie detection with more patterns
+		const moviePatterns = [
+			// Year in parentheses or brackets
+			/(.+?)[\.\s\[\(_-]+(19\d{2}|20\d{2})[\]\)\._\s-]/,
+			// Year at the end
+			/(.+?)[\.\s_-]+(19\d{2}|20\d{2})$/,
+			// Quality indicators usually mean movies
+			/(.+?)[\.\s_-]+\b(BluRay|BRRip|DVDRip|WEBRip|WEB-DL|HDRip|CAMRip)\b/i,
+			// Resolution indicators
+			/(.+?)[\.\s_-]+\b(720p|1080p|2160p|4K|UHD)\b/i,
+		]
 
-		if (
-			(cleanTitle.includes("[") && cleanTitle.includes("]")) ||
-			/\.(sub|dub)\./i.test(cleanTitle)
-		) {
-			const epMatch = cleanTitle.match(/[-\s\.\_](\d{1,3})[-\s\.\_]/)
-			if (epMatch) {
-				metadata.episode = Number.parseInt(epMatch[1], 10)
-				const namePart = cleanTitle.split(epMatch[0])[0]
-				const animeName = namePart.replace(/\[.*?\]|\(.*?\)|[._-]/g, " ").trim()
-				metadata.anime_name = animeName
-				return ["anime", metadata]
+		for (const pattern of moviePatterns) {
+			const movieMatch = cleanTitle.match(pattern)
+			if (movieMatch) {
+				const movieName = movieMatch[1].replace(/[._-]/g, " ").trim()
+				metadata.movie_name = movieName
+
+				// Try to extract year from the match
+				const yearMatch = movieMatch[0].match(/(19\d{2}|20\d{2})/)
+				if (yearMatch) {
+					metadata.year = yearMatch[1]
+				}
+
+				logger.info(`Detected movie: ${movieName} (${metadata.year || "unknown year"})`)
+				return ["movie", metadata]
 			}
-
-			const animeName = cleanTitle.replace(/\[.*?\]|\(.*?\)|[._-]/g, " ").trim()
-			metadata.anime_name = animeName
-			return ["anime", metadata]
 		}
 
+		// Enhanced anime detection
+		const animePatterns = [
+			// Brackets with fansub groups
+			/\[([^\]]+)\][\s_-]*(.+?)[\s_-]*(\d{1,3})/i,
+			// Episode patterns for anime
+			/(.+?)[\s_-]+(\d{1,3})[\s_-]*\[/i,
+			/(.+?)[\s_-]+Ep[\s_-]*(\d{1,3})/i,
+			/(.+?)[\s_-]+Episode[\s_-]*(\d{1,3})/i,
+		]
+
+		for (const pattern of animePatterns) {
+			const match = cleanTitle.match(pattern)
+			if (
+				(match && cleanTitle.includes("[") && cleanTitle.includes("]")) ||
+				/\.(sub|dub)\./i.test(cleanTitle)
+			) {
+				let animeName = ""
+				let episode = 0
+
+				if (match && match.length >= 4) {
+					// Fansub group pattern
+					animeName = match[2].replace(/[._-]/g, " ").trim()
+					episode = Number.parseInt(match[3], 10)
+				} else if (match && match.length >= 3) {
+					// Direct episode pattern
+					animeName = match[1].replace(/[._-]/g, " ").trim()
+					episode = Number.parseInt(match[2], 10)
+				}
+
+				if (animeName) {
+					metadata.anime_name = animeName
+					metadata.episode = episode
+					logger.info(`Detected anime: ${animeName} - Episode ${episode}`)
+					return ["anime", metadata]
+				}
+			}
+		}
+
+		// If no specific pattern matches, check for video indicators
+		const videoIndicators = [
+			/\b(mkv|mp4|avi|mov|wmv|flv|webm|m4v)\b/i,
+			/\b(x264|x265|HEVC|h264|h265)\b/i,
+			/\b(AAC|AC3|DTS|TrueHD)\b/i, // Audio codecs often in video files
+		]
+
+		const hasVideoIndicators = videoIndicators.some((pattern) => pattern.test(cleanTitle))
+
+		if (hasVideoIndicators) {
+			const genericName = cleanTitle.replace(/\[.*?\]|\(.*?\)|\.mkv|\.mp4|\.avi|[._-]/g, " ").trim()
+			metadata.title = genericName
+			logger.info(`Detected generic video: ${genericName}`)
+			return ["video", metadata]
+		}
+
+		// Default to generic title
 		const genericName = cleanTitle.replace(/\[.*?\]|\(.*?\)|\.mkv|\.mp4|\.avi|[._-]/g, " ").trim()
 		metadata.title = genericName
+		logger.info(`No specific pattern detected, using generic: ${genericName}`)
 		return ["video", metadata]
 	}
 
