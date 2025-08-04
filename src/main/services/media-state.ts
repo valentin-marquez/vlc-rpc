@@ -162,7 +162,7 @@ class PlayingState extends MediaState {
 			activity_type: activityType,
 		}
 
-		// Set custom app name for music to show "Listening to {Artist}" instead of "Listening to VLC"
+		// Set custom app name for music
 		if (activityType === ActivityType.Listening && media && media.artist) {
 			presenceData.name = media.artist
 		}
@@ -199,7 +199,6 @@ class PausedState extends MediaState {
 		let state = ""
 
 		if (activityType === ActivityType.Listening) {
-			// For music, show title and "by artist" in state
 			details = media.title || "Unknown Song"
 			state = `by ${media.artist || "Unknown Artist"}`
 		} else {

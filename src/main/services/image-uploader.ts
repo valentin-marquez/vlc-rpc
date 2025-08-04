@@ -198,7 +198,7 @@ export class ImageUploaderService {
 			case "bmp":
 				return "image/bmp"
 			default:
-				return "image/jpeg" // Default fallback
+				return "image/jpeg"
 		}
 	}
 }

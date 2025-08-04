@@ -27,7 +27,7 @@ if (!gotTheLock) {
 	logger.info("Another instance is already running. Quitting this one.")
 	app.quit()
 } else {
-	// Try to detect if launched at startup by checking startup/login arguments
+	// Detect if app was launched at startup
 	const launchArgs = process.argv.slice(1).join(" ").toLowerCase()
 	app.wasLaunchedAtStartup =
 		launchArgs.includes("--autostart") ||
@@ -41,11 +41,9 @@ if (!gotTheLock) {
 	})
 
 	app.on("window-all-closed", (): void => {
-		if (process.platform !== "darwin") {
-			const minimizeToTray = configService.get<boolean>("minimizeToTray")
-			if (!minimizeToTray) {
-				app.quit()
-			}
+		const minimizeToTray = configService.get<boolean>("minimizeToTray")
+		if (!minimizeToTray) {
+			app.quit()
 		}
 	})
 
@@ -58,12 +56,8 @@ if (!gotTheLock) {
 			wasLaunchedAtStartup: app.wasLaunchedAtStartup,
 		})
 
-		// Set app user model id for windows - use the same ID as in electron-builder.yml
 		electronApp.setAppUserModelId("com.valentinmarquez.vlcdiscordrp")
 
-		// Default open or close DevTools by F12 in development
-		// and ignore CommandOrControl + R in production.
-		// see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
 		app.on("browser-window-created", (_, window) => {
 			optimizer.watchWindowShortcuts(window)
 		})
@@ -74,10 +68,10 @@ if (!gotTheLock) {
 
 		mainHandlers
 
-		// Initialize tray service first (so it's available when window decides to hide)
+		// Initialize tray service before window service
 		trayService
 
-		// Initialize window service (will check if should start minimized)
+		// Initialize window service
 		const mainWindowPromise = windowService.createWindow()
 
 		// Initialize auto-updater service after window is created

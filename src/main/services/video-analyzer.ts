@@ -210,7 +210,6 @@ export class VideoAnalyzerService {
 			}
 		}
 
-		// Default: just the title
 		return {
 			details: analysis.title,
 			state: "Watching",

@@ -23,7 +23,6 @@ export class StartupService {
 	 * Check if the application is running as portable version
 	 */
 	public isPortable(): boolean {
-		// Check if executable name contains "portable"
 		const execPath = process.execPath.toLowerCase()
 		return execPath.includes("portable")
 	}

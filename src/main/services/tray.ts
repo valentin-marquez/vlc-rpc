@@ -1,8 +1,14 @@
 import { join } from "node:path"
 import { is } from "@electron-toolkit/utils"
-import { Menu, type MenuItemConstructorOptions, Tray, app, nativeImage } from "electron"
+import {
+	Menu,
+	type MenuItemConstructorOptions,
+	Tray,
+	app,
+	nativeImage,
+	powerMonitor,
+} from "electron"
 import iconPath16 from "../../../resources/icons/16x16.png?asset"
-import iconPath32 from "../../../resources/icons/32x32.png?asset"
 import { configService } from "./config"
 import { logger } from "./logger"
 import { startupService } from "./startup"
@@ -38,6 +44,37 @@ export class TrayService {
 			this.stopMenuUpdateTimer()
 		})
 
+		// Handle system events that may affect the tray
+		powerMonitor.on("suspend", () => {
+			logger.info("System is going to sleep")
+		})
+
+		powerMonitor.on("resume", () => {
+			logger.info("System resumed from sleep")
+			// Verify tray icon after system resume
+			setTimeout(() => {
+				if (!this.tray || this.tray.isDestroyed()) {
+					logger.info("Tray icon lost after system resume, reinitializing")
+					this.initTray()
+				}
+			}, 1000)
+		})
+
+		powerMonitor.on("lock-screen", () => {
+			logger.info("Screen locked")
+		})
+
+		powerMonitor.on("unlock-screen", () => {
+			logger.info("Screen unlocked")
+			// Verify tray icon after screen unlock
+			setTimeout(() => {
+				if (!this.tray || this.tray.isDestroyed()) {
+					logger.info("Tray icon lost after screen unlock, reinitializing")
+					this.initTray()
+				}
+			}, 1000)
+		})
+
 		this.setupTrayKeepalive()
 		this.startMenuUpdateTimer()
 	}
@@ -60,10 +97,31 @@ export class TrayService {
 	}
 
 	/**
+	 * Get the current state of the tray for debugging purposes
+	 */
+	public getTrayState(): {
+		exists: boolean
+		isDestroyed: boolean | null
+		isReady: boolean
+	} {
+		return {
+			exists: this.tray !== null,
+			isDestroyed: this.tray ? this.tray.isDestroyed() : null,
+			isReady: this.readyResolver === null,
+		}
+	}
+
+	/**
 	 * Initialize the tray icon and menu
 	 */
 	private initTray(): void {
 		try {
+			// Prevent multiple initializations
+			if (this.tray && !this.tray.isDestroyed()) {
+				logger.info("Tray already exists and is not destroyed, skipping initialization")
+				return
+			}
+
 			logger.info("Initializing tray")
 
 			const iconPath = this.getTrayIconPath()
@@ -76,18 +134,19 @@ export class TrayService {
 				throw new Error("Empty tray icon")
 			}
 
+			// Destroy existing tray if it exists
 			if (this.tray) {
-				this.tray.destroy()
+				try {
+					this.tray.destroy()
+					logger.info("Destroyed existing tray before creating new one")
+				} catch (error) {
+					logger.warn(`Error destroying existing tray: ${error}`)
+				}
 			}
 
 			this.tray = new Tray(trayIcon)
-
-			if (process.platform === "win32") {
-				this.tray.setIgnoreDoubleClickEvents(true)
-			}
-
+			this.tray.setIgnoreDoubleClickEvents(true)
 			this.tray.setToolTip("VLC Discord Rich Presence")
-
 			this.updateContextMenu()
 
 			this.tray.on("click", () => {
@@ -102,20 +161,18 @@ export class TrayService {
 			}
 		} catch (error) {
 			logger.error(`Failed to initialize tray: ${error}`)
-
 			this.fallbackTrayInit()
 		}
 	}
 
 	/**
-	 * Get the appropriate icon path for the current platform
+	 * Get the appropriate icon path
 	 */
 	private getTrayIconPath(): string {
-		const iconSize = process.platform === "darwin" ? "32x32" : "16x16"
-		const iconName = `${iconSize}.png`
+		const iconName = "16x16.png"
 
 		if (is.dev) {
-			return process.platform === "darwin" ? iconPath32 : iconPath16
+			return iconPath16
 		}
 		return join(process.resourcesPath, "resources", "icons", iconName)
 	}
@@ -125,7 +182,23 @@ export class TrayService {
 	 */
 	private fallbackTrayInit(): void {
 		try {
+			// Prevent multiple fallback initializations
+			if (this.tray && !this.tray.isDestroyed()) {
+				logger.info("Tray already exists and is not destroyed, skipping fallback initialization")
+				return
+			}
+
 			logger.info("Attempting fallback tray initialization")
+
+			// Destroy existing tray if it exists
+			if (this.tray) {
+				try {
+					this.tray.destroy()
+					logger.info("Destroyed existing tray before fallback creation")
+				} catch (error) {
+					logger.warn(`Error destroying existing tray in fallback: ${error}`)
+				}
+			}
 
 			const svgIcon = `
 				<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
@@ -161,30 +234,27 @@ export class TrayService {
 	 */
 	private setupTrayKeepalive(): void {
 		setInterval(() => {
-			if (
-				!this.tray ||
-				(process.platform === "win32" && !this.tray.isDestroyed() && !app.isQuitting)
-			) {
-				logger.info("Tray keepalive check - tray missing, reinitializing")
+			if (!this.tray || this.tray.isDestroyed()) {
+				logger.info("Tray keepalive check - tray missing or destroyed, reinitializing")
 				this.initTray()
 			}
-		}, 30000)
+		}, 60000)
 	}
 
 	/**
 	 * Start the timer to update the menu periodically
 	 */
 	private startMenuUpdateTimer(): void {
-		this.stopMenuUpdateTimer() // Clear any existing timer
+		this.stopMenuUpdateTimer()
 
 		this.menuUpdateTimer = setInterval(() => {
 			const config = configService.get<{ rpcDisabledUntil?: number }>()
 
-			// If RPC is disabled temporarily, update the menu to reflect the remaining time
+			// Update menu if RPC is temporarily disabled
 			if (config.rpcDisabledUntil && Date.now() < config.rpcDisabledUntil) {
 				this.updateContextMenu()
 			}
-		}, 10000) // Update every 10 seconds
+		}, 10000)
 	}
 
 	/**

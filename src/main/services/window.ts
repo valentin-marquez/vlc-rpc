@@ -1,6 +1,5 @@
 import { join } from "node:path"
 import { is } from "@electron-toolkit/utils"
-import icon from "@resources/icons/128x128.png?asset"
 import { BrowserWindow, app, ipcMain, session, shell } from "electron"
 import { configService } from "./config"
 import { discordRpcService } from "./discord-rpc"
@@ -84,10 +83,9 @@ export class WindowService {
 			logger.info("Tray is ready, proceeding with window creation")
 		} catch (error) {
 			logger.error(`Error waiting for tray: ${error}`)
-			// Continue anyway, as we don't want to block window creation
 		}
 
-		// Set Content Security Policy to allow data URLs and unsafe-eval for React in development
+		// Set Content Security Policy for React development
 		session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
 			callback({
 				responseHeaders: {
@@ -99,28 +97,22 @@ export class WindowService {
 			})
 		})
 
-		const vibrancy = process.platform === "darwin" ? "under-window" : undefined
-		const backgroundColor =
-			process.platform === "darwin"
-				? undefined // Transparent for vibrancy
-				: "#1a1b1e" // Discord dark theme background
+		const backgroundColor = "#1a1b1e" // Discord dark theme background
 
 		this.mainWindow = new BrowserWindow({
 			width: 900,
 			height: 680,
 			minWidth: 750,
 			minHeight: 600,
-			show: false, // Always create hidden first, then decide when to show
+			show: false,
 			autoHideMenuBar: true,
 			backgroundColor,
-			vibrancy,
-			titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
+			titleBarStyle: "hidden",
 			trafficLightPosition: { x: 10, y: 10 },
 			frame: false,
 			roundedCorners: true,
-			transparent: process.platform === "darwin",
+			transparent: false,
 			center: true,
-			...(process.platform === "linux" ? { icon } : {}),
 			webPreferences: {
 				preload: join(__dirname, "../preload/index.js"),
 				sandbox: false,
@@ -248,14 +240,13 @@ export class WindowService {
 			}
 		}
 
-		// Check specific environment variables for macOS
-		if (process.platform === "darwin") {
-			// macOS sets this for login items
-			if (
-				process.env.LAUNCHED_BY_LAUNCHD ||
-				process.env.LAUNCHED_AT_LOGIN ||
-				process.env.LAUNCH_AT_LOGIN
-			) {
+		// Check Windows registry for startup detection
+		if (
+			process.env.PROGRAMDATA ||
+			process.env.APPDATA ||
+			process.argv.some((arg) => arg.includes("--autostart"))
+		) {
+			if (app.wasLaunchedAtStartup) {
 				return true
 			}
 		}
