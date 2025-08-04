@@ -50,11 +50,7 @@ jobs:
     name: Build and Release Binaries
     needs: release
     if: needs.release.outputs.published == 'true'
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
@@ -66,26 +62,7 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Setup Linux build environment
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libarchive-tools
-
-      - name: Build Linux
-        if: matrix.os == 'ubuntu-latest'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bun run build:linux
-
-      - name: Build macOS
-        if: matrix.os == 'macos-latest'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bun run build:mac
-
       - name: Build Windows
-        if: matrix.os == 'windows-latest'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bun run build:win
@@ -93,16 +70,11 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Build-${{ matrix.os }}
+          name: Build-Windows
           path: |
             dist/*-portable.exe
             dist/*.exe
             dist/*.zip
-            dist/*.dmg
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.rpm
-            dist/*.tar.gz
             dist/*.yml
             dist/*.blockmap
 
@@ -131,11 +103,6 @@ jobs:
           files: |
             artifacts/*.exe
             artifacts/*.zip
-            artifacts/*.dmg
-            artifacts/*.AppImage
-            artifacts/*.deb
-            artifacts/*.rpm
-            artifacts/*.tar.gz
             artifacts/*.yml
             artifacts/*.blockmap
         env:
