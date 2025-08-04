@@ -2,22 +2,15 @@ import { createHash } from "node:crypto"
 import { configService } from "@main/services/config"
 import { logger } from "@main/services/logger"
 import type { VlcConfig } from "@shared/types"
-import type { VlcConnectionStatus, VlcRawStatus, VlcStatus } from "@shared/types/vlc"
-
-interface VlcMetadata {
-	title?: string
-	filename?: string
-	artist?: string
-	album?: string
-	artwork_url?: string
-	[key: string]: string | undefined
-}
-
-interface VlcStream {
-	Type?: string
-	Video_resolution?: string
-	[key: string]: string | undefined
-}
+import type {
+	VlcConnectionStatus,
+	VlcMetadata,
+	VlcPlaylistItem,
+	VlcPlaylistResponse,
+	VlcRawStatus,
+	VlcStatus,
+	VlcStreamInfo,
+} from "@shared/types/vlc"
 
 /**
  * Service to read and process VLC media status through HTTP interface
@@ -222,6 +215,7 @@ export class VlcStatusService {
 
 	/**
 	 * Convert VLC HTTP API status format to our internal format
+	 * Uses VLC stream information for reliable content type detection
 	 */
 	private convertVlcStatus(vlcStatus: VlcRawStatus): VlcStatus {
 		const state = vlcStatus.state || "stopped"
@@ -245,97 +239,65 @@ export class VlcStatusService {
 		const information = vlcStatus.information || {}
 		const category = information.category || {}
 
-		// Improved video detection with multiple methods
+		// Simple and reliable media type detection using VLC stream information
 		let isVideo = false
 
-		// Method 1: Check for video streams in category
-		isVideo = Object.entries(category).some(([key, stream]) => {
+		// Check all streams in the category to determine media type
+		for (const [key, stream] of Object.entries(category)) {
 			if (key !== "meta" && stream) {
-				const typedStream = stream as VlcStream
-				return typedStream.Type === "Video"
-			}
-			return false
-		})
-
-		// Method 2: Check filename extension if stream detection fails
-		const meta = (category.meta as VlcMetadata) || {}
-		if (!isVideo && meta) {
-			const filename = meta.filename || meta.title || ""
-			const videoExtensions = [
-				".mp4",
-				".mkv",
-				".avi",
-				".mov",
-				".wmv",
-				".flv",
-				".webm",
-				".m4v",
-				".mpg",
-				".mpeg",
-				".3gp",
-				".ogv",
-				".ts",
-				".m2ts",
-				".mts",
-				".vob",
-				".divx",
-				".xvid",
-				".asf",
-				".rm",
-				".rmvb",
-			]
-
-			isVideo = videoExtensions.some((ext) => filename.toLowerCase().includes(ext.toLowerCase()))
-
-			if (isVideo) {
-				logger.info(`Detected video by file extension: ${filename}`)
-			}
-		}
-
-		// Method 3: Check for video-related metadata
-		if (!isVideo && meta) {
-			const title = meta.title || meta.filename || ""
-			const videoIndicators = [
-				// TV Show patterns
-				/S\d{1,2}E\d{1,2}/i, // S01E01
-				/\d{1,2}x\d{1,2}/i, // 1x01
-				/Season\s*\d+/i, // Season 1
-				/Episode\s*\d+/i, // Episode 1
-				// Movie patterns
-				/(19|20)\d{2}.*\.(mp4|mkv|avi)/i, // Year in filename with video extension
-				// Quality indicators (usually video)
-				/\b(720p|1080p|4K|UHD|BluRay|WEB-DL|HDRip|BRRip)\b/i,
-				// Video codecs
-				/\b(x264|x265|HEVC|h264|h265)\b/i,
-			]
-
-			isVideo = videoIndicators.some((pattern) => pattern.test(title))
-
-			if (isVideo) {
-				logger.info(`Detected video by content pattern: ${title}`)
-			}
-		}
-
-		// Method 4: Duration-based heuristic (videos tend to be longer)
-		if (!isVideo && length > 0) {
-			// If duration > 10 minutes and no explicit audio markers, likely video
-			const durationMinutes = length / 60
-			const hasAudioMarkers = meta.artist || meta.album
-
-			if (durationMinutes > 10 && !hasAudioMarkers) {
-				isVideo = true
-				logger.info(`Detected video by duration heuristic: ${durationMinutes.toFixed(1)} minutes`)
+				const typedStream = stream as VlcStreamInfo
+				if (typedStream.Type === "Video") {
+					isVideo = true
+					logger.info(`Found video stream: ${typedStream.Codec}`)
+					break // If we find a video stream, it's definitely video content
+				}
 			}
 		}
 
 		status.mediaType = isVideo ? "video" : "audio"
+		logger.info(`Media type detected: ${status.mediaType}`)
 
+		// Get metadata from VLC
+		const meta = (category.meta as VlcMetadata) || {}
+
+		// Enhanced media information extraction
 		if (meta) {
-			status.media.title = meta.title || meta.filename || "Unknown"
+			// Prioritize specific metadata fields over generic ones
+			status.media.title =
+				meta.title ||
+				meta.showName ||
+				meta.movie_name ||
+				meta.anime_name ||
+				meta.filename ||
+				"Unknown"
+
 			status.media.artist = meta.artist || ""
 			status.media.album = meta.album || ""
 
-			if (meta.artwork_url) {
+			// Handle artwork URL - prioritize our uploaded images
+			if (meta["X-COVER-URL"]) {
+				// Check if our uploaded image is still valid
+				const expiryDate = meta["X-EXPIRY-DATE"]
+				let isExpired = false
+
+				if (expiryDate) {
+					try {
+						const expiry = new Date(expiryDate)
+						isExpired = expiry.getTime() < Date.now()
+					} catch {
+						// Invalid date format, assume not expired
+					}
+				}
+
+				if (!isExpired) {
+					status.media.artworkUrl = meta["X-COVER-URL"]
+					logger.info(`Using uploaded cover image: ${meta["X-COVER-URL"]}`)
+				} else {
+					logger.info("Uploaded cover image has expired, will use local artwork")
+					status.media.artworkUrl = meta.artwork_url
+				}
+			} else {
+				// Use local artwork URL if available
 				status.media.artworkUrl = meta.artwork_url
 			}
 		}
@@ -343,7 +305,7 @@ export class VlcStatusService {
 		// Extract video resolution info
 		for (const [streamName, stream] of Object.entries(category)) {
 			if (streamName !== "meta" && stream) {
-				const typedStream = stream as VlcStream
+				const typedStream = stream as VlcStreamInfo
 				if (typedStream.Type === "Video") {
 					const resolution = typedStream.Video_resolution || ""
 					if (resolution?.includes("x")) {
@@ -355,15 +317,90 @@ export class VlcStatusService {
 			}
 		}
 
-		logger.info(`Media type detected: ${status.mediaType} for "${status.media.title}"`)
+		logger.info(`Final media type: ${status.mediaType} for "${status.media.title}"`)
+
+		// Log enhanced metadata for debugging
+		if (meta["X-COVER-URL"]) {
+			logger.info(
+				`Custom metadata found - App: ${meta["X-PROCESSED-BY"]}, Version: ${meta["X-APP-VERSION"]}`,
+			)
+		}
+
 		return status
 	}
 
 	/**
-	 * Check VLC status and return diagnostic information
-	 *
-	 * @returns Status check result with connection information
+	 * Get the current playing file URI from VLC playlist
+	 * @returns The file URI of the currently playing item or null
 	 */
+	public async getCurrentFileUri(): Promise<string | null> {
+		const vlcConfig = configService.get<VlcConfig>("vlc")
+
+		if (!vlcConfig.httpEnabled) {
+			logger.warn("VLC HTTP interface is not enabled")
+			return null
+		}
+
+		try {
+			const playlistUrl = new URL("playlist.json", this.baseUrl).toString()
+			logger.info(`Fetching VLC playlist from: ${playlistUrl}`)
+
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), 2000)
+
+			const response = await fetch(playlistUrl, {
+				headers: this.authHeader,
+				signal: controller.signal,
+			})
+
+			clearTimeout(timeoutId)
+
+			if (response.status !== 200) {
+				logger.error(`Failed to get VLC playlist: HTTP ${response.status}`)
+				return null
+			}
+
+			const content = await response.text()
+			const playlist: VlcPlaylistResponse = JSON.parse(content)
+
+			// Find the current playing item
+			const currentItem = this.findCurrentPlayingItem(playlist)
+			if (currentItem?.uri) {
+				logger.info(`Current playing file: ${currentItem.uri}`)
+				return currentItem.uri
+			}
+
+			logger.info("No current playing item found in playlist")
+			return null
+		} catch (error) {
+			logger.error(`Error getting current file URI: ${error}`)
+			return null
+		}
+	}
+
+	/**
+	 * Recursively search for the current playing item in the playlist
+	 * @param item - Playlist item to search
+	 * @returns The current playing item or null
+	 */
+	private findCurrentPlayingItem(item: VlcPlaylistResponse): VlcPlaylistItem | null {
+		// Check if this item is marked as current
+		if ("current" in item && (item as VlcPlaylistItem).current === "current") {
+			return item as VlcPlaylistItem
+		}
+
+		// Search in children
+		if (item.children) {
+			for (const child of item.children) {
+				const found = this.findCurrentPlayingItem(child as VlcPlaylistResponse)
+				if (found) {
+					return found
+				}
+			}
+		}
+
+		return null
+	}
 	public async checkVlcStatus(): Promise<VlcConnectionStatus> {
 		const vlcConfig = configService.get<VlcConfig>("vlc")
 

@@ -2,22 +2,34 @@
 
 <div align="center">
     <img src="resources/icon.png" alt="VLC Discord RP Logo" width="200" height="200" style="border-radius: 10px;" />
+    <br><br>
+    <img src="https://img.shields.io/badge/Windows-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
+    <img src="https://img.shields.io/github/v/release/valentin-marquez/vlc-rpc?style=for-the-badge" alt="Release">
+    <img src="https://img.shields.io/github/downloads/valentin-marquez/vlc-rpc/total?style=for-the-badge" alt="Downloads">
 </div>
 
 > _"Because your friends totally need to know you're watching Shrek for the 17th time."_
 
-## What's New in Version 3.0.0
+## What's New in Version 4.0.0
 
 🎉 **Major Update Alert!** 🎉
 
-- **Cross-Platform Support**: Now available for Windows, macOS, and Linux!
-- **Automatic Updates**: Never miss a new feature with our new built-in update system
+**Important Notice**: Starting with version 4.0.0, VLC Discord RP focuses exclusively on **Windows support** to ensure the highest quality experience and faster development cycles.
+
+- **Windows-Optimized**: Built specifically for Windows with enhanced performance and stability
+- **Automatic Updates**: Never miss a new feature with our built-in update system
 - **Smart Content Detection**: Better identification of TV shows, movies, and anime
 - **Activity Type Precision**: Shows "Listening to" for music and "Watching" for videos
 - **Improved Reconnection Logic**: Automatically reconnects to Discord if connection drops
 - **Enhanced Error Handling**: More robust operation with better recovery from failures
 - **Modern UI**: Sleek, responsive interface with light/dark theme support
 - **Tray Integration**: Keep the app running in the background for seamless tracking
+
+### System Requirements
+
+- **Operating System**: Windows 10/11 (64-bit)
+- **VLC Media Player**: Version 3.0 or higher
+- **Discord**: Desktop application required
 
 ### See It In Action
 
@@ -38,31 +50,32 @@ VLC Discord Rich Presence is a magical little bridge between your VLC Media Play
 - Album/media artwork
 - Fancy icons and progress bars
 
-Built initially during a questionable 10-hour coding marathon and now significantly improved with proper architecture and planning!
+Built initially during a questionable 10-hour coding marathon and now significantly improved with proper architecture and Windows-optimized performance!
 
 ## Installation
 
-### The Easy Way
+### Windows Installation
 
-1. Download the latest installer for your platform from the [releases page](https://github.com/valentin-marquez/vlc-discord-rp/releases)
+1. Download the latest installer from the [releases page](https://github.com/valentin-marquez/vlc-discord-rp/releases)
 
-- Windows: `vlc-rpc-setup.exe` or `vlc-rpc-portable.exe`
-- macOS: `vlc-rpc.dmg` or `VLC-Discord-RP-arm64-mac.zip` for Apple Silicon
-- Linux: `vlc-rpc_amd64.deb`, `vlc-rpc.x86_64.rpm`, or `vlc-rpc.AppImage`
+   - **Installer**: `vlc-rpc-4.0.0-setup.exe` (Recommended)
+   - **Portable**: `vlc-rpc-4.0.0-portable.exe` (No installation required)
 
-2. Run the installer
-3. Follow the on-screen instructions
-4. Enjoy your new Discord flex powers!
+2. Run the installer as Administrator (for best compatibility)
+3. Follow the on-screen setup wizard
+4. Launch VLC Discord RP from the Start Menu or Desktop shortcut
+5. Enjoy your new Discord flex powers!
 
-### The Hard Way (For Developers)
+### Development Setup (Windows)
 
-1. Clone this repo
+1. Clone this repository
 2. Install dependencies: `npm install`
 3. Start development server: `npm run dev`
-4. Build for production:
-   - Windows: `npm run build:win`
-   - macOS: `npm run build:mac`
-   - Linux: `npm run build:linux`
+4. Build for production: `npm run build:win`
+
+### Legacy Platform Support
+
+**macOS and Linux**: Version 3.x.x was the last release supporting these platforms. See our [Platform Migration Guide](docs/PLATFORM_MIGRATION.md) for alternatives and community solutions.
 
 ## How It Works
 

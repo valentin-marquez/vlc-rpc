@@ -33,26 +33,6 @@ nsis:
   differentialPackage: true
 portable:
   artifactName: ${name}-${version}-portable.${ext}
-mac:
-  icon: resources/icon.icns
-  category: public.app-category.utilities
-  target:
-    - dmg
-    - zip
-  entitlementsInherit: resources/entitlements.mac.plist
-dmg:
-  artifactName: ${name}-${version}.${ext}
-linux:
-  icon: resources/icons
-  category: Utility
-  description: Discord Rich Presence integration for VLC Media Player
-  target:
-    - AppImage
-    - deb
-    - rpm
-
-appImage:
-  artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
   provider: github

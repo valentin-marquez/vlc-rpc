@@ -1,5 +1,7 @@
+import { AppInfoHandler } from "@main/handlers/app-info-handler"
 import { DiscordRpcHandler } from "@main/handlers/discord-rpc-handler"
 import { MediaInfoHandler } from "@main/handlers/media-info-handler"
+import { MetadataHandler } from "@main/handlers/metadata-handler"
 import { UpdateHandler } from "@main/handlers/update-handler"
 import { VlcConfigHandler } from "@main/handlers/vlc-config-handler"
 import { VlcStatusHandler } from "@main/handlers/vlc-status-handler"
@@ -13,19 +15,23 @@ import { logger } from "@main/services/logger"
 export class MainHandlers {
 	private static instance: MainHandlers | null = null
 
+	public appInfoHandler: AppInfoHandler
 	public vlcConfigHandler: VlcConfigHandler
 	public vlcStatusHandler: VlcStatusHandler
 	public discordRpcHandler: DiscordRpcHandler
 	public mediaInfoHandler: MediaInfoHandler
+	public metadataHandler: MetadataHandler
 	public updateHandler: UpdateHandler
 
 	private constructor() {
 		logger.info("Initializing main process handlers")
 
+		this.appInfoHandler = new AppInfoHandler()
 		this.vlcConfigHandler = new VlcConfigHandler()
 		this.vlcStatusHandler = new VlcStatusHandler()
 		this.discordRpcHandler = new DiscordRpcHandler()
 		this.mediaInfoHandler = new MediaInfoHandler()
+		this.metadataHandler = new MetadataHandler()
 		this.updateHandler = new UpdateHandler()
 
 		logger.info("Main process handlers initialized")

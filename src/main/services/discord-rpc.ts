@@ -1,7 +1,6 @@
 import type { AppConfig } from "@shared/types"
 import type { DiscordPresenceData } from "@shared/types/media"
-import { Client, type SetActivity } from "@xhayper/discord-rpc"
-import { ActivityType } from "discord-api-types/v10"
+import { Client, type SetActivity, StatusDisplayType } from "@xhayper/discord-rpc"
 import { configService } from "./config"
 import { logger } from "./logger"
 
@@ -12,7 +11,7 @@ export class DiscordRpcService {
 	private static instance: DiscordRpcService | null = null
 	private rpc: Client | null = null
 	private connected = false
-	private clientId: string
+	private readonly clientId = "1345358480671772683"
 	private connecting = false
 	private reconnectTimer: NodeJS.Timeout | null = null
 	private reconnectAttempts = 0
@@ -21,12 +20,7 @@ export class DiscordRpcService {
 	private rpcCheckTimer: NodeJS.Timeout | null = null
 
 	private constructor() {
-		this.clientId = configService.get<string>("clientId")
 		logger.info("Discord RPC service initialized")
-
-		// Check if RPC timers should persist on restart
-		this.checkTimerPersistence()
-
 		this.startRpcCheckTimer()
 	}
 
@@ -41,58 +35,20 @@ export class DiscordRpcService {
 	}
 
 	/**
-	 * Check if RPC timers should persist and clear them if not
-	 */
-	private checkTimerPersistence(): void {
-		const config = configService.get<AppConfig>()
-
-		// If timer persistence is disabled, clear any existing timer
-		if (!config.persistRpcTimersOnRestart && config.rpcDisabledUntil) {
-			logger.info("RPC timer persistence is disabled, clearing existing timer on startup")
-			configService.delete("rpcDisabledUntil")
-		}
-	}
-
-	/**
-	 * Check if RPC is currently enabled in configuration
+	 * Check if RPC is currently enabled (always true after cleanup)
 	 */
 	public isRpcEnabled(): boolean {
-		const config = configService.get<AppConfig>()
-
-		// Check if RPC is globally disabled
-		if (!config.rpcEnabled) {
-			return false
-		}
-
-		// Check if there's a temporary disable timer
-		if (config.rpcDisabledUntil && Date.now() < config.rpcDisabledUntil) {
-			return false
-		}
-
-		// If timer expired, re-enable RPC
-		if (config.rpcDisabledUntil && Date.now() >= config.rpcDisabledUntil) {
-			this.enableRpc()
-		}
-
 		return true
 	}
 
 	/**
 	 * Start a timer to periodically check RPC enable/disable status
+	 * (Disabled after cleanup - RPC is always enabled now)
 	 */
 	private startRpcCheckTimer(): void {
-		this.rpcCheckTimer = setInterval(() => {
-			const config = configService.get<AppConfig>()
-
-			// Check if temporary disable timer expired
-			if (config.rpcDisabledUntil && Date.now() >= config.rpcDisabledUntil) {
-				logger.info("RPC temporary disable timer expired, re-enabling RPC")
-				this.enableRpc()
-			}
-		}, 60000) // Check every minute
-	}
-
-	/**
+		// No longer needed since RPC is always enabled
+		logger.info("RPC check timer disabled after cleanup")
+	} /**
 	 * Enable RPC permanently
 	 */
 	public enableRpc(): void {
@@ -154,8 +110,6 @@ export class DiscordRpcService {
 		this.stopReconnectTimer()
 
 		try {
-			this.clientId = configService.get<string>("clientId")
-
 			this.rpc = new Client({
 				clientId: this.clientId,
 			})
@@ -268,12 +222,21 @@ export class DiscordRpcService {
 		try {
 			const config = configService.get<AppConfig>()
 
+			// Log the presence data for debugging
+			logger.info("Updating Discord Rich Presence with data:", presenceData)
+
 			const activity: SetActivity = {
 				details: presenceData.details,
 				state: presenceData.state,
 				largeImageKey: presenceData.large_image || config.largeImage,
 				largeImageText: presenceData.large_text || "VLC Media Player",
 				instance: presenceData.instance !== undefined ? presenceData.instance : false,
+				statusDisplayType: StatusDisplayType.DETAILS,
+			}
+
+			// Set custom application name if provided
+			if (presenceData.name) {
+				activity.name = presenceData.name
 			}
 
 			if (presenceData.small_image) {
@@ -306,15 +269,13 @@ export class DiscordRpcService {
 			}
 
 			if (presenceData.activity_type !== undefined) {
-				// Direct conversion is safe because we've aligned the enum values
-				activity.type = presenceData.activity_type as unknown as
-					| ActivityType.Playing
-					| ActivityType.Listening
-					| ActivityType.Watching
-					| ActivityType.Competing
+				activity.type = presenceData.activity_type
 			} else {
-				activity.type = ActivityType.Playing // Default
+				activity.type = 0
 			}
+
+			// Log the final activity object for debugging
+			logger.info("Final activity object sent to Discord:", activity)
 
 			await this.rpc.user.setActivity(activity)
 			logger.info("Updated Discord Rich Presence")
@@ -379,21 +340,6 @@ export class DiscordRpcService {
 		if (this.rpcCheckTimer) {
 			clearInterval(this.rpcCheckTimer)
 			this.rpcCheckTimer = null
-		}
-	}
-
-	/**
-	 * Update the client ID
-	 */
-	public updateClientId(clientId: string): void {
-		if (this.clientId !== clientId) {
-			this.clientId = clientId
-
-			if (this.connected) {
-				this.close().then(() => {
-					this.connect()
-				})
-			}
 		}
 	}
 }

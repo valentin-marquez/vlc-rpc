@@ -4,7 +4,6 @@ import type { AppConfig } from "@shared/types"
  * Default application configuration
  */
 export const DEFAULT_CONFIG: AppConfig = {
-	clientId: "1345358480671772683",
 	largeImage: "logo",
 	pausedImage: "paused",
 	playingImage: "playing",
@@ -20,8 +19,7 @@ export const DEFAULT_CONFIG: AppConfig = {
 	minimizeToTray: true,
 	startWithSystem: true,
 	version: "3.0.0", // Default version, will be overridden at runtime
-	rpcEnabled: true, // RPC enabled by default
-	persistRpcTimersOnRestart: false, // Don't persist timers by default (more intuitive behavior)
+	fileMetadata: {}, // Empty object for file metadata storage
 }
 
 /**

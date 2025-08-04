@@ -5,12 +5,27 @@ import { Switch } from "@renderer/components/ui/switch"
 import { logger } from "@renderer/lib/utils"
 import { configStore, saveConfig } from "@renderer/stores/config"
 import { saveVlcConfig } from "@renderer/stores/vlc"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 export function Settings(): JSX.Element {
 	const config = useStore(configStore)
 	const [isSubmitting, setIsSubmitting] = useState(false)
+	const [isLoading, setIsLoading] = useState(false)
 	const [showPassword, setShowPassword] = useState(false)
+	const [isPortable, setIsPortable] = useState(false)
+
+	// Check if this is a portable version
+	useEffect(() => {
+		const checkPortable = async () => {
+			try {
+				const portable = await window.api.app.isPortable()
+				setIsPortable(portable)
+			} catch (error) {
+				logger.error(`Failed to check if portable: ${error}`)
+			}
+		}
+		checkPortable()
+	}, [])
 
 	if (!config) {
 		return <div className="p-6 text-center text-foreground">Loading configuration...</div>
@@ -39,15 +54,25 @@ export function Settings(): JSX.Element {
 		}
 	}
 
-	async function handleToggleOption(
-		option: "minimizeToTray" | "startWithSystem" | "persistRpcTimersOnRestart",
-	) {
+	async function handleToggleOption(option: "minimizeToTray" | "startWithSystem") {
 		if (!config) return
 		try {
 			const newValue = !config[option]
 			await saveConfig(option, newValue)
 		} catch (error) {
 			logger.error(`Failed to toggle ${option}: ${error}`)
+		}
+	}
+
+	async function handleClearMetadataCache() {
+		setIsLoading(true)
+		try {
+			await window.api.metadata.clearCache()
+			logger.info("Metadata cache cleared successfully")
+		} catch (error) {
+			logger.error(`Failed to clear metadata cache: ${error}`)
+		} finally {
+			setIsLoading(false)
 		}
 	}
 
@@ -185,47 +210,36 @@ export function Settings(): JSX.Element {
 							/>
 						</div>
 
-						<div className="flex items-center justify-between bg-background p-3 rounded-md">
-							<div>
-								<p className="text-sm font-medium text-card-foreground">Start with System</p>
-								<p className="text-xs text-muted-foreground">
-									Launch automatically when your computer starts
-								</p>
+						{!isPortable && (
+							<div className="flex items-center justify-between bg-background p-3 rounded-md">
+								<div>
+									<p className="text-sm font-medium text-card-foreground">Start with System</p>
+									<p className="text-xs text-muted-foreground">
+										Launch automatically when your computer starts
+									</p>
+								</div>
+								<Switch
+									checked={config.startWithSystem}
+									onChange={() => handleToggleOption("startWithSystem")}
+								/>
 							</div>
-							<Switch
-								checked={config.startWithSystem}
-								onChange={() => handleToggleOption("startWithSystem")}
-							/>
-						</div>
+						)}
 
 						<div className="flex items-center justify-between bg-background p-3 rounded-md">
 							<div>
-								<p className="text-sm font-medium text-card-foreground">
-									Persist RPC Timers on Restart
-								</p>
+								<p className="text-sm font-medium text-card-foreground">Clear Metadata Cache</p>
 								<p className="text-xs text-muted-foreground">
-									Keep RPC timers active even after restarting the application
+									Free up space by clearing stored cover art metadata
 								</p>
 							</div>
-							<Switch
-								checked={config.persistRpcTimersOnRestart}
-								onChange={() => handleToggleOption("persistRpcTimersOnRestart")}
-							/>
-						</div>
-
-						<div className="space-y-2">
-							<label className="text-sm font-medium text-card-foreground" htmlFor="clientId">
-								Discord Client ID
-							</label>
-							<Input
-								id="clientId"
-								defaultValue={config.clientId}
-								onBlur={(e) => saveConfig("clientId", e.target.value)}
-								className="focus-discord"
-							/>
-							<p className="text-xs text-muted-foreground">
-								Discord application client ID for Rich Presence
-							</p>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleClearMetadataCache}
+								disabled={isLoading}
+							>
+								{isLoading ? "Clearing..." : "Clear Cache"}
+							</Button>
 						</div>
 					</div>
 				</section>

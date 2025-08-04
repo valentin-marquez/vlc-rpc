@@ -182,11 +182,4 @@ export class DiscordRpcHandler {
 			return false
 		}
 	}
-
-	/**
-	 * Update Discord client ID when it changes in settings
-	 */
-	public updateClientId(clientId: string): void {
-		discordRpcService.updateClientId(clientId)
-	}
 }

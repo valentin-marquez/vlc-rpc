@@ -1,10 +1,9 @@
 import { join } from "node:path"
 import { is } from "@electron-toolkit/utils"
-import { Menu, Tray, app, nativeImage } from "electron"
+import { Menu, type MenuItemConstructorOptions, Tray, app, nativeImage } from "electron"
 import iconPath16 from "../../../resources/icons/16x16.png?asset"
 import iconPath32 from "../../../resources/icons/32x32.png?asset"
 import { configService } from "./config"
-import { discordRpcService } from "./discord-rpc"
 import { logger } from "./logger"
 import { startupService } from "./startup"
 import { windowService } from "./window"
@@ -212,69 +211,12 @@ export class TrayService {
 			const config = configService.get<{
 				minimizeToTray: boolean
 				startWithSystem: boolean
-				rpcEnabled: boolean
-				rpcDisabledUntil?: number
 			}>()
 
-			const isRpcEnabled = discordRpcService.isRpcEnabled()
-
-			// Calculate remaining time if temporarily disabled
-			let remainingTime = ""
-			if (config.rpcDisabledUntil && Date.now() < config.rpcDisabledUntil) {
-				const remainingMinutes = Math.ceil((config.rpcDisabledUntil - Date.now()) / (60 * 1000))
-				remainingTime = ` (${remainingMinutes}m left)`
-			}
-
-			const rpcSubmenu = Menu.buildFromTemplate([
-				{
-					label: isRpcEnabled ? "Disable RPC" : "Enable RPC",
-					click: () => {
-						if (isRpcEnabled) {
-							discordRpcService.disableRpc()
-						} else {
-							discordRpcService.enableRpc()
-						}
-						// Update menu to reflect change
-						setTimeout(() => this.updateContextMenu(), 100)
-					},
-				},
-				{ type: "separator" },
-				{
-					label: "Disable for 15 minutes",
-					enabled: isRpcEnabled,
-					click: () => {
-						discordRpcService.disableRpcTemporary(15)
-						setTimeout(() => this.updateContextMenu(), 100)
-					},
-				},
-				{
-					label: "Disable for 1 hour",
-					enabled: isRpcEnabled,
-					click: () => {
-						discordRpcService.disableRpcTemporary(60)
-						setTimeout(() => this.updateContextMenu(), 100)
-					},
-				},
-				{
-					label: "Disable for 2 hours",
-					enabled: isRpcEnabled,
-					click: () => {
-						discordRpcService.disableRpcTemporary(120)
-						setTimeout(() => this.updateContextMenu(), 100)
-					},
-				},
-			])
-
-			const contextMenu = Menu.buildFromTemplate([
+			const menuItems: MenuItemConstructorOptions[] = [
 				{
 					label: "Open VLC Discord RP",
 					click: () => windowService.showWindow(),
-				},
-				{ type: "separator" },
-				{
-					label: `Discord RPC${!isRpcEnabled ? ` (Disabled${remainingTime})` : ""}`,
-					type: "submenu",
-					submenu: rpcSubmenu,
 				},
 				{ type: "separator" },
 				{
@@ -286,7 +228,11 @@ export class TrayService {
 						configService.set("minimizeToTray", newValue)
 					},
 				},
-				{
+			]
+
+			// Only show "Start with System" for non-portable versions
+			if (!startupService.isPortable()) {
+				menuItems.push({
 					label: "Start with System",
 					type: "checkbox",
 					checked: config.startWithSystem,
@@ -295,7 +241,10 @@ export class TrayService {
 						configService.set("startWithSystem", newValue)
 						startupService.setStartAtLogin(newValue)
 					},
-				},
+				})
+			}
+
+			menuItems.push(
 				{ type: "separator" },
 				{
 					label: "Exit",
@@ -304,8 +253,9 @@ export class TrayService {
 						app.quit()
 					},
 				},
-			])
+			)
 
+			const contextMenu = Menu.buildFromTemplate(menuItems)
 			this.tray.setContextMenu(contextMenu)
 			logger.info("Tray context menu updated")
 		} catch (error) {

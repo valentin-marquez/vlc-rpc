@@ -1,14 +1,11 @@
 import type { AppConfig } from "@shared/types"
-import {
-	type DiscordPresenceData,
-	type EnhancedMediaInfo,
-	MediaActivityType,
-} from "@shared/types/media"
+import type { DiscordPresenceData, EnhancedMediaInfo } from "@shared/types/media"
 import type { VlcStatus } from "@shared/types/vlc"
+import { ActivityType } from "discord-api-types/v10"
 import { configService } from "./config"
 import { coverArtService } from "./cover-art"
 import { logger } from "./logger"
-import { videoDetectorService } from "./video-detector"
+import { VideoAnalyzerService } from "./video-analyzer"
 
 /**
  * Base class for media states
@@ -48,80 +45,49 @@ class PlayingState extends MediaState {
 		const config = configService.get<AppConfig>()
 		const currentTime = Math.floor(Date.now() / 1000)
 
-		const enhancedInfo =
-			mediaInfo.mediaType === "video"
-				? await videoDetectorService.analyze(mediaInfo)
-				: (mediaInfo as VlcStatus & EnhancedMediaInfo)
+		// Use the media info directly since VLC status service already provides reliable type detection
+		const enhancedInfo = mediaInfo as VlcStatus & EnhancedMediaInfo
 
 		const media = enhancedInfo.media
 		const mediaType = enhancedInfo.mediaType || "unknown"
-		const contentType = enhancedInfo.content_type || ""
-		const contentMetadata = enhancedInfo.content_metadata || {}
 
-		// Improved activity type detection
-		let activityType = MediaActivityType.LISTENING
+		// Simple activity type detection based on VLC's media type
+		const activityType = mediaType === "video" ? ActivityType.Watching : ActivityType.Listening
 
-		// Use WATCHING for video content or specific content types
-		if (
-			mediaType === "video" ||
-			contentType === "tv_show" ||
-			contentType === "movie" ||
-			contentType === "anime" ||
-			contentType === "video"
-		) {
-			activityType = MediaActivityType.WATCHING
-		}
-
-		// Override for music even if it has video streams (music videos, visualizations)
-		if (media.artist && media.album && !contentType) {
-			activityType = MediaActivityType.LISTENING
-			logger.info("Detected music with artist/album info, using LISTENING activity")
-		}
+		logger.info(
+			`Activity type: ${activityType === ActivityType.Watching ? "WATCHING" : "LISTENING"} for media type: ${mediaType}`,
+		)
 
 		let details = ""
 		let state = ""
 
-		if (contentType === "tv_show" && contentMetadata.show_name) {
-			const showName = contentMetadata.show_name
-			const season = contentMetadata.season || 0
-			const episode = contentMetadata.episode || 0
-
-			if (season > 0 && episode > 0) {
-				details = `${showName} S${season.toString().padStart(2, "0")}E${episode.toString().padStart(2, "0")}`
-			} else {
-				details = showName
-			}
-
-			state = "Now watching"
-		} else if (contentType === "movie" && contentMetadata.movie_name) {
-			const movieName = contentMetadata.movie_name
-			const year = contentMetadata.year || ""
-
-			if (year) {
-				details = `${movieName} (${year})`
-			} else {
-				details = movieName
-			}
-
-			state = "Now watching"
-		} else if (contentType === "anime" && contentMetadata.anime_name) {
-			const animeName = contentMetadata.anime_name
-			const episode = contentMetadata.episode || 0
-
-			if (episode > 0) {
-				details = `${animeName} - Episode ${episode}`
-			} else {
-				details = animeName
-			}
-
-			state = "Now watching anime"
+		if (activityType === ActivityType.Listening) {
+			// For music, put artist in details and song in state for better visibility
+			details = media.artist || "Unknown Artist"
+			state = media.title || "Unknown Song"
 		} else {
-			details = media.title || "Unknown"
+			// For video content, analyze the video and provide richer information
+			const videoAnalyzer = VideoAnalyzerService.getInstance()
+			const videoAnalysis = videoAnalyzer.analyzeVideo(mediaInfo)
 
-			if (activityType === MediaActivityType.LISTENING) {
-				state = `by ${media.artist || "Unknown Artist"}`
+			if (videoAnalysis.isTvShow) {
+				// TV Show: Show name as details, episode info as state
+				details = videoAnalysis.title
+
+				let episodeInfo = ""
+				if (videoAnalysis.season && videoAnalysis.episode) {
+					episodeInfo = `S${videoAnalysis.season}E${videoAnalysis.episode}`
+				} else if (videoAnalysis.season) {
+					episodeInfo = `Season ${videoAnalysis.season}`
+				} else if (videoAnalysis.episode) {
+					episodeInfo = `Episode ${videoAnalysis.episode}`
+				}
+
+				state = episodeInfo || "TV Show"
 			} else {
-				state = "Now watching"
+				// Movie: Movie title as details, year as state
+				details = videoAnalysis.title
+				state = videoAnalysis.year ? `(${videoAnalysis.year})` : "Movie"
 			}
 		}
 
@@ -149,19 +115,17 @@ class PlayingState extends MediaState {
 		let largeImage = config.largeImage
 		let largeText = "VLC Media Player"
 
-		const contentImageUrl = enhancedInfo.content_image_url
-		if (contentImageUrl) {
-			largeImage = contentImageUrl
+		// Use artwork from VLC if available
+		if (media.artworkUrl) {
+			largeImage = media.artworkUrl
 		}
 
-		if (contentType === "tv_show") {
-			largeText = "Watching TV Show"
-		} else if (contentType === "movie") {
-			largeText = "Watching a Movie"
-		} else if (contentType === "anime") {
-			largeText = "Watching Anime"
-		} else if (activityType === MediaActivityType.LISTENING) {
-			largeText = "Listening to Music"
+		// Set appropriate large text based on media type
+		if (activityType === ActivityType.Listening) {
+			// Use album name if available, otherwise fallback to "Listening to Music"
+			largeText = media.album || "Listening to Music"
+		} else {
+			largeText = "Watching Video"
 		}
 
 		const videoInfo = enhancedInfo.videoInfo
@@ -170,10 +134,19 @@ class PlayingState extends MediaState {
 			smallText += ` • ${resolution}`
 		}
 
-		if (!contentImageUrl && mediaType === "audio" && media) {
+		if (mediaType === "audio" && media) {
 			const coverArtUrl = await coverArtService.fetch(mediaInfo)
 			if (coverArtUrl) {
 				largeImage = coverArtUrl
+			}
+		}
+
+		// For video content, try to fetch cover art from Google
+		if (mediaType === "video" && media) {
+			const videoCoverUrl = await coverArtService.fetchVideoImageFromGoogle(mediaInfo)
+			if (videoCoverUrl) {
+				largeImage = videoCoverUrl
+				logger.info(`Using video cover from Google: ${videoCoverUrl}`)
 			}
 		}
 
@@ -189,7 +162,12 @@ class PlayingState extends MediaState {
 			activity_type: activityType,
 		}
 
-		const activityName = activityType === MediaActivityType.WATCHING ? "Watching" : "Listening to"
+		// Set custom app name for music to show "Listening to {Artist}" instead of "Listening to VLC"
+		if (activityType === ActivityType.Listening && media && media.artist) {
+			presenceData.name = media.artist
+		}
+
+		const activityName = activityType === ActivityType.Watching ? "Watching" : "Listening to"
 		logger.info(`Updated presence: ${activityName} ${details} - ${state}`)
 
 		return presenceData
@@ -204,80 +182,49 @@ class PausedState extends MediaState {
 
 		const config = configService.get<AppConfig>()
 
-		const enhancedInfo =
-			mediaInfo.mediaType === "video"
-				? await videoDetectorService.analyze(mediaInfo)
-				: (mediaInfo as VlcStatus & EnhancedMediaInfo)
+		// Use the media info directly since VLC status service already provides reliable type detection
+		const enhancedInfo = mediaInfo as VlcStatus & EnhancedMediaInfo
 
 		const media = enhancedInfo.media
 		const mediaType = enhancedInfo.mediaType || "unknown"
-		const contentType = enhancedInfo.content_type || ""
-		const contentMetadata = enhancedInfo.content_metadata || {}
 
-		// Improved activity type detection (same as PlayingState)
-		let activityType = MediaActivityType.LISTENING
+		// Simple activity type detection based on VLC's media type
+		const activityType = mediaType === "video" ? ActivityType.Watching : ActivityType.Listening
 
-		// Use WATCHING for video content or specific content types
-		if (
-			mediaType === "video" ||
-			contentType === "tv_show" ||
-			contentType === "movie" ||
-			contentType === "anime" ||
-			contentType === "video"
-		) {
-			activityType = MediaActivityType.WATCHING
-		}
-
-		// Override for music even if it has video streams (music videos, visualizations)
-		if (media.artist && media.album && !contentType) {
-			activityType = MediaActivityType.LISTENING
-			logger.info("Detected music with artist/album info, using LISTENING activity (paused)")
-		}
+		logger.info(
+			`Paused activity type: ${activityType === ActivityType.Watching ? "WATCHING" : "LISTENING"} for media type: ${mediaType}`,
+		)
 
 		let details = ""
 		let state = ""
 
-		if (contentType === "tv_show" && contentMetadata.show_name) {
-			const showName = contentMetadata.show_name
-			const season = contentMetadata.season || 0
-			const episode = contentMetadata.episode || 0
-
-			if (season > 0 && episode > 0) {
-				details = `${showName} S${season.toString().padStart(2, "0")}E${episode.toString().padStart(2, "0")}`
-			} else {
-				details = showName
-			}
-
-			state = "Paused"
-		} else if (contentType === "movie" && contentMetadata.movie_name) {
-			const movieName = contentMetadata.movie_name
-			const year = contentMetadata.year || ""
-
-			if (year) {
-				details = `${movieName} (${year})`
-			} else {
-				details = movieName
-			}
-
-			state = "Paused"
-		} else if (contentType === "anime" && contentMetadata.anime_name) {
-			const animeName = contentMetadata.anime_name
-			const episode = contentMetadata.episode || 0
-
-			if (episode > 0) {
-				details = `${animeName} - Episode ${episode}`
-			} else {
-				details = animeName
-			}
-
-			state = "Paused"
+		if (activityType === ActivityType.Listening) {
+			// For music, show title and "by artist" in state
+			details = media.title || "Unknown Song"
+			state = `by ${media.artist || "Unknown Artist"}`
 		} else {
-			details = media.title || "Unknown"
+			// For video content, analyze the video and provide richer information
+			const videoAnalyzer = VideoAnalyzerService.getInstance()
+			const videoAnalysis = videoAnalyzer.analyzeVideo(mediaInfo)
 
-			if (activityType === MediaActivityType.LISTENING) {
-				state = `by ${media.artist || "Unknown Artist"}`
+			if (videoAnalysis.isTvShow) {
+				// TV Show: Show name as details, episode info as state
+				details = videoAnalysis.title
+
+				let episodeInfo = ""
+				if (videoAnalysis.season && videoAnalysis.episode) {
+					episodeInfo = `S${videoAnalysis.season}E${videoAnalysis.episode}`
+				} else if (videoAnalysis.season) {
+					episodeInfo = `Season ${videoAnalysis.season}`
+				} else if (videoAnalysis.episode) {
+					episodeInfo = `Episode ${videoAnalysis.episode}`
+				}
+
+				state = episodeInfo || "TV Show"
 			} else {
-				state = "Paused"
+				// Movie: Movie title as details, year as state
+				details = videoAnalysis.title
+				state = videoAnalysis.year ? `(${videoAnalysis.year})` : "Movie"
 			}
 		}
 
@@ -286,21 +233,19 @@ class PausedState extends MediaState {
 
 		let smallText = "Paused"
 		let largeImage = config.largeImage
-		let largeText = "VLC Media Player (Paused)"
+		let largeText = "VLC Media Player"
 
-		const contentImageUrl = enhancedInfo.content_image_url
-		if (contentImageUrl) {
-			largeImage = contentImageUrl
+		// Use artwork from VLC if available
+		if (media.artworkUrl) {
+			largeImage = media.artworkUrl
 		}
 
-		if (contentType === "tv_show") {
-			largeText = "Watching TV Show (Paused)"
-		} else if (contentType === "movie") {
-			largeText = "Watching a Movie (Paused)"
-		} else if (contentType === "anime") {
-			largeText = "Watching Anime (Paused)"
-		} else if (activityType === MediaActivityType.LISTENING) {
-			largeText = "Listening to Music (Paused)"
+		// Set appropriate large text based on media type
+		if (activityType === ActivityType.Listening) {
+			// Use album name if available, otherwise fallback to "Listening to Music"
+			largeText = media.album || "Listening to Music"
+		} else {
+			largeText = "Watching Video"
 		}
 
 		const videoInfo = enhancedInfo.videoInfo
@@ -309,10 +254,19 @@ class PausedState extends MediaState {
 			smallText += ` • ${resolution}`
 		}
 
-		if (!contentImageUrl && mediaType === "audio" && media) {
+		if (mediaType === "audio" && media) {
 			const coverArtUrl = await coverArtService.fetch(mediaInfo)
 			if (coverArtUrl) {
 				largeImage = coverArtUrl
+			}
+		}
+
+		// For video content, try to fetch cover art from Google
+		if (mediaType === "video" && media) {
+			const videoCoverUrl = await coverArtService.fetchVideoImageFromGoogle(mediaInfo)
+			if (videoCoverUrl) {
+				largeImage = videoCoverUrl
+				logger.info(`Using video cover from Google: ${videoCoverUrl}`)
 			}
 		}
 
@@ -326,7 +280,7 @@ class PausedState extends MediaState {
 			activity_type: activityType,
 		}
 
-		const activityName = activityType === MediaActivityType.WATCHING ? "Watching" : "Listening to"
+		const activityName = activityType === ActivityType.Watching ? "Watching" : "Listening to"
 		logger.info(`Updated presence (paused): ${activityName} ${details} - ${state}`)
 
 		return presenceData

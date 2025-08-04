@@ -9,6 +9,7 @@ export enum IpcChannels {
 	MEDIA = "media",
 	IMAGE = "image",
 	UPDATE = "update",
+	METADATA = "metadata",
 }
 
 /**
@@ -24,6 +25,10 @@ export enum IpcEvents {
 	VLC_STATUS_GET = "vlc:status:get",
 	VLC_STATUS_CHECK = "vlc:status:check",
 	IMAGE_PROXY = "image:proxy",
+	// Metadata management events
+	METADATA_CLEAR_CACHE = "clear:cache",
+	METADATA_GET_STATS = "get:stats",
+	METADATA_CLEANUP_EXPIRED = "cleanup:expired",
 	// RPC control events
 	RPC_ENABLE = "rpc:enable",
 	RPC_DISABLE = "rpc:disable",
@@ -41,10 +46,19 @@ export interface VlcConfig {
 }
 
 /**
- * Application configuration schema
+ * File metadata stored for media files
+ */
+export interface FileMetadata {
+	"X-COVER-URL": string
+	"X-APP-VERSION": string
+	"X-PROCESSED-BY": string
+	"X-EXPIRY-DATE": string
+}
+
+/**
+ * Application configuration
  */
 export interface AppConfig {
-	clientId: string
 	largeImage: string
 	pausedImage: string
 	playingImage: string
@@ -56,10 +70,8 @@ export interface AppConfig {
 	minimizeToTray: boolean
 	startWithSystem: boolean
 	version: string
-	// RPC control settings
-	rpcEnabled: boolean
-	rpcDisabledUntil?: number // timestamp when RPC should be re-enabled
-	persistRpcTimersOnRestart: boolean // whether RPC timers should persist across app restarts
+	// File metadata storage
+	fileMetadata: Record<string, FileMetadata> // key = file path, value = metadata
 }
 
 /**

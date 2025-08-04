@@ -17,6 +17,10 @@ const api = {
 		set: (key: string, value: unknown) =>
 			ipcRenderer.invoke(`${IpcChannels.CONFIG}:${IpcEvents.CONFIG_SET}`, key, value),
 	},
+	metadata: {
+		clearCache: () =>
+			ipcRenderer.invoke(`${IpcChannels.METADATA}:${IpcEvents.METADATA_CLEAR_CACHE}`),
+	},
 	vlc: {
 		getConfig: () => ipcRenderer.invoke(`${IpcChannels.VLC}:${IpcEvents.VLC_CONFIG_GET}`),
 		setupConfig: (config: unknown) =>
@@ -47,6 +51,7 @@ const api = {
 		close: () => ipcRenderer.invoke("window:close"),
 		isMaximized: () => ipcRenderer.invoke("window:isMaximized"),
 		getPlatform: () => ipcRenderer.invoke("system:platform"),
+		isPortable: () => ipcRenderer.invoke("app:isPortable"),
 		onMaximizedChange: (callback: (isMaximized: boolean) => void) => {
 			const handler = (_: unknown, isMaximized: boolean) => callback(isMaximized)
 			ipcRenderer.on("window:maximized-change", handler)

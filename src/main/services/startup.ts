@@ -20,19 +20,35 @@ export class StartupService {
 	}
 
 	/**
+	 * Check if the application is running as portable version
+	 */
+	public isPortable(): boolean {
+		// Check if executable name contains "portable"
+		const execPath = process.execPath.toLowerCase()
+		return execPath.includes("portable")
+	}
+
+	/**
 	 * Set whether the application should start at login
+	 * Only works for non-portable versions
 	 */
 	public setStartAtLogin(enable: boolean): void {
 		try {
-			if (app.isPackaged) {
-				app.setLoginItemSettings({
-					openAtLogin: enable,
-					path: process.execPath,
-				})
-				logger.info(`Set start at login: ${enable}`)
-			} else {
+			if (!app.isPackaged) {
 				logger.warn("Not setting start at login in development mode")
+				return
 			}
+
+			if (this.isPortable()) {
+				logger.warn("Start at login is not available for portable version")
+				return
+			}
+
+			app.setLoginItemSettings({
+				openAtLogin: enable,
+				path: process.execPath,
+			})
+			logger.info(`Set start at login: ${enable}`)
 		} catch (error) {
 			logger.error(`Failed to set start at login: ${error}`)
 		}

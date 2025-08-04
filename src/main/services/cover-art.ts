@@ -1,11 +1,11 @@
-import { createHash } from "node:crypto"
+import { promises as fs } from "node:fs"
+import { imageUploaderService } from "@main/services/image-uploader"
+import { metadataWriterService } from "@main/services/metadata-writer"
+import { VideoAnalyzerService } from "@main/services/video-analyzer"
+import { vlcStatusService } from "@main/services/vlc-status"
 import type { VlcStatus } from "@shared/types/vlc"
+import * as cheerio from "cheerio"
 import { logger } from "./logger"
-
-interface CachedCoverArt {
-	url: string | null
-	timestamp: number
-}
 
 /** Media data structure for cover art searching */
 interface MediaData {
@@ -18,50 +18,9 @@ interface MediaData {
 	[key: string]: string | undefined
 }
 
-/** MusicBrainz artist credit object */
-interface ArtistCredit {
-	name?: string
-	artist?: {
-		aliases?: Array<{ name?: string }>
-	}
-}
-
-/** MusicBrainz release object */
-interface MusicBrainzRelease {
-	id: string
-	title?: string
-	score?: number
-	date?: string
-	status?: string
-	"artist-credit"?: ArtistCredit[]
-	"release-group"?: {
-		"secondary-types"?: string[]
-		"secondary-type-ids"?: string[]
-	}
-}
-
-/** MusicBrainz recording object */
-interface MusicBrainzRecording {
-	id: string
-	title?: string
-	score?: number
-	"artist-credit"?: ArtistCredit[]
-	releases?: MusicBrainzRelease[]
-}
-
-/** Scored release result */
-interface ScoredRelease {
-	score: number
-	release_id: string
-	release_title: string
-	artist: string
-}
-
 /** Service to fetch album cover art for audio files */
 export class CoverArtService {
 	private static instance: CoverArtService | null = null
-	private cache: Record<string, CachedCoverArt> = {}
-	private cacheTtl = 3600 // 1 hour
 
 	private constructor() {
 		logger.info("Cover art service initialized")
@@ -82,25 +41,182 @@ export class CoverArtService {
 			return null
 		}
 
-		const cacheKey = this.createCacheKey(media)
-		if (cacheKey && cacheKey in this.cache) {
-			const cachedResult = this.cache[cacheKey]
-			if (Date.now() / 1000 - cachedResult.timestamp < this.cacheTtl) {
-				logger.info(`Using cached cover art URL: ${cachedResult.url}`)
-				return cachedResult.url
+		// Step 1: Check if media already has an uploaded image URL in its metadata
+		const fileUri = await vlcStatusService.getCurrentFileUri()
+		if (fileUri && media.artworkUrl) {
+			const filePath = metadataWriterService.vlcUriToFilePath(fileUri)
+			if (filePath) {
+				const customMetadata = await metadataWriterService.readMetadataTags(filePath)
+				if (customMetadata) {
+					const parsed = imageUploaderService.parseMetadataTags(customMetadata)
+					if (parsed.imageUrl && !parsed.isExpired) {
+						logger.info(`Using existing uploaded cover image: ${parsed.imageUrl}`)
+						return parsed.imageUrl
+					}
+
+					if (parsed.isExpired) {
+						logger.info("Existing uploaded cover image has expired, will re-upload")
+					}
+				}
 			}
 		}
 
-		const coverUrl = await this.fetchFromMusicBrainz(media)
+		// Step 2: Prioritize local artwork from the file
+		if (media.artworkUrl?.startsWith("file://")) {
+			try {
+				// Upload the local artwork to 0x0.st for Discord compatibility
+				const localPath = media.artworkUrl.replace("file://", "")
+				const decodedPath = decodeURIComponent(localPath)
 
-		if (cacheKey) {
-			this.cache[cacheKey] = {
-				url: coverUrl,
-				timestamp: Math.floor(Date.now() / 1000),
+				// Handle Windows paths
+				const fixedPath =
+					process.platform === "win32" && decodedPath.startsWith("/")
+						? decodedPath.substring(1)
+						: decodedPath
+
+				try {
+					const imageBuffer = await fs.readFile(fixedPath)
+					const filename = `cover_${Date.now()}.jpg`
+					const uploadedUrl = await imageUploaderService.uploadImage(imageBuffer, filename, 24 * 7) // 7 days
+
+					if (uploadedUrl && fileUri) {
+						// Store the uploaded URL in metadata for future use
+						const filePath = metadataWriterService.vlcUriToFilePath(fileUri)
+						if (filePath) {
+							const expiryDate = new Date()
+							expiryDate.setDate(expiryDate.getDate() + 7) // 7 days from now
+
+							const tags = imageUploaderService.generateMetadataTags(uploadedUrl, expiryDate)
+							await metadataWriterService.writeMetadataTags(filePath, tags)
+
+							logger.info(`Uploaded local artwork and saved metadata: ${uploadedUrl}`)
+						}
+						return uploadedUrl
+					}
+				} catch (error) {
+					logger.warn(`Could not upload local artwork: ${error}`)
+				}
+			} catch (error) {
+				logger.warn(`Error processing local artwork: ${error}`)
 			}
 		}
 
-		return coverUrl
+		// No cover art available - no more online search
+		logger.info("No local artwork available and online search disabled")
+		return null
+	}
+
+	/**
+	 * Fetch cover art for video content using Google Images
+	 * Only works for videos, not audio
+	 */
+	public async fetchVideoImageFromGoogle(mediaInfo: VlcStatus | null): Promise<string | null> {
+		if (!mediaInfo || mediaInfo.mediaType !== "video") {
+			return null
+		}
+
+		try {
+			const videoAnalyzer = VideoAnalyzerService.getInstance()
+			const videoAnalysis = videoAnalyzer.analyzeVideo(mediaInfo)
+
+			let searchTerm = ""
+
+			if (videoAnalysis.isTvShow) {
+				// For TV shows, search for the show poster
+				searchTerm = `${videoAnalysis.title} tv show poster`
+			} else if (videoAnalysis.isMovie) {
+				// For movies, include year if available
+				if (videoAnalysis.year) {
+					searchTerm = `${videoAnalysis.title} ${videoAnalysis.year} movie poster`
+				} else {
+					searchTerm = `${videoAnalysis.title} movie poster`
+				}
+			} else {
+				// Generic video search
+				searchTerm = `${videoAnalysis.title} cover`
+			}
+
+			logger.info(`Searching for video cover: ${searchTerm}`)
+			return await this.fetchImageFromGoogle(searchTerm)
+		} catch (error) {
+			logger.error(`Error fetching video cover art: ${error}`)
+			return null
+		}
+	}
+
+	/**
+	 * Fetch image from Google Images based on search term
+	 */
+	private async fetchImageFromGoogle(searchTerm: string): Promise<string | null> {
+		try {
+			logger.info(`Searching for image: ${searchTerm}`)
+			const encodedQuery = encodeURIComponent(searchTerm)
+			const searchUrl = `https://www.google.com/search?q=${encodedQuery}&tbm=isch`
+
+			const response = await fetch(searchUrl, {
+				headers: {
+					"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+					Accept: "text/html,application/xhtml+xml",
+				},
+			})
+
+			if (!response.ok) {
+				logger.warn(`Google search failed with status: ${response.status}`)
+				return null
+			}
+
+			const html = await response.text()
+			const $ = cheerio.load(html)
+
+			let imageUrl: string | null = null
+
+			// First, try to find gstatic images (Google's cached images)
+			$("img").each((_, img) => {
+				const src = $(img).attr("src")
+				if (src?.startsWith("http") && !src.endsWith(".gif")) {
+					if (src.includes("gstatic.com")) {
+						imageUrl = src
+						return false // Break the loop
+					}
+				}
+				return true
+			})
+
+			if (imageUrl) {
+				logger.info(`Found gstatic image: ${imageUrl}`)
+				return imageUrl
+			}
+
+			// If no gstatic image found, try to extract from JavaScript
+			const imgRegex = /https?:\/\/\S+?\.(?:jpg|jpeg|png)/g
+			$("script").each((_, script) => {
+				const content = $(script).html()
+				if (content?.includes("AF_initDataCallback")) {
+					const matches = content.match(imgRegex)
+					if (matches) {
+						for (const url of matches) {
+							// Skip common non-content images
+							if (!/icon|emoji|favicon|logo|button/i.test(url)) {
+								imageUrl = url
+								logger.info(`Found image from script: ${imageUrl}`)
+								return false // Break the loop
+							}
+						}
+					}
+				}
+				return true
+			})
+
+			if (imageUrl) {
+				return imageUrl
+			}
+
+			logger.warn(`No suitable image found for: ${searchTerm}`)
+			return null
+		} catch (error) {
+			logger.error(`Error fetching image from Google: ${error}`)
+			return null
+		}
 	}
 
 	/** Extract media data from the input */
@@ -111,400 +227,6 @@ export class CoverArtService {
 		}
 
 		return mediaInfo.media as MediaData
-	}
-
-	/** Create a unique cache key based on media information */
-	private createCacheKey(media: MediaData): string | null {
-		if (!media) {
-			return null
-		}
-
-		const keyParts: string[] = []
-		for (const field of ["artist", "album", "title"]) {
-			if (media[field]) {
-				keyParts.push(`${field}:${media[field]}`)
-			}
-		}
-
-		if (keyParts.length === 0) {
-			return null
-		}
-
-		return createHash("md5").update(keyParts.join("|")).digest("hex")
-	}
-
-	/** Build query for MusicBrainz search */
-	private buildQuery(media: MediaData): string | null {
-		if (media.artist && media.title && media.album) {
-			return `${media.title} AND artist:${media.artist} AND release:"${media.album}"`
-		}
-
-		if (media.artist && media.title) {
-			return `${media.title} AND artist:${media.artist}`
-		}
-
-		if (media.artist && media.album) {
-			return `artist:"${media.artist}" AND release:"${media.album}"`
-		}
-
-		if (media.album) {
-			return `release:"${media.album}"`
-		}
-
-		if (media.artist) {
-			return `artist:"${media.artist}"`
-		}
-
-		if (media.title) {
-			return `recording:"${media.title}"`
-		}
-
-		logger.info("Insufficient media information for cover art search")
-		return null
-	}
-
-	/** Fetch cover art from MusicBrainz */
-	private async fetchFromMusicBrainz(media: MediaData): Promise<string | null> {
-		try {
-			const query = this.buildQuery(media)
-			if (!query) {
-				return null
-			}
-
-			if (media.album && (media.artist || media.title)) {
-				const url = await this.searchReleases(query, media)
-				if (url) {
-					return url
-				}
-			}
-
-			if (media.title && media.artist) {
-				const url = await this.searchRecordings(query, media)
-				if (url) {
-					return url
-				}
-			}
-
-			const fallbackQuery = this.buildFallbackQuery(media)
-			if (fallbackQuery && fallbackQuery !== query) {
-				logger.info(`Trying fallback search: ${fallbackQuery}`)
-				const url = await this.searchReleases(fallbackQuery, media)
-				if (url) {
-					return url
-				}
-			}
-
-			return null
-		} catch (error) {
-			logger.error(`Error in MusicBrainz lookup: ${error}`)
-			return null
-		}
-	}
-
-	/** Build a fallback query with less constraints */
-	private buildFallbackQuery(media: MediaData): string | null {
-		if (media.artist && media.title) {
-			return `artist:"${media.artist}"`
-		}
-		return null
-	}
-
-	/** Search for releases and get the best match */
-	private async searchReleases(query: string, media: MediaData): Promise<string | null> {
-		logger.info(`Searching MusicBrainz releases with: ${query}`)
-
-		const searchUrl = "https://musicbrainz.org/ws/2/release"
-		const params = new URLSearchParams({
-			query,
-			fmt: "json",
-			limit: "10",
-		})
-
-		const response = await this.makeRequest(`${searchUrl}?${params}`)
-		if (!response) {
-			return null
-		}
-
-		return this.processReleaseResponse(response, media)
-	}
-
-	/** Search for recordings and get the best match */
-	private async searchRecordings(query: string, media: MediaData): Promise<string | null> {
-		logger.info(`Searching MusicBrainz recordings with: ${query}`)
-
-		const searchUrl = "https://musicbrainz.org/ws/2/recording"
-		const params = new URLSearchParams({
-			query,
-			fmt: "json",
-			limit: "10",
-		})
-
-		const response = await this.makeRequest(`${searchUrl}?${params}`)
-		if (!response) {
-			return null
-		}
-
-		return this.processRecordingResponse(response, media)
-	}
-
-	/** Process MusicBrainz recording response and extract cover URL */
-	private async processRecordingResponse(
-		response: Response,
-		media: MediaData,
-	): Promise<string | null> {
-		try {
-			const data = (await response.json()) as { recordings?: MusicBrainzRecording[] }
-
-			if (!data.recordings || data.recordings.length === 0) {
-				logger.info("No recordings found in MusicBrainz response")
-				return null
-			}
-
-			const scoredReleases: ScoredRelease[] = []
-
-			for (const recording of data.recordings) {
-				if (!recording.releases || recording.releases.length === 0) {
-					continue
-				}
-
-				for (const release of recording.releases) {
-					const score = this.calculateReleaseScore(recording, release, media)
-					scoredReleases.push({
-						score,
-						release_id: release.id,
-						release_title: release.title || "",
-						artist: recording["artist-credit"]?.[0] ? recording["artist-credit"][0].name || "" : "",
-					})
-				}
-			}
-
-			scoredReleases.sort((a, b) => b.score - a.score)
-
-			for (const releaseInfo of scoredReleases) {
-				if (releaseInfo.score < 30) {
-					continue
-				}
-
-				logger.info(
-					`Trying release: '${releaseInfo.release_title}' by '${releaseInfo.artist}' (score: ${releaseInfo.score})`,
-				)
-
-				const coverUrl = `https://coverartarchive.org/release/${releaseInfo.release_id}/front-500`
-				const headResponse = await this.makeRequest(coverUrl, "HEAD")
-
-				if (headResponse) {
-					logger.info(`Found cover art: ${coverUrl}`)
-					return coverUrl
-				}
-			}
-
-			logger.info("No suitable cover art found for recording")
-			return null
-		} catch (error) {
-			logger.error(`Error processing recording response: ${error}`)
-			return null
-		}
-	}
-
-	/** Process MusicBrainz release response and extract cover URL */
-	private async processReleaseResponse(
-		response: Response,
-		media: MediaData,
-	): Promise<string | null> {
-		try {
-			const data = (await response.json()) as { releases?: MusicBrainzRelease[] }
-
-			if (!data.releases || data.releases.length === 0) {
-				logger.info("No releases found in MusicBrainz response")
-				return null
-			}
-
-			const scoredReleases: ScoredRelease[] = []
-
-			for (const release of data.releases) {
-				const score = this.calculateReleaseScore(null, release, media)
-				scoredReleases.push({
-					score,
-					release_id: release.id,
-					release_title: release.title || "",
-					artist: release["artist-credit"]?.[0] ? release["artist-credit"][0].name || "" : "",
-				})
-			}
-
-			scoredReleases.sort((a, b) => b.score - a.score)
-
-			for (const releaseInfo of scoredReleases) {
-				if (releaseInfo.score < 30) {
-					continue
-				}
-
-				logger.info(
-					`Trying release: '${releaseInfo.release_title}' by '${releaseInfo.artist}' (score: ${releaseInfo.score})`,
-				)
-
-				const coverUrl = `https://coverartarchive.org/release/${releaseInfo.release_id}/front-500`
-				const headResponse = await this.makeRequest(coverUrl, "HEAD")
-
-				if (headResponse) {
-					logger.info(`Found cover art: ${coverUrl}`)
-					return coverUrl
-				}
-			}
-
-			logger.info("No suitable cover art found for releases")
-			return null
-		} catch (error) {
-			logger.error(`Error processing release response: ${error}`)
-			return null
-		}
-	}
-
-	/** Calculate a match score for a release based on our metadata */
-	private calculateReleaseScore(
-		recording: MusicBrainzRecording | null,
-		release: MusicBrainzRelease,
-		media: MediaData,
-	): number {
-		let score = 0
-
-		const baseScore = recording ? recording.score : release.score || 0
-		score += Math.min(baseScore || 0, 100)
-
-		if (media.artist) {
-			const artistNames: string[] = []
-			const artistCredit = release["artist-credit"] || []
-
-			for (const credit of artistCredit) {
-				if (typeof credit === "object" && credit !== null) {
-					if (credit.name) {
-						artistNames.push(credit.name.toLowerCase())
-					}
-
-					if (credit.artist?.aliases) {
-						for (const alias of credit.artist.aliases) {
-							if (typeof alias === "object" && alias !== null && alias.name) {
-								artistNames.push(alias.name.toLowerCase())
-							}
-						}
-					}
-				}
-			}
-
-			const mediaArtist = media.artist.toLowerCase()
-			if (artistNames.some((name) => this.fuzzyMatch(mediaArtist, name))) {
-				score += 100
-			} else if (
-				artistNames.some((name) => mediaArtist.includes(name) || name.includes(mediaArtist))
-			) {
-				score += 70
-			}
-		}
-
-		if (media.album && release.title) {
-			const mediaAlbum = media.album.toLowerCase()
-			const releaseTitle = release.title.toLowerCase()
-
-			if (this.fuzzyMatch(mediaAlbum, releaseTitle)) {
-				score += 100
-			} else if (mediaAlbum.includes(releaseTitle) || releaseTitle.includes(mediaAlbum)) {
-				score += 70
-			}
-		}
-
-		if (media.title && recording && recording.title) {
-			const mediaTitle = media.title.toLowerCase()
-			const recordingTitle = recording.title.toLowerCase()
-
-			if (this.fuzzyMatch(mediaTitle, recordingTitle)) {
-				score += 80
-			} else if (mediaTitle.includes(recordingTitle) || recordingTitle.includes(mediaTitle)) {
-				score += 50
-			}
-		}
-
-		if (media.date || media.year) {
-			const mediaYear = String(media.date || media.year).substring(0, 4)
-			const releaseDate = release.date || ""
-
-			if (releaseDate?.startsWith(mediaYear)) {
-				score += 40
-			}
-		}
-
-		if (release.status === "Official") {
-			score += 30
-		}
-
-		let secondaryTypes: string[] = []
-		if (release["release-group"]?.["secondary-types"]) {
-			secondaryTypes = release["release-group"]["secondary-types"]
-		} else if (release["release-group"]?.["secondary-type-ids"]) {
-			const hasSecondary = Boolean(release["release-group"]["secondary-type-ids"].length)
-			if (hasSecondary) {
-				score -= 20
-			}
-		}
-
-		if (secondaryTypes.includes("Compilation")) {
-			score -= 15
-		}
-		if (secondaryTypes.includes("Live")) {
-			score -= 25
-		}
-		if (secondaryTypes.includes("Remix")) {
-			score -= 20
-		}
-
-		return Math.max(0, score)
-	}
-
-	/** Simple fuzzy matching for strings */
-	private fuzzyMatch(str1: string, str2: string): boolean {
-		const s1 = str1.toLowerCase().replace(/[^\w\s]/g, "")
-		const s2 = str2.toLowerCase().replace(/[^\w\s]/g, "")
-
-		if (s1 === s2) {
-			return true
-		}
-
-		if (s1.length > 5 && s2.length > 5) {
-			if (s1.includes(s2) || s2.includes(s1)) {
-				return true
-			}
-		}
-
-		return false
-	}
-
-	/** Make an HTTP request with proper error handling */
-	private async makeRequest(url: string, method = "GET"): Promise<Response | null> {
-		try {
-			const controller = new AbortController()
-			const timeoutId = setTimeout(() => controller.abort(), 3000)
-
-			const response = await fetch(url, {
-				method,
-				headers: {
-					"User-Agent": "VLC-Discord-RP/3.0 (https://github.com/valeriko777/vlc-discord-rp)",
-				},
-				signal: controller.signal,
-			})
-
-			clearTimeout(timeoutId)
-
-			if (response.ok) {
-				return response
-			}
-			logger.info(`API request failed: ${url} - Status ${response.status}`)
-			return null
-		} catch (error: unknown) {
-			if (error instanceof Error && error.name === "AbortError") {
-				logger.info("Request timed out")
-			} else {
-				logger.info(`Request failed: ${error}`)
-			}
-			return null
-		}
 	}
 }
 

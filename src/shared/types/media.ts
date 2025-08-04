@@ -1,7 +1,18 @@
+import type { ActivityType } from "discord-api-types/v10"
+
 /**
  * Content type detected from media files
+ * Enhanced with better detection categories
  */
-export type ContentType = "tv_show" | "movie" | "anime" | "video" | "audio" | "unknown"
+export type ContentType =
+	| "tv_show"
+	| "movie"
+	| "anime"
+	| "video"
+	| "audio"
+	| "music_video"
+	| "documentary"
+	| "unknown"
 
 /**
  * Content metadata for detected media
@@ -45,19 +56,6 @@ export interface MediaInfo {
 }
 
 /**
- * Activity types for Discord presence
- * These map to discord-api-types ActivityType enum values
- */
-export enum MediaActivityType {
-	PLAYING = 0,
-	STREAMING = 1,
-	LISTENING = 2,
-	WATCHING = 3,
-	CUSTOM = 4,
-	COMPETING = 5,
-}
-
-/**
  * Discord presence update data
  */
 export interface DiscordPresenceData {
@@ -76,5 +74,6 @@ export interface DiscordPresenceData {
 	match?: string
 	buttons?: Array<{ label: string; url: string }>
 	instance?: boolean
-	activity_type?: MediaActivityType
+	activity_type?: ActivityType
+	name?: string
 }

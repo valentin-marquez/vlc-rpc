@@ -11,6 +11,9 @@ declare global {
 				get: <T = AppConfig>(key?: string) => Promise<T>
 				set: (key: string, value: unknown) => Promise<boolean>
 			}
+			metadata: {
+				clearCache: () => Promise<boolean>
+			}
 			vlc: {
 				getConfig: () => Promise<VlcConfig>
 				setupConfig: (config: VlcConfig) => Promise<boolean>
@@ -38,6 +41,7 @@ declare global {
 				close: () => Promise<void>
 				isMaximized: () => Promise<boolean>
 				getPlatform: () => Promise<string>
+				isPortable: () => Promise<boolean>
 				onMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void
 			}
 			update: {

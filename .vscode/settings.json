@@ -7,7 +7,7 @@
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"typescript.enablePromptUseWorkspaceTsdk": true,
 	"biome.enabled": true,
-	"biome.lspBin": "node_modules/@biomejs/cli-win32-x64/biome.exe",
+	"biome.lsp.bin": "node_modules/@biomejs/cli-win32-x64/biome.exe",
 	"[typescript]": {
 		"editor.defaultFormatter": "biomejs.biome"
 	},

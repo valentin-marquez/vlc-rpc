@@ -25,9 +25,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			<button
 				className={cn(
 					"inline-flex items-center justify-center font-medium transition-colors",
-					"focus-discord", // Using the Discord-style focus from globals.css
-					"disabled:opacity-60 disabled:pointer-events-none",
-					// Variants using the CSS variables from globals.css
+					"focus-discord",
+					"disabled:opacity-60 disabled:pointer-events-none cursor-pointer",
 					variant === "default" &&
 						"bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
 					variant === "destructive" &&
@@ -37,7 +36,6 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 					variant === "ghost" && "hover:bg-secondary text-foreground hover:text-foreground",
 					variant === "link" &&
 						"text-primary underline-offset-4 hover:underline bg-transparent p-0",
-					// Sizes with proper radius variables
 					size === "default" && "h-10 py-2 px-4 text-sm rounded-md",
 					size === "sm" && "h-8 px-3 text-xs rounded-sm",
 					size === "lg" && "h-11 px-6 text-base rounded-lg",

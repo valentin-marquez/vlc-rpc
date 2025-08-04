@@ -5,7 +5,6 @@ import { ipcMain } from "electron"
 import { coverArtService } from "../services/cover-art"
 import { imageProxyService } from "../services/image-proxy"
 import { logger } from "../services/logger"
-import { videoDetectorService } from "../services/video-detector"
 import { vlcStatusService } from "../services/vlc-status"
 
 /**
@@ -54,13 +53,12 @@ export class MediaInfoHandler {
 		}
 
 		try {
-			let enhancedInfo: VlcStatus & EnhancedMediaInfo
+			// Use the enhanced info directly since VLC status service already provides reliable type detection
+			const enhancedInfo: VlcStatus & EnhancedMediaInfo = { ...vlcStatus } as VlcStatus &
+				EnhancedMediaInfo
 
-			if (vlcStatus.mediaType === "video") {
-				enhancedInfo = await videoDetectorService.analyze(vlcStatus)
-			} else {
-				enhancedInfo = { ...vlcStatus } as VlcStatus & EnhancedMediaInfo
-
+			// For audio content, try to get cover art
+			if (vlcStatus.mediaType === "audio") {
 				const coverUrl = await coverArtService.fetch(vlcStatus)
 				if (coverUrl) {
 					enhancedInfo.content_image_url = coverUrl
