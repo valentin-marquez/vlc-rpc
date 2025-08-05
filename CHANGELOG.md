@@ -18,9 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - System tray integration for Discord RPC management
 - Quick toggle functionality for enabling/disabling RPC
-- Temporary disable options with configurable durations (15 minutes, 1 hour, 2 hours)
-- Timer persistence control for maintaining state across application restarts
-- Real-time countdown display in tray menu
+- Temporary disable options (15 minutes, 1 hour, 2 hours)
+- Real-time countdown display in tray menu when temporarily disabled
 
 **Enhanced Media Detection System**
 
@@ -36,12 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automated video analyzer for content type determination
 - Metadata writer service for improved data management
 
-**Development Tools and Workflow**
+**Development Tools and Build System**
 
 - Migration to Electron Vite build system for improved performance and developer experience
-- Changesets integration for automated version management and release processes
-- Enhanced GitHub Actions CI/CD pipeline with automated PR validation
-- Bot integration for changeset validation and contributor guidance
+- Enhanced GitHub Actions CI/CD pipeline
+- Simplified manual release workflow
+- Issue response templates for better support
 
 ### Changed
 
@@ -51,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Relocated application information to dedicated settings section
 - Updated minimize-to-tray behavior for better user experience
 - Hidden system startup options for portable installations
+- Improved layout and scrolling behavior
 
 **API and Type System**
 
@@ -80,6 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manual update check functionality from user interface
 - Deprecated `MediaActivityType` enum
 - Legacy code comments and unused implementations
+- Changesets workflow (simplified to manual releases)
 
 ---
 
