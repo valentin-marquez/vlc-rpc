@@ -108,41 +108,44 @@ function App(): JSX.Element {
 
 	return (
 		<Router hook={useHashLocation}>
-			<div className="min-h-screen flex flex-col bg-background text-foreground antialiased overflow-hidden">
+			<div className="h-screen flex flex-col bg-background text-foreground antialiased no-scrollbar overscroll-none">
 				<Titlebar />
 
-				<header className="flex-shrink-0 h-14 px-4 border-b border-border flex items-center justify-center bg-card/50 text-card-foreground z-10">
-					<nav className="flex space-x-2">
-						<NavLink to="/" active={location === "/"}>
-							<HomeIcon className="mr-1.5" />
-							Home
-						</NavLink>
-						<NavLink to="/settings" active={location === "/settings"}>
-							<GearIcon className="mr-1.5" />
-							Settings
-						</NavLink>
-					</nav>
-				</header>
+				<div className="flex-1 flex flex-col min-h-0">
+					<header className="sticky top-10 z-[9998] flex-shrink-0 h-14 px-4 border-b border-border flex items-center justify-center bg-card/50 text-card-foreground backdrop-blur-sm">
+						<nav className="flex space-x-2">
+							<NavLink to="/" active={location === "/"}>
+								<HomeIcon className="mr-1.5" />
+								Home
+							</NavLink>
+							<NavLink to="/settings" active={location === "/settings"}>
+								<GearIcon className="mr-1.5" />
+								Settings
+							</NavLink>
+						</nav>
+					</header>
 
-				<main className="flex-1 overflow-auto">
-					<div className="p-4">
-						<Switch>
-							<Route path="/" component={Home} />
-							<Route path="/settings" component={Settings} />
-							<Route>
-								<div className="max-w-2xl mx-auto p-6 text-center">
-									<h2 className="text-xl font-bold">404 - Page Not Found</h2>
-									<p className="mt-2 text-muted-foreground">
-										The page you're looking for doesn't exist.
-									</p>
-								</div>
-							</Route>
-						</Switch>
-					</div>
-				</main>
-				<footer className="flex-shrink-0 py-2 px-4 text-center text-xs text-muted-foreground border-t border-border">
-					<p>VLC Discord RP v{config?.version || "4.0.0"}</p>
-				</footer>
+					<main className="flex-1 min-h-0 overflow-hidden">
+						<div className="h-full overflow-y-auto no-scrollbar overscroll-y-contain p-4">
+							<Switch>
+								<Route path="/" component={Home} />
+								<Route path="/settings" component={Settings} />
+								<Route>
+									<div className="max-w-2xl mx-auto p-6 text-center">
+										<h2 className="text-xl font-bold">404 - Page Not Found</h2>
+										<p className="mt-2 text-muted-foreground">
+											The page you're looking for doesn't exist.
+										</p>
+									</div>
+								</Route>
+							</Switch>
+						</div>
+					</main>
+
+					<footer className="flex-shrink-0 py-2 px-4 text-center text-xs text-muted-foreground border-t border-border bg-card/30 backdrop-blur-sm">
+						<p>VLC Discord RP v{config?.version || "4.0.1"}</p>
+					</footer>
+				</div>
 			</div>
 
 			<UpdateNotification />

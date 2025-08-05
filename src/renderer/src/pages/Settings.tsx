@@ -86,7 +86,7 @@ export function Settings(): JSX.Element {
 	}
 
 	return (
-		<div className="max-w-6xl mx-auto">
+		<div className="max-w-6xl mx-auto no-scrollbar">
 			<div className="mb-6">
 				<h1 className="text-2xl font-bold mb-1">Settings</h1>
 				<p className="text-muted-foreground">Configure VLC Discord Rich Presence</p>

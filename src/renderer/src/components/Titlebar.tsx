@@ -51,6 +51,7 @@ export function Titlebar(): JSX.Element {
 			className={cn(
 				"app-titlebar h-10 flex items-center justify-between",
 				"border-b border-border bg-card text-card-foreground select-none",
+				"sticky top-0 z-[9999]", // Make titlebar sticky and always on top with high z-index
 				isMac ? "pl-20" : "pl-4", // Add space for traffic lights on macOS
 			)}
 		>

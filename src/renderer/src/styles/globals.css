@@ -142,7 +142,10 @@
 			Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
+
+		@apply overscroll-y-none;
 	}
+	
 }
 
 /* Discord-style focus rings */
@@ -166,3 +169,10 @@
 		-webkit-app-region: drag;
 	}
 }
+
+
+@utility no-scrollbar {
+	@apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+}
+
+
