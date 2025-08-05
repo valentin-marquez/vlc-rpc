@@ -37,11 +37,7 @@
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "electron-vite build && electron-builder --win",
-    "changeset": "changeset",
-    "changeset:version": "changeset version",
-    "changeset:publish": "npm run build && changeset publish",
-    "changeset:status": "changeset status"
+    "build:win": "electron-vite build && electron-builder --win"
   },
   "dependencies": {
     "@ctrl/video-filename-parser": "^5.4.0",
@@ -64,8 +60,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@changesets/changelog-github": "^0.5.1",
-    "@changesets/cli": "^2.29.4",
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@types/cheerio": "^1.0.0",
     "@types/node": "^22.13.4",
