@@ -7,102 +7,101 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.0] - 2025-08-05
 
-### 🚨 BREAKING CHANGES
+### BREAKING CHANGES
 
-- **Dropped support for macOS and Linux distributions**
-  - VLC Discord RP now focuses exclusively on Windows to ensure the highest quality experience
-  - This allows for faster development cycles and better platform-specific optimizations
-  - Users on macOS and Linux can continue using version 3.x until further notice
-- **CI/CD Workflows now Windows-only**: Removed Linux and macOS build jobs from all workflows
+- Dropped support for macOS and Linux platforms to focus exclusively on Windows optimization
+- Removed cross-platform CI/CD workflows and build configurations
 
-### ✨ Added
+### Added
 
-- **Discord RPC Tray Controls**: Complete RPC management from system tray
-  - Quick RPC Toggle: Enable/disable Discord RPC permanently from tray menu
-  - Temporary Disable Options: Disable RPC for predefined durations (15 minutes, 1 hour, 2 hours)
-  - Timer Persistence Control: New setting to control whether RPC timers persist across app restarts
-  - Dynamic Menu Updates: Tray menu shows remaining time when RPC is temporarily disabled
-  - Automatic Re-activation: RPC automatically re-enables when temporary timer expires
-- **Enhanced Media Type Detection**: 
-  - Added support for music_video and documentary content types
-  - Improved video identification methods with advanced content analysis
-  - Better media state detection for accurate Discord status
-- **Metadata Management System**:
-  - New metadata handler for centralized metadata operations
-  - Image uploader service for uploading cover art to 0x0.st with metadata tagging
-  - Metadata writer service for improved metadata management
-  - Video analyzer service for content type determination
-- **Application Features**:
-  - Portable version detection and handling
-  - App info handler for system information
-  - Automated issue response templates for better support
-- **Developer Experience**:
-  - Changesets integration for automated versioning and changelog generation
-  - GitHub Actions CI/CD pipeline with automated releases
-  - PR bot for changeset validation and contributor guidance
-  - Migration to Electron Vite for improved build performance
+**Discord RPC Tray Controls**
 
-### 🔧 Changed
+- System tray integration for Discord RPC management
+- Quick toggle functionality for enabling/disabling RPC
+- Temporary disable options with configurable durations (15 minutes, 1 hour, 2 hours)
+- Timer persistence control for maintaining state across application restarts
+- Real-time countdown display in tray menu
 
-- **Media Detection Improvements**: 
-  - Replaced MediaActivityType enum with ActivityType from discord-api-types
-  - Expanded VlcRawStatus with new properties for better media tracking
-  - Added VlcStreamInfo and VlcMetadata interfaces for detailed media information
-  - Implemented VlcPlaylistResponse and VlcPlaylistItem interfaces
-- **Settings UI Simplification**:
-  - Moved version and installation type info to Application Settings
-  - Removed manual update check buttons (updates now automatic)
-  - Updated minimize to tray behavior (only applies to minimize button, not close)
-  - Hide "Start with System" option for portable versions
-- **Build Configuration**: 
-  - Updated to target Windows only
-  - Fixed portable build generation issues
-  - Streamlined resource paths and configurations
-  - Updated electron-builder configuration for better artifact naming
+**Enhanced Media Detection System**
 
-### � Fixed
+- Support for additional content types: `music_video` and `documentary`
+- Improved video content analysis algorithms
+- Enhanced media state detection for more accurate Discord status updates
+- Better identification methods for various media formats
 
-- **Tray Management**: Resolved tray icon duplication after system sleep/wake cycles
-- **File Handling**: Fixed album art loading for files with spaces or special characters using proper URL decoding
-- **Build Issues**: Fixed portable version generation problems with NSIS configuration
-- **Code Quality**: Removed unused comments and improved code clarity
+**Metadata Management Infrastructure**
 
-### 🗑️ Removed
+- Centralized metadata handler with IPC communication system
+- Image uploader service with 0x0.st integration for cover art hosting
+- Automated video analyzer for content type determination
+- Metadata writer service for improved data management
 
-- macOS and Linux build targets and configurations
-- Cross-platform compatibility code
-- Manual update check controls from settings UI
-- Unused MediaActivityType enum
-- Redundant code and comments
+**Development Tools and Workflow**
 
-### 📈 Performance
+- Migration to Electron Vite build system for improved performance and developer experience
+- Changesets integration for automated version management and release processes
+- Enhanced GitHub Actions CI/CD pipeline with automated PR validation
+- Bot integration for changeset validation and contributor guidance
 
-- **Windows-Optimized Experience**: Enhanced performance and stability specifically for Windows
-- **Electron Vite Migration**: Faster build times and improved development experience
-- **Reduced Bundle Size**: Removed cross-platform dependencies
-- **Better Resource Management**: Improved memory usage and faster startup times
+### Changed
+
+**User Interface**
+
+- Simplified settings interface by removing manual update controls
+- Relocated application information to dedicated settings section
+- Updated minimize-to-tray behavior for better user experience
+- Hidden system startup options for portable installations
+
+**API and Type System**
+
+- Replaced custom `MediaActivityType` enum with `ActivityType` from discord-api-types
+- Enhanced `VlcRawStatus` interface with additional properties for better media tracking
+- Introduced new interfaces: `VlcStreamInfo`, `VlcMetadata`, `VlcPlaylistResponse`, and `VlcPlaylistItem`
+- Improved type safety across the application
+
+**Build Configuration**
+
+- Updated build targets to Windows-only architecture
+- Fixed portable version generation issues
+- Streamlined resource paths and build configurations
+- Improved artifact naming conventions in electron-builder
+
+### Fixed
+
+- Resolved tray icon duplication issues occurring after system sleep/wake cycles
+- Fixed album art loading problems for files with special characters or spaces in filenames using `url.fileURLToPath()`
+- Corrected portable build generation with proper NSIS configuration
+- Improved code quality by removing unused comments and redundant implementations
+
+### Removed
+
+- macOS and Linux build targets and platform-specific code
+- Cross-platform compatibility layers and dependencies
+- Manual update check functionality from user interface
+- Deprecated `MediaActivityType` enum
+- Legacy code comments and unused implementations
 
 ---
 
 ## [3.0.0] - Previous Release
 
-### ✨ Added
+### Added
 
-- Cross-Platform Support for Windows, macOS, and Linux
-- Automatic Updates system
-- Smart Content Detection for TV shows, movies, and anime
-- Activity Type Precision (Listening/Watching)
-- Modern UI with light/dark theme support
-- Tray Integration for background operation
+- Cross-platform support for Windows, macOS, and Linux operating systems
+- Automatic updates system with seamless installation process
+- Smart content detection for TV shows, movies, and anime content
+- Activity type precision with listening and watching states
+- Modern user interface with light and dark theme support
+- System tray integration for background operation management
 
-### 🔧 Changed
+### Changed
 
-- Complete UI redesign
-- Improved reconnection logic
-- Enhanced error handling
+- Complete user interface redesign with improved usability
+- Enhanced VLC reconnection logic for better stability
+- Improved error handling and user feedback systems
 
-### 🐛 Fixed
+### Fixed
 
-- Connection stability issues
-- Media detection accuracy
-- Memory leaks in long-running sessions
+- Connection stability issues with VLC Media Player
+- Media detection accuracy for various file formats
+- Memory leaks in long-running application sessions
