@@ -18,10 +18,16 @@ extraResources:
 win:
   executableName: VLC Discord RP
   target:
-    - nsis
-    - portable
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
   icon: resources/icon.ico
   publisherName: "Valentin Marquez"
+  verifyUpdateCodeSignature: false
+  sign: null
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: VLC Discord RP
@@ -31,8 +37,10 @@ nsis:
   allowToChangeInstallationDirectory: true
   include: build/installer.nsh
   differentialPackage: true
+  deleteAppDataOnUninstall: false
 portable:
   artifactName: ${name}-${version}-portable.${ext}
+  unpackDirName: VLC Discord RP
 npmRebuild: false
 publish:
   provider: github
@@ -40,5 +48,7 @@ publish:
   repo: vlc-rpc
   releaseType: release
   publishAutoUpdate: true
+  vPrefixedTagName: true
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/
+compression: maximum

@@ -65,6 +65,10 @@ const api = {
 	update: {
 		check: (silent = true) => ipcRenderer.invoke(`${IpcChannels.UPDATE}:check`, silent),
 		download: () => ipcRenderer.invoke(`${IpcChannels.UPDATE}:download`),
+		forceCheck: () => ipcRenderer.invoke(`${IpcChannels.UPDATE}:force-check`),
+		getStatus: () => ipcRenderer.invoke(`${IpcChannels.UPDATE}:status`),
+		getInstallationType: () => ipcRenderer.invoke(`${IpcChannels.UPDATE}:installation-type`),
+		openCacheFolder: () => ipcRenderer.invoke(`${IpcChannels.UPDATE}:open-cache-folder`),
 		onUpdateStatus: (callback: (event: string, data: unknown) => void) => {
 			const handler = (_, status: string, data: unknown) => callback(status, data)
 

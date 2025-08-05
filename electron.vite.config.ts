@@ -9,10 +9,8 @@ export default defineConfig({
 		build: {
 			outDir: "out/main",
 			minify: false,
-			// Configure asset handling for tray icons
-			assetsInlineLimit: 0, // Prevent inlining assets
+			assetsInlineLimit: 0,
 			rollupOptions: {
-				// Ensure proper handling of resource files
 				output: {
 					assetFileNames: "chunks/[name]-[hash][extname]",
 				},

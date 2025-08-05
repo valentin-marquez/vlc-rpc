@@ -13,18 +13,27 @@ export function Settings(): JSX.Element {
 	const [isLoading, setIsLoading] = useState(false)
 	const [showPassword, setShowPassword] = useState(false)
 	const [isPortable, setIsPortable] = useState(false)
+	const [currentVersion, setCurrentVersion] = useState<string>("")
+	const [installationType, setInstallationType] = useState<"portable" | "setup" | null>(null)
 
-	// Check if this is a portable version
+	// Check if this is a portable version and get basic info
 	useEffect(() => {
-		const checkPortable = async () => {
+		const checkBasicInfo = async () => {
 			try {
-				const portable = await window.api.app.isPortable()
+				const [portable, updateStatus, installType] = await Promise.all([
+					window.api.app.isPortable(),
+					window.api.update.getStatus(),
+					window.api.update.getInstallationType(),
+				])
+
 				setIsPortable(portable)
+				setCurrentVersion(updateStatus.currentVersion)
+				setInstallationType(installType)
 			} catch (error) {
-				logger.error(`Failed to check if portable: ${error}`)
+				logger.error(`Failed to check basic info: ${error}`)
 			}
 		}
-		checkPortable()
+		checkBasicInfo()
 	}, [])
 
 	if (!config) {
@@ -197,11 +206,26 @@ export function Settings(): JSX.Element {
 						<h2 className="font-semibold">Application Settings</h2>
 					</div>
 					<div className="p-4 space-y-4">
+						<div className="bg-background p-3 rounded-md space-y-2">
+							<div className="flex items-center justify-between">
+								<p className="text-sm font-medium text-card-foreground">Current Version</p>
+								<span className="text-sm text-muted-foreground">
+									{currentVersion || "Loading..."}
+								</span>
+							</div>
+							<div className="flex items-center justify-between">
+								<p className="text-sm font-medium text-card-foreground">Installation Type</p>
+								<span className="text-sm text-muted-foreground">
+									{installationType || "Loading..."}
+								</span>
+							</div>
+						</div>
+
 						<div className="flex items-center justify-between bg-background p-3 rounded-md">
 							<div>
 								<p className="text-sm font-medium text-card-foreground">Minimize to Tray</p>
 								<p className="text-xs text-muted-foreground">
-									Keep the app running in the system tray when closed
+									Keep the app running in the system tray when minimized (not when closed)
 								</p>
 							</div>
 							<Switch

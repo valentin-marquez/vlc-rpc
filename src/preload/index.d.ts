@@ -47,6 +47,15 @@ declare global {
 			update: {
 				check: (silent?: boolean) => Promise<boolean>
 				download: () => Promise<boolean>
+				forceCheck: () => Promise<boolean>
+				getStatus: () => Promise<{
+					isPortable: boolean
+					updateCheckInProgress: boolean
+					retryCount: number
+					currentVersion: string
+				}>
+				getInstallationType: () => Promise<"portable" | "setup">
+				openCacheFolder: () => Promise<void>
 				onUpdateStatus: (callback: (event: string, data: any) => void) => () => void
 			}
 		}

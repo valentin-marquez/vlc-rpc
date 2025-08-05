@@ -141,7 +141,7 @@ function App(): JSX.Element {
 					</div>
 				</main>
 				<footer className="flex-shrink-0 py-2 px-4 text-center text-xs text-muted-foreground border-t border-border">
-					<p>VLC Discord RP v{config?.version || "3.0.0"}</p>
+					<p>VLC Discord RP v{config?.version || "4.0.0"}</p>
 				</footer>
 			</div>
 

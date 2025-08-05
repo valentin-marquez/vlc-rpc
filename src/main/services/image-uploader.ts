@@ -6,7 +6,7 @@ import { logger } from "@main/services/logger"
 export class ImageUploaderService {
 	private static instance: ImageUploaderService | null = null
 	private readonly uploadUrl = "https://0x0.st"
-	private readonly appVersion = "3.0.0"
+	private readonly appVersion = "4.0.0"
 	private readonly appName = "VLC-Discord-RPC"
 
 	private constructor() {
