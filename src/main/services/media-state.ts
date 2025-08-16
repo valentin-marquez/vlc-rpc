@@ -63,8 +63,8 @@ class PlayingState extends MediaState {
 
 		if (activityType === ActivityType.Listening) {
 			// For music, put artist in details and song in state for better visibility
-			details = media.artist || "Unknown Artist"
-			state = media.title || "Unknown Song"
+			details = media.title || "Unknown Song"
+			state = `by ${media.artist || "Unknown Artist"}`
 		} else {
 			// For video content, analyze the video and provide richer information
 			const videoAnalyzer = VideoAnalyzerService.getInstance()
