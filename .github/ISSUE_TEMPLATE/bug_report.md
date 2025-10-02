@@ -12,9 +12,9 @@ assignees: ""
 
 ## Steps to Reproduce
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ## Expected Behavior
 
@@ -26,14 +26,14 @@ assignees: ""
 
 ## Environment
 
-- VLC-RPC Version: 
-- Windows Version: 
-- VLC Media Player Version: 
-- Discord Version: 
+- VLC-RPC Version:
+- Windows Version:
+- VLC Media Player Version:
+- Discord Version:
 
 ## VLC Configuration
 
-- HTTP Interface Port: 
+- HTTP Interface Port:
 - HTTP Interface Enabled: Yes/No
 - Password Protected: Yes/No
 

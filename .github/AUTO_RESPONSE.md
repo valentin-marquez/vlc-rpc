@@ -1,22 +1,14 @@
 # Automated Issue Responses# Automated Issue Response
 
-
-
 ## Platform SupportThis repository includes automated responses for platform-related issues.
-
-
 
 As of version 4.0.0, VLC-RPC is Windows-only.## Issue Labels and Auto-Responses
 
-
-
 ### Auto-response Template### `platform-support` Label
 
+````markdownIssues asking about macOS or Linux support will automatically receive a response pointing to:
 
-
-```markdownIssues asking about macOS or Linux support will automatically receive a response pointing to:
-
-VLC-RPC is Windows-only as of v4.0.0. 
+VLC-RPC is Windows-only as of v4.0.0.
 
 - The Platform Migration Guide
 
@@ -69,7 +61,7 @@ For information about:
 Please see our [Platform Migration Guide](docs/PLATFORM_MIGRATION.md).
 
 If you're interested in maintaining support for your platform, we'd be happy to discuss community fork opportunities!
-```
+````
 
 ## Common Platform Keywords
 
