@@ -1,36 +1,27 @@
 ---
 name: Feature Request
-about: Suggest an idea for VLC Discord RP on Windows
-title: "[FEATURE] "
+about: Suggest a new feature or improvement
+title: ""
 labels: "enhancement"
 assignees: ""
 ---
 
-## Is your feature request related to a problem? Please describe.
+## Problem
 
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+<!-- Describe the problem or limitation you're facing -->
 
-## Describe the solution you'd like
+## Proposed Solution
 
-A clear and concise description of what you want to happen.
+<!-- Describe how you'd like this to work -->
 
-## Describe alternatives you've considered
+## Alternatives Considered
 
-A clear and concise description of any alternative solutions or features you've considered.
+<!-- Other approaches you've thought about -->
 
-## Windows Compatibility
+## Use Case
 
-How would this feature work specifically on Windows? Any Windows-specific considerations?
+<!-- How would this feature benefit you or other users? -->
 
-## Additional context
+## Additional Context
 
-Add any other context or screenshots about the feature request here.
-
-## Priority
-
-How important is this feature to your workflow?
-
-- [ ] Critical - I can't use the app without this
-- [ ] High - This would significantly improve my experience
-- [ ] Medium - This would be nice to have
-- [ ] Low - This is just a suggestion
+<!-- Any other relevant information -->
