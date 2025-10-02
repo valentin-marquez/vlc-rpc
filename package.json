@@ -1,6 +1,6 @@
 {
   "name": "vlc-rpc",
-  "version": "4.0.2",
+  "version": "4.0.0",
   "description": "Discord Rich Presence integration for VLC Media Player for Windows - Show your friends what you're watching or listening to",
   "main": "./out/main/index.js",
   "author": {
