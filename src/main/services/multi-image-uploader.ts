@@ -9,7 +9,7 @@ interface ImageUploadService {
 
 export class MultiImageUploaderService {
     private static instance: MultiImageUploaderService | null = null
-    private readonly appVersion = "4.0.1"
+    private readonly appVersion = "4.0.2"
     private readonly appName = "VLC-Discord-RPC"
     
     private readonly userAgents = [
