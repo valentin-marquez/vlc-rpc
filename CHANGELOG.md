@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.1] - 2025-10-02
+
+### Fixed
+
+**Image Upload Service Issues**
+
+- Fixed HTTP 403 errors when uploading cover art images
+- Resolved User-Agent blocking issues with 0x0.st service
+- Improved upload reliability and success rates
+
+### Added
+
+**Multi-Service Image Upload System**
+
+- Implemented automatic fallback between multiple image hosting services
+- Added support for x0.at, catbox.moe, uguu.se, tmpfiles.org, and 0x0.st
+- User-Agent rotation system to prevent service blocking
+- Intelligent service selection based on file size limits
+- Automatic retry logic with different services on failure
+
+### Improved
+
+- Enhanced error handling and logging for image upload operations
+- Better service reliability through diversified hosting providers
+- Reduced dependency on single image hosting service
+
 ## [4.0.0] - 2025-08-05
 
 ### BREAKING CHANGES
