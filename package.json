@@ -43,6 +43,7 @@
     "changeset:publish": "changeset publish"
   },
   "dependencies": {
+    "@changesets/cli": "^2.29.6",
     "@ctrl/video-filename-parser": "^5.4.0",
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
