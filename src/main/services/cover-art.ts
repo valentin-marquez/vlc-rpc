@@ -1,5 +1,5 @@
 import { promises as fs } from "node:fs"
-import { imageUploaderService } from "@main/services/image-uploader"
+import { multiImageUploaderService } from "@main/services/multi-image-uploader"
 import { metadataWriterService } from "@main/services/metadata-writer"
 import { VideoAnalyzerService } from "@main/services/video-analyzer"
 import { vlcStatusService } from "@main/services/vlc-status"
@@ -48,7 +48,7 @@ export class CoverArtService {
 			if (filePath) {
 				const customMetadata = await metadataWriterService.readMetadataTags(filePath)
 				if (customMetadata) {
-					const parsed = imageUploaderService.parseMetadataTags(customMetadata)
+					const parsed = multiImageUploaderService.parseMetadataTags(customMetadata)
 					if (parsed.imageUrl && !parsed.isExpired) {
 						logger.info(`Using existing uploaded cover image: ${parsed.imageUrl}`)
 						return parsed.imageUrl
@@ -77,7 +77,7 @@ export class CoverArtService {
 				try {
 					const imageBuffer = await fs.readFile(fixedPath)
 					const filename = `cover_${Date.now()}.jpg`
-					const uploadedUrl = await imageUploaderService.uploadImage(imageBuffer, filename, 24 * 7) // 7 days
+					const uploadedUrl = await multiImageUploaderService.uploadImage(imageBuffer, filename, 24 * 7) // 7 days
 
 					if (uploadedUrl && fileUri) {
 						// Store the uploaded URL in metadata for future use
@@ -86,7 +86,7 @@ export class CoverArtService {
 							const expiryDate = new Date()
 							expiryDate.setDate(expiryDate.getDate() + 7) // 7 days from now
 
-							const tags = imageUploaderService.generateMetadataTags(uploadedUrl, expiryDate)
+							const tags = multiImageUploaderService.generateMetadataTags(uploadedUrl, expiryDate)
 							await metadataWriterService.writeMetadataTags(filePath, tags)
 
 							logger.info(`Uploaded local artwork and saved metadata: ${uploadedUrl}`)

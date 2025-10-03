@@ -1,6 +1,6 @@
 {
   "name": "vlc-rpc",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "Discord Rich Presence integration for VLC Media Player for Windows - Show your friends what you're watching or listening to",
   "main": "./out/main/index.js",
   "author": {
@@ -37,7 +37,10 @@
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "electron-vite build && electron-builder --win"
+    "build:win": "electron-vite build && electron-builder --win",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "changeset publish"
   },
   "dependencies": {
     "@changesets/cli": "^2.29.6",
@@ -61,6 +64,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@changesets/cli": "^2.29.7",
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@types/cheerio": "^1.0.0",
     "@types/node": "^22.13.4",

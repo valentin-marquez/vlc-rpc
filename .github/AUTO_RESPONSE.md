@@ -1,32 +1,53 @@
-# Automated Issue Response
+# Automated Issue Responses# Automated Issue Response
 
-This repository includes automated responses for platform-related issues.
+## Platform SupportThis repository includes automated responses for platform-related issues.
 
-## Issue Labels and Auto-Responses
+As of version 4.0.0, VLC-RPC is Windows-only.## Issue Labels and Auto-Responses
 
-### `platform-support` Label
+### Auto-response Template### `platform-support` Label
 
-Issues asking about macOS or Linux support will automatically receive a response pointing to:
+````markdownIssues asking about macOS or Linux support will automatically receive a response pointing to:
+
+VLC-RPC is Windows-only as of v4.0.0.
 
 - The Platform Migration Guide
-- Last supported versions
+
+For macOS/Linux, use version 3.x or consider maintaining a community fork.- Last supported versions
+
 - Community alternatives
 
-### GitHub Actions Workflow
+See CHANGELOG.md for migration details.
 
-The repository can be configured with a GitHub Action that automatically:
+```### GitHub Actions Workflow
 
-1. Detects issues mentioning macOS, Linux, or related keywords
-2. Adds appropriate labels
-3. Responds with helpful information
-4. Closes the issue if it's a duplicate platform question
 
-## Manual Response Template
 
-For manual responses to platform support questions:
+### Detection KeywordsThe repository can be configured with a GitHub Action that automatically:
 
-```markdown
-Thank you for your interest in VLC Discord RP!
+
+
+- macOS, Mac, Apple Silicon, M1, M2, M31. Detects issues mentioning macOS, Linux, or related keywords
+
+- Linux, Ubuntu, Arch, Debian, Fedora2. Adds appropriate labels
+
+- Cross-platform, multi-platform3. Responds with helpful information
+
+- "doesn't work on", "won't install on"4. Closes the issue if it's a duplicate platform question
+
+
+
+## Common Issues## Manual Response Template
+
+
+
+Issues frequently asked about can receive automated responses pointing to:For manual responses to platform support questions:
+
+- README.md for setup instructions
+
+- CHANGELOG.md for version history```markdown
+
+- Existing issues for known problemsThank you for your interest in VLC Discord RP!
+
 
 As of version 4.0.0, we've made the decision to focus exclusively on Windows support to ensure the highest quality experience.
 
@@ -40,7 +61,7 @@ For information about:
 Please see our [Platform Migration Guide](docs/PLATFORM_MIGRATION.md).
 
 If you're interested in maintaining support for your platform, we'd be happy to discuss community fork opportunities!
-```
+````
 
 ## Common Platform Keywords
 

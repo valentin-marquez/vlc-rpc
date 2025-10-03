@@ -1,52 +1,50 @@
 ---
-name: Windows Bug Report
-about: Report a bug for VLC Discord RP on Windows
-title: "[BUG] "
-labels: "bug, windows"
+name: Bug Report
+about: Report a bug or issue with VLC-RPC
+title: ""
+labels: "bug"
 assignees: ""
 ---
 
-## Bug Description
+## Description
 
-A clear and concise description of what the bug is.
+<!-- Clear description of the bug -->
 
-## To Reproduce
+## Steps to Reproduce
 
-Steps to reproduce the behavior:
-
-1. Go to '...'
-2. Click on '...'
-3. Scroll down to '...'
-4. See error
+1.
+2.
+3.
 
 ## Expected Behavior
 
-A clear and concise description of what you expected to happen.
+<!-- What should happen -->
 
-## Screenshots
+## Actual Behavior
 
-If applicable, add screenshots to help explain your problem.
+<!-- What actually happens -->
 
-## System Information
+## Environment
 
-**Please complete the following information:**
+- VLC-RPC Version:
+- Windows Version:
+- VLC Media Player Version:
+- Discord Version:
 
-- Windows Version: [e.g. Windows 11 22H2]
-- VLC Discord RP Version: [e.g. 4.0.0]
-- VLC Media Player Version: [e.g. 3.0.18]
-- Discord Version: [e.g. Stable 150.X.X]
+## VLC Configuration
 
-## VLC Information
+- HTTP Interface Port:
+- HTTP Interface Enabled: Yes/No
+- Password Protected: Yes/No
 
-- VLC Installation Path: [e.g. C:\Program Files\VideoLAN\VLC]
-- HTTP Interface Enabled: [Yes/No]
-- HTTP Interface Port: [e.g. 8080]
-- VLC Password Set: [Yes/No]
+## Logs
 
-## Application Logs
+<!-- Paste relevant log entries if available -->
 
-If available, please attach or paste relevant log entries from the application.
+```
+[Paste logs here]
+```
 
 ## Additional Context
 
-Add any other context about the problem here.
+<!-- Any other relevant information -->
