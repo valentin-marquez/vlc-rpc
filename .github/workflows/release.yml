@@ -51,9 +51,9 @@ jobs:
         shell: pwsh
 
       - name: Build Windows binaries
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bun run build:win
+        env:
+          GH_TOKEN: ""
 
       - name: Create git tag and release
         env:
