@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Version packages with Changesets
+        run: |
+          bun changeset:version
+
+          $packageJson = Get-Content package.json | ConvertFrom-Json
+          $version = $packageJson.version
+          $tag = "v$version"
+
+          Write-Host "::notice::Version: $version"
+          Write-Host "::notice::Tag: $tag"
+
+          echo "VERSION=$version" >> $env:GITHUB_ENV
+          echo "TAG=$tag" >> $env:GITHUB_ENV
+        shell: pwsh
+
+      - name: Commit version changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          try {
+            git commit -m "chore: release v${{ env.VERSION }}"
+            git push
+          } catch {
+            Write-Host "No changes to commit"
+          }
+        shell: pwsh
+
+      - name: Build Windows binaries
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bun run build:win
+
+      - name: Create git tag and release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git tag "${{ env.TAG }}" -f
+          git push origin "${{ env.TAG }}" -f
+
+          gh release create "${{ env.TAG }}" `
+            --title "VLC Discord RP ${{ env.TAG }}" `
+            --notes "See [CHANGELOG.md](https://github.com/valentin-marquez/vlc-rpc/blob/main/CHANGELOG.md) for detailed changes." `
+            dist/*.exe `
+            dist/*.zip `
+            dist/*.yml `
+            dist/*.blockmap `
+            --latest
+        shell: pwsh
