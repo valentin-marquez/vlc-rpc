@@ -87,7 +87,7 @@ The app runs in your system tray. Right-click the tray icon to:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the AGPLv3 License - see the [LICENSE-CODE](LICENSE-CODE) file for details.
 
 ## Contributing
 
