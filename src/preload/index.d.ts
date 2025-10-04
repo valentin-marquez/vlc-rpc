@@ -1,6 +1,6 @@
 import type { ElectronAPI } from "@electron-toolkit/preload"
 import type { AppConfig, VlcConfig } from "@shared/types"
-import type { EnhancedMediaInfo } from "@shared/types/media"
+import type { DetectedMediaInfo } from "@shared/types/media"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/types/vlc"
 
 declare global {
@@ -30,7 +30,7 @@ declare global {
 				reconnect: () => Promise<boolean>
 			}
 			media: {
-				getEnhancedInfo: () => Promise<(VlcStatus & EnhancedMediaInfo) | null>
+				getMediaInfo: () => Promise<(VlcStatus & DetectedMediaInfo) | null>
 			}
 			image: {
 				getAsDataUrl: (url: string) => Promise<string | null>

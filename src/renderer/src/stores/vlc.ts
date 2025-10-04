@@ -1,6 +1,6 @@
 import { logger } from "@renderer/lib/utils"
 import { mediaInfoStore, mediaStatusStore } from "@renderer/stores/app-status"
-import { refreshEnhancedMediaInfo } from "@renderer/stores/enhanced-media"
+import { refreshMediaInfo } from "@renderer/stores/media"
 import type { ConnectionStatus, VlcConfig } from "@shared/types"
 import type { VlcStatus } from "@shared/types/vlc"
 import { atom } from "nanostores"
@@ -133,7 +133,7 @@ export async function refreshVlcStatus(): Promise<void> {
 		if (status) {
 			vlcStatusStore.set("connected")
 			updateMediaInfo(status)
-			await refreshEnhancedMediaInfo()
+			await refreshMediaInfo()
 		} else {
 			await checkVlcConnection()
 		}

@@ -260,7 +260,7 @@ export class VlcStatusService {
 		// Get metadata from VLC
 		const meta = (category.meta as VlcMetadata) || {}
 
-		// Enhanced media information extraction
+		// Media information extraction
 		if (meta) {
 			// Prioritize specific metadata fields over generic ones
 			status.media.title =
@@ -319,7 +319,7 @@ export class VlcStatusService {
 
 		logger.info(`Final media type: ${status.mediaType} for "${status.media.title}"`)
 
-		// Log enhanced metadata for debugging
+		// Log metadata for debugging
 		if (meta["X-COVER-URL"]) {
 			logger.info(
 				`Custom metadata found - App: ${meta["X-PROCESSED-BY"]}, Version: ${meta["X-APP-VERSION"]}`,

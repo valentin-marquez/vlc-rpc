@@ -3,39 +3,39 @@ import type { ContentType } from "@shared/types/media"
 import { atom } from "nanostores"
 import { vlcStatusStore } from "./vlc"
 
-export const enhancedMediaStore = atom<{
+export const mediaStore = atom<{
 	contentType: ContentType | null
 	contentImageUrl: string | null
-	enhancedTitle: string | null
-	enhancedArtist: string | null
+	title: string | null
+	artist: string | null
 	season: number | null
 	episode: number | null
 	year: string | null
 }>({
 	contentType: null,
 	contentImageUrl: null,
-	enhancedTitle: null,
-	enhancedArtist: null,
+	title: null,
+	artist: null,
 	season: null,
 	episode: null,
 	year: null,
 })
 
-// Fetch enhanced media information from the main process
-export async function refreshEnhancedMediaInfo(): Promise<void> {
+// Fetch media information from the main process
+export async function refreshMediaInfo(): Promise<void> {
 	try {
 		if (vlcStatusStore.get() !== "connected") {
 			return
 		}
 
-		const enhancedInfo = await window.api.media.getEnhancedInfo()
+		const mediaInfo = await window.api.media.getMediaInfo()
 
-		if (!enhancedInfo || !enhancedInfo.active) {
-			enhancedMediaStore.set({
+		if (!mediaInfo || !mediaInfo.active) {
+			mediaStore.set({
 				contentType: null,
 				contentImageUrl: null,
-				enhancedTitle: null,
-				enhancedArtist: null,
+				title: null,
+				artist: null,
 				season: null,
 				episode: null,
 				year: null,
@@ -43,25 +43,25 @@ export async function refreshEnhancedMediaInfo(): Promise<void> {
 			return
 		}
 
-		enhancedMediaStore.set({
-			contentType: enhancedInfo.content_type || null,
-			contentImageUrl: enhancedInfo.content_image_url || null,
-			enhancedTitle:
-				enhancedInfo.content_metadata?.clean_title ||
-				enhancedInfo.content_metadata?.title ||
-				enhancedInfo.content_metadata?.movie_name ||
-				enhancedInfo.content_metadata?.show_name ||
-				enhancedInfo.content_metadata?.anime_name ||
+		mediaStore.set({
+			contentType: mediaInfo.content_type || null,
+			contentImageUrl: mediaInfo.content_image_url || null,
+			title:
+				mediaInfo.content_metadata?.clean_title ||
+				mediaInfo.content_metadata?.title ||
+				mediaInfo.content_metadata?.movie_name ||
+				mediaInfo.content_metadata?.show_name ||
+				mediaInfo.content_metadata?.anime_name ||
 				null,
-			enhancedArtist: enhancedInfo.media?.artist || null,
-			season: enhancedInfo.content_metadata?.season || null,
-			episode: enhancedInfo.content_metadata?.episode || null,
-			year: enhancedInfo.content_metadata?.year || null,
+			artist: mediaInfo.media?.artist || null,
+			season: mediaInfo.content_metadata?.season || null,
+			episode: mediaInfo.content_metadata?.episode || null,
+			year: mediaInfo.content_metadata?.year || null,
 		})
 
-		logger.info("Enhanced media information updated")
+		logger.info("Media information updated")
 	} catch (error) {
-		logger.error(`Error fetching enhanced media info: ${error}`)
+		logger.error(`Error fetching media info: ${error}`)
 	}
 }
 

@@ -2,7 +2,6 @@ import type { ActivityType } from "discord-api-types/v10"
 
 /**
  * Content type detected from media files
- * Enhanced with better detection categories
  */
 export type ContentType =
 	| "tv_show"
@@ -30,9 +29,9 @@ export interface ContentMetadata {
 }
 
 /**
- * Enhanced media info with detected content type and metadata
+ * Detected media info with content type and metadata
  */
-export interface EnhancedMediaInfo {
+export interface DetectedMediaInfo {
 	content_type?: ContentType
 	content_metadata?: ContentMetadata
 	content_image_url?: string

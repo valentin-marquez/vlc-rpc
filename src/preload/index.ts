@@ -39,7 +39,7 @@ const api = {
 		reconnect: () => ipcRenderer.invoke(`${IpcChannels.DISCORD}:reconnect`),
 	},
 	media: {
-		getEnhancedInfo: () => ipcRenderer.invoke(`${IpcChannels.MEDIA}:get-enhanced-info`),
+		getMediaInfo: () => ipcRenderer.invoke(`${IpcChannels.MEDIA}:get-media-info`),
 	},
 	image: {
 		getAsDataUrl: (url: string) =>

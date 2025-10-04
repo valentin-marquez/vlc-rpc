@@ -1,9 +1,9 @@
 import { useStore } from "@nanostores/react"
-import { GearIcon, HomeIcon } from "@radix-ui/react-icons"
 import { Titlebar } from "@renderer/components/Titlebar"
 import { UpdateNotification } from "@renderer/components/UpdateNotification"
 import { cn, logger } from "@renderer/lib/utils"
 import { FirstRun } from "@renderer/pages/FirstRun"
+import { Layout } from "@renderer/pages/Layout"
 import { Settings } from "@renderer/pages/Settings"
 import { Home } from "@renderer/pages/home"
 import { initializeAppStatus } from "@renderer/stores/app-status"
@@ -12,6 +12,7 @@ import { configStore, isFirstRun, loadConfig } from "@renderer/stores/config"
 import { initializeDiscordStore } from "@renderer/stores/discord"
 import { checkDiscordStatus, tryReconnect } from "@renderer/stores/discord"
 import { initializeVlcStore } from "@renderer/stores/vlc"
+import { Gear, House, Layout as LayoutPhosphor } from "phosphor-react"
 
 import { useEffect, useState } from "react"
 import { Link, Route, Router, Switch } from "wouter"
@@ -115,11 +116,15 @@ function App(): JSX.Element {
 					<header className="sticky top-10 z-[9998] flex-shrink-0 h-14 px-4 border-b border-border flex items-center justify-center bg-card/50 text-card-foreground backdrop-blur-sm">
 						<nav className="flex space-x-2">
 							<NavLink to="/" active={location === "/"}>
-								<HomeIcon className="mr-1.5" />
+								<House size={18} weight="fill" className="mr-1.5" />
 								Home
 							</NavLink>
+							<NavLink to="/layout" active={location === "/layout"}>
+								<LayoutPhosphor size={18} weight="fill" className="mr-1.5" />
+								Layout
+							</NavLink>
 							<NavLink to="/settings" active={location === "/settings"}>
-								<GearIcon className="mr-1.5" />
+								<Gear size={18} weight="fill" className="mr-1.5" />
 								Settings
 							</NavLink>
 						</nav>
@@ -129,6 +134,7 @@ function App(): JSX.Element {
 						<div className="h-full overflow-y-auto no-scrollbar overscroll-y-contain p-4">
 							<Switch>
 								<Route path="/" component={Home} />
+								<Route path="/layout" component={Layout} />
 								<Route path="/settings" component={Settings} />
 								<Route>
 									<div className="max-w-2xl mx-auto p-6 text-center">

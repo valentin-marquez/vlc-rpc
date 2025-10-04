@@ -1,5 +1,6 @@
+import { applyTemplate, getDefaultLayout, getLayoutByPreset } from "@shared/constants/layouts"
 import type { AppConfig } from "@shared/types"
-import type { DiscordPresenceData, EnhancedMediaInfo } from "@shared/types/media"
+import type { DetectedMediaInfo, DiscordPresenceData } from "@shared/types/media"
 import type { VlcStatus } from "@shared/types/vlc"
 import { ActivityType } from "discord-api-types/v10"
 import { configService } from "./config"
@@ -46,10 +47,10 @@ class PlayingState extends MediaState {
 		const currentTime = Math.floor(Date.now() / 1000)
 
 		// Use the media info directly since VLC status service already provides reliable type detection
-		const enhancedInfo = mediaInfo as VlcStatus & EnhancedMediaInfo
+		const detectedInfo = mediaInfo as VlcStatus & DetectedMediaInfo
 
-		const media = enhancedInfo.media
-		const mediaType = enhancedInfo.mediaType || "unknown"
+		const media = detectedInfo.media
+		const mediaType = detectedInfo.mediaType || "unknown"
 
 		// Simple activity type detection based on VLC's media type
 		const activityType = mediaType === "video" ? ActivityType.Watching : ActivityType.Listening
@@ -58,23 +59,31 @@ class PlayingState extends MediaState {
 			`Activity type: ${activityType === ActivityType.Watching ? "WATCHING" : "LISTENING"} for media type: ${mediaType}`,
 		)
 
+		// Get the layout configuration
+		const layout =
+			config.presenceLayout ||
+			(config.layoutPreset ? getLayoutByPreset(config.layoutPreset) : getDefaultLayout())
+
 		let details = ""
 		let state = ""
 
 		if (activityType === ActivityType.Listening) {
-			// For music, put artist in details and song in state for better visibility
-			details = media.title || "Unknown Song"
-			state = `by ${media.artist || "Unknown Artist"}`
+			// For music, use customizable layout
+			const variables = {
+				title: media.title || "Unknown Song",
+				artist: media.artist || "Unknown Artist",
+				album: media.album || "",
+			}
+
+			details = applyTemplate(layout.musicDetails, variables)
+			state = applyTemplate(layout.musicState, variables)
 		} else {
 			// For video content, analyze the video and provide richer information
 			const videoAnalyzer = VideoAnalyzerService.getInstance()
 			const videoAnalysis = videoAnalyzer.analyzeVideo(mediaInfo)
 
+			let episodeInfo = ""
 			if (videoAnalysis.isTvShow) {
-				// TV Show: Show name as details, episode info as state
-				details = videoAnalysis.title
-
-				let episodeInfo = ""
 				if (videoAnalysis.season && videoAnalysis.episode) {
 					episodeInfo = `S${videoAnalysis.season}E${videoAnalysis.episode}`
 				} else if (videoAnalysis.season) {
@@ -82,13 +91,18 @@ class PlayingState extends MediaState {
 				} else if (videoAnalysis.episode) {
 					episodeInfo = `Episode ${videoAnalysis.episode}`
 				}
-
-				state = episodeInfo || "TV Show"
-			} else {
-				// Movie: Movie title as details, year as state
-				details = videoAnalysis.title
-				state = videoAnalysis.year ? `(${videoAnalysis.year})` : "Movie"
 			}
+
+			const variables = {
+				title: videoAnalysis.title,
+				episodeInfo: episodeInfo || (videoAnalysis.isTvShow ? "TV Show" : "Movie"),
+				year: videoAnalysis.year || "",
+				season: videoAnalysis.season?.toString() || "",
+				episode: videoAnalysis.episode?.toString() || "",
+			}
+
+			details = applyTemplate(layout.videoDetails, variables)
+			state = applyTemplate(layout.videoState, variables)
 		}
 
 		details = this.formatText(details)
@@ -128,7 +142,7 @@ class PlayingState extends MediaState {
 			largeText = "Watching Video"
 		}
 
-		const videoInfo = enhancedInfo.videoInfo
+		const videoInfo = detectedInfo.videoInfo
 		if (mediaType === "video" && videoInfo && videoInfo.width && videoInfo.height) {
 			const resolution = `${videoInfo.width}x${videoInfo.height}`
 			smallText += ` • ${resolution}`
@@ -162,9 +176,14 @@ class PlayingState extends MediaState {
 			activity_type: activityType,
 		}
 
-		// Set custom app name for music
-		if (activityType === ActivityType.Listening && media && media.artist) {
-			presenceData.name = media.artist
+		// Set custom activity name based on layout configuration
+		if (activityType === ActivityType.Listening && layout.activityName) {
+			const activityNameVariables = {
+				title: media.title || "Unknown Song",
+				artist: media.artist || "Unknown Artist",
+				album: media.album || "",
+			}
+			presenceData.name = applyTemplate(layout.activityName, activityNameVariables)
 		}
 
 		const activityName = activityType === ActivityType.Watching ? "Watching" : "Listening to"
@@ -183,10 +202,10 @@ class PausedState extends MediaState {
 		const config = configService.get<AppConfig>()
 
 		// Use the media info directly since VLC status service already provides reliable type detection
-		const enhancedInfo = mediaInfo as VlcStatus & EnhancedMediaInfo
+		const detectedInfo = mediaInfo as VlcStatus & DetectedMediaInfo
 
-		const media = enhancedInfo.media
-		const mediaType = enhancedInfo.mediaType || "unknown"
+		const media = detectedInfo.media
+		const mediaType = detectedInfo.mediaType || "unknown"
 
 		// Simple activity type detection based on VLC's media type
 		const activityType = mediaType === "video" ? ActivityType.Watching : ActivityType.Listening
@@ -247,7 +266,7 @@ class PausedState extends MediaState {
 			largeText = "Watching Video"
 		}
 
-		const videoInfo = enhancedInfo.videoInfo
+		const videoInfo = detectedInfo.videoInfo
 		if (mediaType === "video" && videoInfo && videoInfo.width && videoInfo.height) {
 			const resolution = `${videoInfo.width}x${videoInfo.height}`
 			smallText += ` • ${resolution}`

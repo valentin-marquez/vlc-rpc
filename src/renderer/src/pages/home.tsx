@@ -3,10 +3,10 @@ import { PauseIcon, PlayIcon, StopIcon } from "@radix-ui/react-icons"
 import { discordStatusStore, mediaInfoStore, mediaStatusStore } from "@renderer/stores/app-status"
 import { checkDiscordStatus } from "@renderer/stores/discord"
 import {
-	enhancedMediaStore,
+	mediaStore,
 	getProxiedImage,
-	refreshEnhancedMediaInfo,
-} from "@renderer/stores/enhanced-media"
+	refreshMediaInfo,
+} from "@renderer/stores/media"
 import {
 	checkVlcConnection,
 	refreshVlcStatus,
@@ -20,7 +20,7 @@ export function Home(): JSX.Element {
 	const discordStatus = useStore(discordStatusStore)
 	const mediaStatus = useStore(mediaStatusStore)
 	const mediaInfo = useStore(mediaInfoStore)
-	const enhancedMedia = useStore(enhancedMediaStore)
+	const media = useStore(mediaStore)
 	const vlcError = useStore(vlcErrorStore)
 	const [proxiedArtworkUrl, setProxiedArtworkUrl] = useState<string | null>(null)
 
@@ -31,7 +31,7 @@ export function Home(): JSX.Element {
 
 			if (vlcStatusStore.get() === "connected") {
 				await refreshVlcStatus()
-				await refreshEnhancedMediaInfo()
+				await refreshMediaInfo()
 			}
 		}
 
@@ -42,7 +42,7 @@ export function Home(): JSX.Element {
 
 	useEffect(() => {
 		const updateProxiedArtwork = async () => {
-			const artworkUrl = enhancedMedia.contentImageUrl || mediaInfo.artwork
+			const artworkUrl = media.contentImageUrl || mediaInfo.artwork
 			if (artworkUrl) {
 				const proxied = await getProxiedImage(artworkUrl)
 				setProxiedArtworkUrl(proxied)
@@ -52,11 +52,11 @@ export function Home(): JSX.Element {
 		}
 
 		updateProxiedArtwork()
-	}, [enhancedMedia.contentImageUrl, mediaInfo.artwork])
+	}, [media.contentImageUrl, mediaInfo.artwork])
 
-	const displayTitle = enhancedMedia.enhancedTitle || mediaInfo.title
-	const isEpisode = enhancedMedia.season !== null && enhancedMedia.episode !== null
-	const isMovie = enhancedMedia.contentType === "movie" && enhancedMedia.year !== null
+	const displayTitle = media.title || mediaInfo.title
+	const isEpisode = media.season !== null && media.episode !== null
+	const isMovie = media.contentType === "movie" && media.year !== null
 
 	return (
 		<div className="max-w-3xl mx-auto">
@@ -97,7 +97,7 @@ export function Home(): JSX.Element {
 							type="button"
 							onClick={async () => {
 								await refreshVlcStatus()
-								await refreshEnhancedMediaInfo()
+								await refreshMediaInfo()
 							}}
 							className="px-3 py-1 text-xs bg-primary/10 text-primary rounded-md hover:bg-primary/20"
 						>
@@ -157,17 +157,17 @@ export function Home(): JSX.Element {
 											<span>Paused</span>
 										</div>
 									)}
-									{enhancedMedia.contentType && (
+									{media.contentType && (
 										<span className="ml-2 px-2 py-0.5 bg-secondary/20 text-secondary text-xs rounded-full">
-											{enhancedMedia.contentType === "tv_show"
+											{media.contentType === "tv_show"
 												? "TV Show"
-												: enhancedMedia.contentType === "movie"
+												: media.contentType === "movie"
 													? "Movie"
-													: enhancedMedia.contentType === "anime"
+													: media.contentType === "anime"
 														? "Anime"
-														: enhancedMedia.contentType === "audio"
+														: media.contentType === "audio"
 															? "Audio"
-															: enhancedMedia.contentType === "video"
+															: media.contentType === "video"
 																? "Video"
 																: ""}
 										</span>
@@ -178,16 +178,16 @@ export function Home(): JSX.Element {
 
 								{isEpisode && (
 									<p className="text-sm mt-1">
-										Season {enhancedMedia.season} · Episode {enhancedMedia.episode}
+										Season {media.season} · Episode {media.episode}
 									</p>
 								)}
 
-								{isMovie && enhancedMedia.year && (
-									<p className="text-sm mt-1">{enhancedMedia.year}</p>
+								{isMovie && media.year && (
+									<p className="text-sm mt-1">{media.year}</p>
 								)}
 
-								{(mediaInfo.artist || enhancedMedia.enhancedArtist) && (
-									<p className="mt-1">{enhancedMedia.enhancedArtist || mediaInfo.artist}</p>
+								{(mediaInfo.artist || media.artist) && (
+									<p className="mt-1">{media.artist || mediaInfo.artist}</p>
 								)}
 
 								{mediaInfo.album && (

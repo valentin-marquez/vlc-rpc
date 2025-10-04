@@ -1,4 +1,5 @@
 import type { AppConfig } from "@shared/types"
+import { getDefaultLayout } from "./layouts"
 
 /**
  * Default application configuration
@@ -20,6 +21,8 @@ export const DEFAULT_CONFIG: AppConfig = {
 	startWithSystem: true,
 	version: "3.0.0", // Default version, will be overridden at runtime
 	fileMetadata: {}, // Empty object for file metadata storage
+	presenceLayout: getDefaultLayout(),
+	layoutPreset: "default",
 }
 
 /**
