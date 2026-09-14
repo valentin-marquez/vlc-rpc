@@ -1,0 +1,32 @@
+{
+	"ro": "rw",
+	"type": "node",
+	"name": "",
+	"id": "0",
+	"children": [
+		{
+			"ro": "ro",
+			"type": "node",
+			"name": "Lista de reproducción",
+			"id": "1",
+			"children": [
+				{
+					"ro": "rw",
+					"type": "leaf",
+					"name": "Some Show S01E03",
+					"id": "3",
+					"duration": 19,
+					"uri": "file:///C:/Users/LENOVO/AppData/Local/Temp/vlc-rpc-fixtures/media/Some.Show.S01E03.1080p.WEB-DL.mp4",
+					"current": "current"
+				}
+			]
+		},
+		{
+			"ro": "ro",
+			"type": "node",
+			"name": "Biblioteca multimedia",
+			"id": "2",
+			"children": []
+		}
+	]
+}

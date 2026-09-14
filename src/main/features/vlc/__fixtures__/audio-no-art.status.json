@@ -1,0 +1,69 @@
+{
+	"fullscreen": 0,
+	"stats": {
+		"inputbitrate": 0,
+		"sentbytes": 0,
+		"lostabuffers": 0,
+		"averagedemuxbitrate": 0,
+		"readpackets": 15,
+		"demuxreadpackets": 0,
+		"lostpictures": 0,
+		"displayedpictures": 0,
+		"sentpackets": 0,
+		"demuxreadbytes": 127832,
+		"demuxbitrate": 0,
+		"playedabuffers": 28,
+		"demuxdiscontinuity": 0,
+		"decodedaudio": 56,
+		"sendbitrate": 0,
+		"readbytes": 135168,
+		"averageinputbitrate": 0,
+		"demuxcorrupted": 0,
+		"decodedvideo": 0
+	},
+	"seek_sec": 10,
+	"apiversion": 3,
+	"currentplid": 3,
+	"time": 0,
+	"volume": 0,
+	"length": 5,
+	"random": false,
+	"audiofilters": {
+		"filter_0": ""
+	},
+	"information": {
+		"chapter": 0,
+		"chapters": [],
+		"title": 0,
+		"category": {
+			"meta": {
+				"filename": "Alarm01.wav"
+			},
+			"Emisión 0": {
+				"Códec": "PCM S16 LE (s16l)",
+				"Decoded_channels": "Estéreo",
+				"Tipo": "Audio",
+				"Tasa_de_muestra": "22050 Hz",
+				"Tasa_de_bits": "705 kb/s",
+				"Bits_por_muestra": "16"
+			}
+		},
+		"titles": []
+	},
+	"rate": 1,
+	"videoeffects": {
+		"hue": 0,
+		"saturation": 1,
+		"contrast": 1,
+		"brightness": 1,
+		"gamma": 1
+	},
+	"state": "playing",
+	"loop": true,
+	"version": "3.0.23 Vetinari",
+	"position": 0.053834177553654,
+	"audiodelay": 0,
+	"repeat": false,
+	"subtitledelay": 0,
+	"equalizer": []
+}

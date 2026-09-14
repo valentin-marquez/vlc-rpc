@@ -1,0 +1,74 @@
+{
+	"fullscreen": 0,
+	"stats": {
+		"inputbitrate": 0,
+		"sentbytes": 0,
+		"lostabuffers": 0,
+		"averagedemuxbitrate": 0,
+		"readpackets": 57,
+		"demuxreadpackets": 0,
+		"lostpictures": 0,
+		"displayedpictures": 0,
+		"sentpackets": 0,
+		"demuxreadbytes": 53288,
+		"demuxbitrate": 0,
+		"playedabuffers": 50,
+		"demuxdiscontinuity": 0,
+		"decodedaudio": 101,
+		"sendbitrate": 0,
+		"readbytes": 56832,
+		"averageinputbitrate": 0,
+		"demuxcorrupted": 0,
+		"decodedvideo": 0
+	},
+	"seek_sec": 10,
+	"apiversion": 3,
+	"currentplid": 3,
+	"time": 42,
+	"volume": 0,
+	"length": 233,
+	"random": false,
+	"audiofilters": {
+		"filter_0": ""
+	},
+	"information": {
+		"chapter": 0,
+		"chapters": [],
+		"title": 0,
+		"category": {
+			"meta": {
+				"compatible_brands": "iso6mp41",
+				"major_brand": "dash",
+				"filename": "Christian Nodal - Probablemente (Official Lyric Video).mp3",
+				"minor_version": "0"
+			},
+			"Emisión 0": {
+				"Códec": "MPEG Audio layer 1/2 (mpga)",
+				"Tasa_de_muestra": "44100 Hz",
+				"Formato_decodificado": "32 bits float LE (f32l)",
+				"Tipo": "Audio",
+				"Decoded_Bitrate": "320 kb/s",
+				"Canales": "Estéreo",
+				"Tasa_de_bits": "320 kb/s",
+				"Decoded_bits_per_sample": "32"
+			}
+		},
+		"titles": []
+	},
+	"rate": 1,
+	"videoeffects": {
+		"hue": 0,
+		"saturation": 1,
+		"contrast": 1,
+		"brightness": 1,
+		"gamma": 1
+	},
+	"state": "playing",
+	"loop": true,
+	"version": "3.0.23 Vetinari",
+	"position": 0.18022786080837,
+	"audiodelay": 0,
+	"repeat": false,
+	"subtitledelay": 0,
+	"equalizer": []
+}
