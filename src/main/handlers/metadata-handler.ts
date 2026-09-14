@@ -1,6 +1,6 @@
-import { registerHandler } from "@main/ipc"
-import { configService } from "@main/services/config"
-import { logger } from "@main/services/logger"
+import { configService } from "@main/core/config"
+import { registerHandler } from "@main/core/ipc"
+import { logger } from "@main/core/logger"
 import { metadataWriterService } from "@main/services/metadata-writer"
 
 /**

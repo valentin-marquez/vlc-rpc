@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs"
 import { fileURLToPath } from "node:url"
-import { logger } from "./logger"
+import { logger } from "@main/core/logger"
 
 /**
  * Service for proxying images from various sources to data URLs

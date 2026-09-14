@@ -1,5 +1,5 @@
+import { logger } from "@main/core/logger"
 import { app } from "electron"
-import { logger } from "./logger"
 
 /**
  * Service to manage application startup with system

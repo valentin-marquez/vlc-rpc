@@ -1,5 +1,7 @@
 import { join } from "node:path"
 import { is } from "@electron-toolkit/utils"
+import { configService } from "@main/core/config"
+import { logger } from "@main/core/logger"
 import {
 	Menu,
 	type MenuItemConstructorOptions,
@@ -9,8 +11,6 @@ import {
 	powerMonitor,
 } from "electron"
 import iconPath16 from "../../../resources/icons/16x16.png?asset"
-import { configService } from "./config"
-import { logger } from "./logger"
 import { startupService } from "./startup"
 import { windowService } from "./window"
 

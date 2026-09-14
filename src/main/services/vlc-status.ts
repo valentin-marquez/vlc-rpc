@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
-import { configService } from "@main/services/config"
-import { logger } from "@main/services/logger"
+import { configService } from "@main/core/config"
+import { logger } from "@main/core/logger"
 import type { VlcConfig } from "@shared/types"
 import type {
 	VlcConnectionStatus,

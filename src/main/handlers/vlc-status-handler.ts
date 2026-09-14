@@ -1,5 +1,5 @@
-import { registerHandler } from "@main/ipc"
-import { logger } from "@main/services/logger"
+import { registerHandler } from "@main/core/ipc"
+import { logger } from "@main/core/logger"
 import { vlcStatusService } from "@main/services/vlc-status"
 
 /**

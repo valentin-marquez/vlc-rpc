@@ -1,4 +1,4 @@
-import { logger } from "@main/services/logger"
+import { logger } from "@main/core/logger"
 
 interface ImageUploadService {
 	name: string

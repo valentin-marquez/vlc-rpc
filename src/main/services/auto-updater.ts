@@ -1,10 +1,10 @@
 import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { is } from "@electron-toolkit/utils"
+import { logger } from "@main/core/logger"
 import type { IpcEvent } from "@shared/ipc"
 import { type BrowserWindow, app, dialog, shell } from "electron"
 import { type UpdateInfo, autoUpdater } from "electron-updater"
-import { logger } from "./logger"
 
 /**
  * Service for automatic application updates

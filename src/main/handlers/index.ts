@@ -1,3 +1,4 @@
+import { logger } from "@main/core/logger"
 import { AppInfoHandler } from "@main/handlers/app-info-handler"
 import { DiscordRpcHandler } from "@main/handlers/discord-rpc-handler"
 import { MediaInfoHandler } from "@main/handlers/media-info-handler"
@@ -5,7 +6,6 @@ import { MetadataHandler } from "@main/handlers/metadata-handler"
 import { UpdateHandler } from "@main/handlers/update-handler"
 import { VlcConfigHandler } from "@main/handlers/vlc-config-handler"
 import { VlcStatusHandler } from "@main/handlers/vlc-status-handler"
-import { logger } from "@main/services/logger"
 
 /**
  * Main handlers registry

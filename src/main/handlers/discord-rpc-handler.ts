@@ -1,6 +1,6 @@
-import { registerHandler } from "@main/ipc"
+import { registerHandler } from "@main/core/ipc"
+import { logger } from "@main/core/logger"
 import { discordRpcService } from "@main/services/discord-rpc"
-import { logger } from "@main/services/logger"
 import { mediaStateService } from "@main/services/media-state"
 import { vlcStatusService } from "@main/services/vlc-status"
 

@@ -1,8 +1,8 @@
+import { configService } from "@main/core/config"
+import { logger } from "@main/core/logger"
 import type { AppConfig } from "@shared/types"
 import type { DiscordPresenceData } from "@shared/types/media"
 import { Client, type SetActivity, StatusDisplayType } from "@xhayper/discord-rpc"
-import { configService } from "./config"
-import { logger } from "./logger"
 
 /**
  * Service for Discord Rich Presence integration

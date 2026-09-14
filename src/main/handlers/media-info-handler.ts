@@ -1,9 +1,9 @@
-import { registerHandler } from "@main/ipc"
+import { registerHandler } from "@main/core/ipc"
+import { logger } from "@main/core/logger"
 import type { DetectedMediaInfo } from "@shared/types/media"
 import type { VlcStatus } from "@shared/types/vlc"
 import { coverArtService } from "../services/cover-art"
 import { imageProxyService } from "../services/image-proxy"
-import { logger } from "../services/logger"
 import { vlcStatusService } from "../services/vlc-status"
 
 /**

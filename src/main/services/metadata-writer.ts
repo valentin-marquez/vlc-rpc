@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs"
-import { configService } from "@main/services/config"
-import { logger } from "@main/services/logger"
+import { configService } from "@main/core/config"
+import { logger } from "@main/core/logger"
 import type { FileMetadata } from "@shared/types"
 
 /**

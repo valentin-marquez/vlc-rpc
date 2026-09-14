@@ -1,10 +1,10 @@
 import { join } from "node:path"
 import { is } from "@electron-toolkit/utils"
-import { registerHandler } from "@main/ipc"
+import { configService } from "@main/core/config"
+import { registerHandler } from "@main/core/ipc"
+import { logger } from "@main/core/logger"
 import { BrowserWindow, app, ipcMain, session, shell } from "electron"
-import { configService } from "./config"
 import { discordRpcService } from "./discord-rpc"
-import { logger } from "./logger"
 import { trayService } from "./tray"
 
 /**
