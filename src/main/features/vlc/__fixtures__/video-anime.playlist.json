@@ -1,0 +1,32 @@
+{
+	"ro": "rw",
+	"type": "node",
+	"name": "",
+	"id": "0",
+	"children": [
+		{
+			"ro": "ro",
+			"type": "node",
+			"name": "Lista de reproducción",
+			"id": "1",
+			"children": [
+				{
+					"ro": "rw",
+					"type": "leaf",
+					"name": "[SubsPlease] Some Anime - 05 (1080p) [A1B2C3D4].mp4",
+					"id": "3",
+					"duration": 19,
+					"uri": "file:///C:/Users/LENOVO/AppData/Local/Temp/vlc-rpc-fixtures/media/%5BSubsPlease%5D%20Some%20Anime%20-%2005%20%281080p%29%20%5BA1B2C3D4%5D.mp4",
+					"current": "current"
+				}
+			]
+		},
+		{
+			"ro": "ro",
+			"type": "node",
+			"name": "Biblioteca multimedia",
+			"id": "2",
+			"children": []
+		}
+	]
+}

@@ -1,0 +1,76 @@
+{
+	"fullscreen": false,
+	"stats": {
+		"inputbitrate": 0,
+		"sentbytes": 0,
+		"lostabuffers": 0,
+		"averagedemuxbitrate": 0,
+		"readpackets": 7,
+		"demuxreadpackets": 0,
+		"lostpictures": 0,
+		"displayedpictures": 1,
+		"sentpackets": 0,
+		"demuxreadbytes": 18484,
+		"demuxbitrate": 0,
+		"playedabuffers": 0,
+		"demuxdiscontinuity": 1,
+		"decodedaudio": 0,
+		"sendbitrate": 0,
+		"readbytes": 23968,
+		"averageinputbitrate": 0,
+		"demuxcorrupted": 0,
+		"decodedvideo": 14
+	},
+	"aspectratio": "default",
+	"seek_sec": 10,
+	"apiversion": 3,
+	"currentplid": 3,
+	"time": 0,
+	"volume": 0,
+	"length": 19,
+	"random": false,
+	"audiofilters": {
+		"filter_0": ""
+	},
+	"information": {
+		"chapter": 0,
+		"chapters": [],
+		"title": 0,
+		"category": {
+			"meta": {
+				"filename": "[SubsPlease] Some Anime - 05 (1080p) [A1B2C3D4].mp4"
+			},
+			"Emisión 0": {
+				"Códec": "H264 - MPEG-4 AVC (part 10) (avc1)",
+				"Idioma": "Inglés",
+				"Colores_primarios": "ITU-R BT.709",
+				"Orientación": "Arriba-Izquierda",
+				"Resolución_de_vídeo": "1280x720",
+				"Dimensiones_del_«buffer»": "1280x720",
+				"Formato_decodificado": "DX11",
+				"Tipo": "Vídeo",
+				"Localización_de_chroma": "Izquierda",
+				"Espacio_de_color": "RangoITU-R BT.709",
+				"Función_de_transferencia_de_color": "ITU-R BT.709",
+				"Tasa_de_fotogramas": "5.050505"
+			}
+		},
+		"titles": []
+	},
+	"rate": 1,
+	"videoeffects": {
+		"hue": 0,
+		"saturation": 1,
+		"contrast": 1,
+		"brightness": 1,
+		"gamma": 1
+	},
+	"state": "playing",
+	"loop": true,
+	"version": "3.0.23 Vetinari",
+	"position": 0.0076262624934316,
+	"audiodelay": 0,
+	"repeat": false,
+	"subtitledelay": 0,
+	"equalizer": []
+}

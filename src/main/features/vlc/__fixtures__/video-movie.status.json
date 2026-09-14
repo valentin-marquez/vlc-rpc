@@ -1,0 +1,71 @@
+{
+	"fullscreen": false,
+	"stats": {
+		"inputbitrate": 0,
+		"sentbytes": 0,
+		"lostabuffers": 0,
+		"averagedemuxbitrate": 0,
+		"readpackets": 7,
+		"demuxreadpackets": 0,
+		"lostpictures": 0,
+		"displayedpictures": 0,
+		"sentpackets": 0,
+		"demuxreadbytes": 18228,
+		"demuxbitrate": 0,
+		"playedabuffers": 0,
+		"demuxdiscontinuity": 1,
+		"decodedaudio": 0,
+		"sendbitrate": 0,
+		"readbytes": 23968,
+		"averageinputbitrate": 0,
+		"demuxcorrupted": 0,
+		"decodedvideo": 0
+	},
+	"aspectratio": "default",
+	"seek_sec": 10,
+	"apiversion": 3,
+	"currentplid": 3,
+	"time": 0,
+	"volume": 0,
+	"length": 19,
+	"random": false,
+	"audiofilters": {
+		"filter_0": ""
+	},
+	"information": {
+		"chapter": 0,
+		"chapters": [],
+		"title": 0,
+		"category": {
+			"meta": {
+				"filename": "Some.Movie.2019.1080p.BluRay.mp4"
+			},
+			"Emisión 0": {
+				"Códec": "H264 - MPEG-4 AVC (part 10) (avc1)",
+				"Dimensiones_del_«buffer»": "1280x720",
+				"Idioma": "Inglés",
+				"Tipo": "Vídeo",
+				"Tasa_de_fotogramas": "5.050505",
+				"Resolución_de_vídeo": "1280x720",
+				"Orientación": "Arriba-Izquierda"
+			}
+		},
+		"titles": []
+	},
+	"rate": 1,
+	"videoeffects": {
+		"hue": 0,
+		"saturation": 1,
+		"contrast": 1,
+		"brightness": 1,
+		"gamma": 1
+	},
+	"state": "playing",
+	"loop": true,
+	"version": "3.0.23 Vetinari",
+	"position": 0,
+	"audiodelay": 0,
+	"repeat": false,
+	"subtitledelay": 0,
+	"equalizer": []
+}

@@ -1,7 +1,13 @@
 {
 	"extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
-	"include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*", "src/shared/**/*"],
-	"exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts"],
+	"include": [
+		"electron.vite.config.*",
+		"vitest.config.*",
+		"src/main/**/*",
+		"src/preload/**/*",
+		"src/shared/**/*"
+	],
+	"exclude": ["node_modules"],
 	"compilerOptions": {
 		"composite": true,
 		"module": "NodeNext",

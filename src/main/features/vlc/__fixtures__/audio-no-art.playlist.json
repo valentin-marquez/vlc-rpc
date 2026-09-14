@@ -1,0 +1,32 @@
+{
+	"ro": "rw",
+	"type": "node",
+	"name": "",
+	"id": "0",
+	"children": [
+		{
+			"ro": "ro",
+			"type": "node",
+			"name": "Lista de reproducción",
+			"id": "1",
+			"children": [
+				{
+					"ro": "rw",
+					"type": "leaf",
+					"name": "Alarm01.wav",
+					"id": "3",
+					"duration": 5,
+					"uri": "file:///C:/Windows/Media/Alarm01.wav",
+					"current": "current"
+				}
+			]
+		},
+		{
+			"ro": "ro",
+			"type": "node",
+			"name": "Biblioteca multimedia",
+			"id": "2",
+			"children": []
+		}
+	]
+}

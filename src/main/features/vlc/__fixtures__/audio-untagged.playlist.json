@@ -1,0 +1,32 @@
+{
+	"ro": "rw",
+	"type": "node",
+	"name": "",
+	"id": "0",
+	"children": [
+		{
+			"ro": "ro",
+			"type": "node",
+			"name": "Lista de reproducción",
+			"id": "1",
+			"children": [
+				{
+					"ro": "rw",
+					"type": "leaf",
+					"name": "Christian Nodal - Probablemente (Official Lyric Video).mp3",
+					"id": "3",
+					"duration": 233,
+					"uri": "file:///C:/Users/LENOVO/Downloads/Christian%20Nodal%20-%20Probablemente%20%28Official%20Lyric%20Video%29.mp3",
+					"current": "current"
+				}
+			]
+		},
+		{
+			"ro": "ro",
+			"type": "node",
+			"name": "Biblioteca multimedia",
+			"id": "2",
+			"children": []
+		}
+	]
+}
