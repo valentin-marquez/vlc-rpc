@@ -1,11 +1,11 @@
-import type { AppConfig, VlcConfig } from "@shared/types"
-import type { DetectedMediaInfo } from "@shared/types/media"
-import type { VlcConnectionStatus, VlcStatus } from "@shared/types/vlc"
+import type { AppConfig, VlcConfig } from "@shared/config/app-config"
+import type { DetectedMediaInfo } from "@shared/media/media.types"
+import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 
 // ─── Invoke Channels (Renderer → Main, request/response) ────────────────────
 
 /**
- * IPC Contract Map — single source of truth for all invoke-based IPC channels.
+ * IPC Contract Map: single source of truth for all invoke-based IPC channels.
  *
  * Each key is the exact channel string used by `ipcMain.handle` / `ipcRenderer.invoke`.
  * The value defines the request args tuple and the response type.

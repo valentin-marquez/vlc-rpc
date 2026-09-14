@@ -5,8 +5,7 @@ import {
 	UpdateIcon,
 } from "@radix-ui/react-icons"
 import { cn } from "@renderer/lib/utils"
-import type { ConnectionStatus } from "@shared/types"
-
+import type { ConnectionStatus } from "@shared/app/app.types"
 interface StatusBadgeProps {
 	status: ConnectionStatus | string
 	className?: string

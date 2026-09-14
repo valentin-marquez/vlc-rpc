@@ -1,0 +1,287 @@
+import { join } from "node:path"
+import { is } from "@electron-toolkit/utils"
+import { configService } from "@main/core/config"
+import { registerHandler } from "@main/core/ipc"
+import { logger } from "@main/core/logger"
+import { discordRpcService } from "@main/features/discord"
+import { BrowserWindow, app, ipcMain, session, shell } from "electron"
+import { trayService } from "./app.tray"
+
+/**
+ * Window management service
+ */
+export class WindowService {
+	private static instance: WindowService | null = null
+	private mainWindow: BrowserWindow | null = null
+
+	private constructor() {
+		this.registerIpcHandlers()
+	}
+
+	/**
+	 * Get the singleton instance of the window service
+	 */
+	public static getInstance(): WindowService {
+		if (!WindowService.instance) {
+			WindowService.instance = new WindowService()
+		}
+		return WindowService.instance
+	}
+
+	/**
+	 * Register IPC handlers for window controls
+	 */
+	private registerIpcHandlers(): void {
+		registerHandler("window:minimize", () => {
+			this.mainWindow?.minimize()
+			return undefined
+		})
+
+		registerHandler("window:maximize", () => {
+			if (this.mainWindow?.isMaximized()) {
+				this.mainWindow.unmaximize()
+			} else {
+				this.mainWindow?.maximize()
+			}
+			return undefined
+		})
+
+		registerHandler("window:close", () => {
+			this.mainWindow?.close()
+			return undefined
+		})
+
+		registerHandler("window:is-maximized", () => {
+			return this.mainWindow?.isMaximized() || false
+		})
+
+		registerHandler("system:platform", () => {
+			return process.platform
+		})
+
+		ipcMain.on("window:maximized-change-subscribe", () => {
+			if (this.mainWindow) {
+				const sendMaximizeState = () => {
+					this.mainWindow?.webContents.send(
+						"window:maximized-change",
+						this.mainWindow.isMaximized(),
+					)
+				}
+
+				this.mainWindow.on("maximize", sendMaximizeState)
+				this.mainWindow.on("unmaximize", sendMaximizeState)
+			}
+		})
+	}
+
+	/**
+	 * Create the main application window
+	 */
+	public async createWindow(): Promise<BrowserWindow> {
+		if (this.mainWindow) {
+			return this.mainWindow
+		}
+
+		try {
+			await trayService.whenReady()
+			logger.info("Tray is ready, proceeding with window creation")
+		} catch (error) {
+			logger.error(`Error waiting for tray: ${error}`)
+		}
+
+		// Set Content Security Policy for React development
+		session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+			callback({
+				responseHeaders: {
+					...details.responseHeaders,
+					"Content-Security-Policy": [
+						`default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:;`,
+					],
+				},
+			})
+		})
+
+		const backgroundColor = "#1a1b1e" // Discord dark theme background
+
+		this.mainWindow = new BrowserWindow({
+			width: 900,
+			height: 680,
+			minWidth: 750,
+			minHeight: 600,
+			show: false,
+			autoHideMenuBar: true,
+			backgroundColor,
+			titleBarStyle: "hidden",
+			trafficLightPosition: { x: 10, y: 10 },
+			frame: false,
+			roundedCorners: true,
+			transparent: false,
+			center: true,
+			webPreferences: {
+				preload: join(__dirname, "../preload/index.js"),
+				sandbox: false,
+				contextIsolation: true,
+				nodeIntegration: false,
+			},
+		})
+
+		this.mainWindow.on("maximize", () => {
+			this.mainWindow?.webContents.send("window:maximized-change", true)
+		})
+
+		this.mainWindow.on("unmaximize", () => {
+			this.mainWindow?.webContents.send("window:maximized-change", false)
+		})
+
+		this.mainWindow.on("ready-to-show", async () => {
+			const isFirstRun = configService.get<boolean>("isFirstRun")
+			const minimizeToTray = configService.get<boolean>("minimizeToTray")
+			const startWithSystem = configService.get<boolean>("startWithSystem")
+			const launchedAtStartup = this.wasLaunchedAtStartup()
+
+			// Only start minimized if:
+			// 1. It's not the first run (app is already configured)
+			// 2. Both minimizeToTray and startWithSystem are enabled
+			// 3. The app was launched during system startup
+			const shouldStartMinimized =
+				!isFirstRun && minimizeToTray && startWithSystem && launchedAtStartup
+
+			if (shouldStartMinimized) {
+				logger.info("Starting minimized to system tray (launched at system startup)")
+				// Don't show the window, it will remain hidden and available in the tray
+			} else {
+				logger.info(
+					`Showing main window (isFirstRun: ${isFirstRun}, minimizeToTray: ${minimizeToTray}, startWithSystem: ${startWithSystem}, launchedAtStartup: ${launchedAtStartup})`,
+				)
+				this.mainWindow?.show()
+			}
+		})
+
+		this.mainWindow.webContents.setWindowOpenHandler((details) => {
+			shell.openExternal(details.url)
+			return { action: "deny" }
+		})
+
+		// @ts-ignore - 'minimize' event exists but TypeScript definitions might be incomplete
+		this.mainWindow.on("minimize", (event: Electron.Event) => {
+			const minimizeToTray = configService.get<boolean>("minimizeToTray")
+			if (minimizeToTray) {
+				event.preventDefault()
+				this.mainWindow?.hide()
+			}
+		})
+
+		this.mainWindow.on("close", (event) => {
+			if (!app.isQuitting) {
+				const minimizeToTray = configService.get<boolean>("minimizeToTray")
+				if (minimizeToTray) {
+					event.preventDefault()
+					this.mainWindow?.hide()
+					return
+				}
+			}
+		})
+
+		// Check Discord connection when window regains focus
+		this.mainWindow.on("focus", () => {
+			if (!discordRpcService.isConnected()) {
+				logger.info("Window focused, trying to reconnect to Discord")
+				discordRpcService.connect().catch((error) => {
+					logger.error(`Failed to reconnect to Discord on window focus: ${error}`)
+				})
+			}
+		})
+
+		// Check Discord connection when window is shown (e.g., from tray)
+		this.mainWindow.on("show", () => {
+			if (!discordRpcService.isConnected()) {
+				logger.info("Window shown, trying to reconnect to Discord")
+				discordRpcService.connect().catch((error) => {
+					logger.error(`Failed to reconnect to Discord when showing window: ${error}`)
+				})
+			}
+		})
+
+		if (is.dev && process.env.ELECTRON_RENDERER_URL) {
+			this.mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+		} else {
+			this.mainWindow.loadFile(join(__dirname, "../renderer/index.html"))
+		}
+
+		logger.info("Main window created")
+		return this.mainWindow
+	}
+
+	/**
+	 * Check if the app was launched during system startup
+	 */
+	private wasLaunchedAtStartup(): boolean {
+		// Different ways to detect if app was launched on startup
+		if (
+			Object.prototype.hasOwnProperty.call(app, "wasLaunchedAtStartup") &&
+			app.wasLaunchedAtStartup
+		) {
+			return true
+		}
+
+		const launchArgs = process.argv.slice(1).join(" ").toLowerCase()
+		if (
+			launchArgs.includes("--autostart") ||
+			launchArgs.includes("--startup") ||
+			launchArgs.includes("--launch-at-login") ||
+			launchArgs.includes("--autorun")
+		) {
+			return true
+		}
+
+		// Check process name and path for login item indicators
+		if (process.platform === "win32") {
+			// Windows often launches startup apps with explorer.exe as parent
+			const execPath = process.execPath.toLowerCase()
+			if (execPath.includes("\\appdata\\") && !is.dev) {
+				// Don't consider dev mode as startup
+				return true
+			}
+		}
+
+		// Check Windows registry for startup detection
+		if (
+			process.env.PROGRAMDATA ||
+			process.env.APPDATA ||
+			process.argv.some((arg) => arg.includes("--autostart"))
+		) {
+			if (app.wasLaunchedAtStartup) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	/**
+	 * Show the main window if exists, create it otherwise
+	 */
+	public showWindow(): void {
+		if (!this.mainWindow) {
+			this.createWindow()
+		} else {
+			this.mainWindow.show()
+			if (this.mainWindow.isMinimized()) {
+				this.mainWindow.restore()
+			}
+			this.mainWindow.focus()
+		}
+	}
+
+	/**
+	 * Close the main window
+	 */
+	public closeWindow(): void {
+		if (this.mainWindow) {
+			this.mainWindow.close()
+			this.mainWindow = null
+		}
+	}
+}
+
+export const windowService = WindowService.getInstance()

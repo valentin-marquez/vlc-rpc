@@ -1,5 +1,4 @@
-import type { LayoutPreset } from "@shared/types"
-
+import type { LayoutPreset } from "@shared/presence/layout"
 export interface LayoutCardData {
 	preset: LayoutPreset
 	name: string

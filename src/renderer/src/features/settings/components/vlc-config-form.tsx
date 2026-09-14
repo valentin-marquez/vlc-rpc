@@ -3,7 +3,7 @@ import { Input } from "@renderer/components/ui/input"
 import { Switch } from "@renderer/components/ui/switch"
 import { saveVlcConfig } from "@renderer/features/vlc"
 import { logger } from "@renderer/lib/utils"
-import type { VlcConfig } from "@shared/types"
+import type { VlcConfig } from "@shared/config/app-config"
 import { useState } from "react"
 
 interface VlcConfigFormProps {

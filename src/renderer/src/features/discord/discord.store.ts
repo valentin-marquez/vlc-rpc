@@ -1,4 +1,4 @@
-import type { ConnectionStatus } from "@shared/types"
+import type { ConnectionStatus } from "@shared/app/app.types"
 import { atom } from "nanostores"
 
 export const discordStatusStore = atom<ConnectionStatus>("disconnected")

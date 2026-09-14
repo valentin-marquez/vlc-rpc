@@ -1,6 +1,6 @@
 import { persistentAtom } from "@nanostores/persistent"
 import { logger } from "@renderer/lib/utils"
-import type { AppConfig } from "@shared/types"
+import type { AppConfig } from "@shared/config/app-config"
 import { computed } from "nanostores"
 
 export const configStore = persistentAtom<AppConfig | null>("vlc-rpc:config", null, {

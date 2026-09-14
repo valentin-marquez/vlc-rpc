@@ -2,7 +2,7 @@ import { Button } from "@renderer/components/ui/button"
 import { Switch } from "@renderer/components/ui/switch"
 import { logger } from "@renderer/lib/utils"
 import { saveConfig } from "@renderer/stores/config.store"
-import type { AppConfig } from "@shared/types"
+import type { AppConfig } from "@shared/config/app-config"
 import { useEffect, useState } from "react"
 
 interface AppSettingsPanelProps {

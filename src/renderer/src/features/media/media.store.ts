@@ -1,4 +1,4 @@
-import type { ContentType, MediaStatus } from "@shared/types/media"
+import type { ContentType, MediaStatus } from "@shared/media/media.types"
 import { atom } from "nanostores"
 
 export interface MediaState {

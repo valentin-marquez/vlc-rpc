@@ -10,6 +10,9 @@ export default defineConfig({
 			outDir: "out/main",
 			minify: false,
 			assetsInlineLimit: 0,
+			lib: {
+				entry: resolve("src/main/main.ts"),
+			},
 			rollupOptions: {
 				output: {
 					assetFileNames: "chunks/[name]-[hash][extname]",
