@@ -1,0 +1,7 @@
+# Normalize to LF in the repository and in every working tree. Windows checkouts
+# were producing CRLF files that fail `biome check` while CI stayed green.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.icns binary
