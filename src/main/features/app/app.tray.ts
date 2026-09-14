@@ -10,9 +10,9 @@ import {
 	nativeImage,
 	powerMonitor,
 } from "electron"
-import iconPath16 from "../../../resources/icons/16x16.png?asset"
-import { startupService } from "./startup"
-import { windowService } from "./window"
+import iconPath16 from "../../../../resources/icons/16x16.png?asset"
+import { startupService } from "./app.startup"
+import { windowService } from "./app.window"
 
 /**
  * System tray service

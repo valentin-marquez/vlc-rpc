@@ -5,7 +5,7 @@ import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
 import { discordRpcService } from "@main/features/discord/discord.client"
 import { BrowserWindow, app, ipcMain, session, shell } from "electron"
-import { trayService } from "./tray"
+import { trayService } from "./app.tray"
 
 /**
  * Window management service
