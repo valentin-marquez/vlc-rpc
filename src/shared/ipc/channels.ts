@@ -5,7 +5,7 @@ import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 // ─── Invoke Channels (Renderer → Main, request/response) ────────────────────
 
 /**
- * IPC Contract Map — single source of truth for all invoke-based IPC channels.
+ * IPC Contract Map: single source of truth for all invoke-based IPC channels.
  *
  * Each key is the exact channel string used by `ipcMain.handle` / `ipcRenderer.invoke`.
  * The value defines the request args tuple and the response type.

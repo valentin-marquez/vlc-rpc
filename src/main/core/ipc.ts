@@ -5,7 +5,7 @@ import { ipcMain } from "electron"
  * Register a type-safe IPC invoke handler.
  *
  * The channel string, request args, and response type are all inferred from
- * the `IpcInvokeChannelMap` contract — changing a type in the contract will
+ * the `IpcInvokeChannelMap` contract. Changing a type in the contract will
  * cause a compile error here if the handler doesn't match.
  *
  * @example
