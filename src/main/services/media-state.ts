@@ -155,15 +155,6 @@ class PlayingState extends MediaState {
 			}
 		}
 
-		// For video content, try to fetch cover art from Google
-		if (mediaType === "video" && media) {
-			const videoCoverUrl = await coverArtService.fetchVideoImageFromGoogle(mediaInfo)
-			if (videoCoverUrl) {
-				largeImage = videoCoverUrl
-				logger.info(`Using video cover from Google: ${videoCoverUrl}`)
-			}
-		}
-
 		const presenceData: DiscordPresenceData = {
 			details,
 			state,
@@ -276,15 +267,6 @@ class PausedState extends MediaState {
 			const coverArtUrl = await coverArtService.fetch(mediaInfo)
 			if (coverArtUrl) {
 				largeImage = coverArtUrl
-			}
-		}
-
-		// For video content, try to fetch cover art from Google
-		if (mediaType === "video" && media) {
-			const videoCoverUrl = await coverArtService.fetchVideoImageFromGoogle(mediaInfo)
-			if (videoCoverUrl) {
-				largeImage = videoCoverUrl
-				logger.info(`Using video cover from Google: ${videoCoverUrl}`)
 			}
 		}
 

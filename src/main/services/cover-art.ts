@@ -1,10 +1,8 @@
 import { promises as fs } from "node:fs"
 import { metadataWriterService } from "@main/services/metadata-writer"
 import { multiImageUploaderService } from "@main/services/multi-image-uploader"
-import { VideoAnalyzerService } from "@main/services/video-analyzer"
 import { vlcStatusService } from "@main/services/vlc-status"
 import type { VlcStatus } from "@shared/types/vlc"
-import * as cheerio from "cheerio"
 import { logger } from "./logger"
 
 /** Media data structure for cover art searching */
@@ -108,119 +106,6 @@ export class CoverArtService {
 		// No cover art available - no more online search
 		logger.info("No local artwork available and online search disabled")
 		return null
-	}
-
-	/**
-	 * Fetch cover art for video content using Google Images
-	 * Only works for videos, not audio
-	 */
-	public async fetchVideoImageFromGoogle(mediaInfo: VlcStatus | null): Promise<string | null> {
-		if (!mediaInfo || mediaInfo.mediaType !== "video") {
-			return null
-		}
-
-		try {
-			const videoAnalyzer = VideoAnalyzerService.getInstance()
-			const videoAnalysis = videoAnalyzer.analyzeVideo(mediaInfo)
-
-			let searchTerm = ""
-
-			if (videoAnalysis.isTvShow) {
-				// For TV shows, search for the show poster
-				searchTerm = `${videoAnalysis.title} tv show poster`
-			} else if (videoAnalysis.isMovie) {
-				// For movies, include year if available
-				if (videoAnalysis.year) {
-					searchTerm = `${videoAnalysis.title} ${videoAnalysis.year} movie poster`
-				} else {
-					searchTerm = `${videoAnalysis.title} movie poster`
-				}
-			} else {
-				// Generic video search
-				searchTerm = `${videoAnalysis.title} cover`
-			}
-
-			logger.info(`Searching for video cover: ${searchTerm}`)
-			return await this.fetchImageFromGoogle(searchTerm)
-		} catch (error) {
-			logger.error(`Error fetching video cover art: ${error}`)
-			return null
-		}
-	}
-
-	/**
-	 * Fetch image from Google Images based on search term
-	 */
-	private async fetchImageFromGoogle(searchTerm: string): Promise<string | null> {
-		try {
-			logger.info(`Searching for image: ${searchTerm}`)
-			const encodedQuery = encodeURIComponent(searchTerm)
-			const searchUrl = `https://www.google.com/search?q=${encodedQuery}&tbm=isch`
-
-			const response = await fetch(searchUrl, {
-				headers: {
-					"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-					Accept: "text/html,application/xhtml+xml",
-				},
-			})
-
-			if (!response.ok) {
-				logger.warn(`Google search failed with status: ${response.status}`)
-				return null
-			}
-
-			const html = await response.text()
-			const $ = cheerio.load(html)
-
-			let imageUrl: string | null = null
-
-			// First, try to find gstatic images (Google's cached images)
-			$("img").each((_, img) => {
-				const src = $(img).attr("src")
-				if (src?.startsWith("http") && !src.endsWith(".gif")) {
-					if (src.includes("gstatic.com")) {
-						imageUrl = src
-						return false // Break the loop
-					}
-				}
-				return true
-			})
-
-			if (imageUrl) {
-				logger.info(`Found gstatic image: ${imageUrl}`)
-				return imageUrl
-			}
-
-			// If no gstatic image found, try to extract from JavaScript
-			const imgRegex = /https?:\/\/\S+?\.(?:jpg|jpeg|png)/g
-			$("script").each((_, script) => {
-				const content = $(script).html()
-				if (content?.includes("AF_initDataCallback")) {
-					const matches = content.match(imgRegex)
-					if (matches) {
-						for (const url of matches) {
-							// Skip common non-content images
-							if (!/icon|emoji|favicon|logo|button/i.test(url)) {
-								imageUrl = url
-								logger.info(`Found image from script: ${imageUrl}`)
-								return false // Break the loop
-							}
-						}
-					}
-				}
-				return true
-			})
-
-			if (imageUrl) {
-				return imageUrl
-			}
-
-			logger.warn(`No suitable image found for: ${searchTerm}`)
-			return null
-		} catch (error) {
-			logger.error(`Error fetching image from Google: ${error}`)
-			return null
-		}
 	}
 
 	/** Extract media data from the input */
