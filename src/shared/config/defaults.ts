@@ -1,5 +1,5 @@
-import type { AppConfig } from "@shared/types"
-import { getDefaultLayout } from "./layouts"
+import type { AppConfig } from "@shared/config/app-config"
+import { getDefaultLayout } from "@shared/presence/layout"
 
 /**
  * Default application configuration

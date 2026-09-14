@@ -1,5 +1,4 @@
-import type { ContentType } from "@shared/types/media"
-
+import type { ContentType } from "@shared/media/media.types"
 const CONTENT_TYPE_LABELS: Record<string, string> = {
 	tv_show: "TV Show",
 	movie: "Movie",

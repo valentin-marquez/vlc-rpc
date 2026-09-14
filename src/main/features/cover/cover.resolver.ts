@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs"
 import { logger } from "@main/core/logger"
 import { vlcStatusService } from "@main/features/vlc"
-import type { VlcStatus } from "@shared/types/vlc"
+import type { VlcStatus } from "@shared/vlc/vlc.types"
 import { metadataWriterService } from "./cover.store"
 import { multiImageUploaderService } from "./cover.uploader"
 

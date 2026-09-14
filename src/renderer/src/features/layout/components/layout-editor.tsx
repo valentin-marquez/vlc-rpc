@@ -4,8 +4,9 @@ import {
 	MUSIC_TEMPLATE_VARS,
 	VIDEO_TEMPLATE_VARS,
 	applyTemplate,
-} from "@shared/constants/layouts"
-import type { LayoutPreset, PresenceLayout } from "@shared/types"
+} from "@shared/presence/layout"
+import type { LayoutPreset, PresenceLayout } from "@shared/presence/layout"
+
 import { useState } from "react"
 
 interface LayoutEditorProps {

@@ -2,10 +2,12 @@ import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import { coverArtService } from "@main/features/cover"
 import { VideoAnalyzerService } from "@main/features/media"
-import { applyTemplate, getDefaultLayout, getLayoutByPreset } from "@shared/constants/layouts"
-import type { AppConfig } from "@shared/types"
-import type { DetectedMediaInfo, DiscordPresenceData } from "@shared/types/media"
-import type { VlcStatus } from "@shared/types/vlc"
+import type { AppConfig } from "@shared/config/app-config"
+import type { DetectedMediaInfo } from "@shared/media/media.types"
+import { applyTemplate, getDefaultLayout, getLayoutByPreset } from "@shared/presence/layout"
+import type { DiscordPresenceData } from "@shared/presence/presence.types"
+import type { VlcStatus } from "@shared/vlc/vlc.types"
+
 import { ActivityType } from "discord-api-types/v10"
 
 /**

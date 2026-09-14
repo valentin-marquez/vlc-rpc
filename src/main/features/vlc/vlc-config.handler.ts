@@ -4,8 +4,9 @@ import * as path from "node:path"
 import { configService } from "@main/core/config"
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { VLC_CONFIG_PATHS } from "@shared/constants"
-import type { VlcConfig } from "@shared/types"
+import type { VlcConfig } from "@shared/config/app-config"
+import { VLC_CONFIG_PATHS } from "@shared/config/defaults"
+
 import { vlcStatusService } from "./vlc.client"
 
 /**

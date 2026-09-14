@@ -1,7 +1,7 @@
 import { updateFromVlcStatus } from "@renderer/features/media/media.actions"
 import { refreshMediaInfo } from "@renderer/features/media/media.actions"
 import { logger } from "@renderer/lib/utils"
-import type { VlcConfig } from "@shared/types"
+import type { VlcConfig } from "@shared/config/app-config"
 import { vlcConfigStore, vlcErrorStore, vlcStatusStore } from "./vlc.store"
 
 let statusPollingInterval: ReturnType<typeof setInterval> | null = null

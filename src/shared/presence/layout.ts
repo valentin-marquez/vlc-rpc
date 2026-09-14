@@ -1,4 +1,22 @@
-import type { LayoutPreset, PresenceLayout } from "@shared/types"
+/**
+ * Discord Rich Presence Layout configuration
+ * Allows customization of how media information is displayed
+ */
+export interface PresenceLayout {
+	// Activity name (what appears after "Listening to" or "Watching")
+	activityName?: string // Template for activity name (e.g., "{artist}", "{title}", "VLC")
+	// Music layouts
+	musicDetails: string // Template for details line (e.g., "{title}", "{artist}")
+	musicState: string // Template for state line (e.g., "by {artist}", "{album}")
+	// Video layouts
+	videoDetails: string // Template for details line (e.g., "{title}")
+	videoState: string // Template for state line (e.g., "S{season}E{episode}", "{year}")
+}
+
+/**
+ * Predefined layout presets
+ */
+export type LayoutPreset = "default" | "album-focused" | "artist-spotlight"
 
 /**
  * Predefined layout presets for Discord Rich Presence

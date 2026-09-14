@@ -1,7 +1,8 @@
 import { useStore } from "@nanostores/react"
 import { mediaStore, useProxiedArtwork } from "@renderer/features/media"
-import { LAYOUT_PRESETS, applyTemplate } from "@shared/constants/layouts"
-import type { LayoutPreset } from "@shared/types"
+import { LAYOUT_PRESETS, applyTemplate } from "@shared/presence/layout"
+import type { LayoutPreset } from "@shared/presence/layout"
+
 import type { LayoutCardData } from "../layout.constants"
 import { DiscordPreview } from "./discord-preview"
 

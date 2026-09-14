@@ -1,6 +1,5 @@
 import { logger } from "@main/core/logger"
-import type { VlcStatus } from "@shared/types/vlc"
-
+import type { VlcStatus } from "@shared/vlc/vlc.types"
 // Import types from the ESM module
 type ParsedFilename = import("@ctrl/video-filename-parser").ParsedFilename
 type ParsedShow = import("@ctrl/video-filename-parser").ParsedShow

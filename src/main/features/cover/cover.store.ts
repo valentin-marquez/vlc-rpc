@@ -1,8 +1,7 @@
 import { promises as fs } from "node:fs"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
-import type { FileMetadata } from "@shared/types"
-
+import type { FileMetadata } from "@shared/config/app-config"
 /**
  * Service to manage metadata for media files using electron-conf
  * This service handles storing and retrieving metadata centrally without creating individual JSON files

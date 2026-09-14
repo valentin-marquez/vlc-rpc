@@ -1,6 +1,6 @@
-import type { AppConfig, VlcConfig } from "@shared/types"
-import type { DetectedMediaInfo } from "@shared/types/media"
-import type { VlcConnectionStatus, VlcStatus } from "@shared/types/vlc"
+import type { AppConfig, VlcConfig } from "@shared/config/app-config"
+import type { DetectedMediaInfo } from "@shared/media/media.types"
+import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 
 // ─── Invoke Channels (Renderer → Main, request/response) ────────────────────
 

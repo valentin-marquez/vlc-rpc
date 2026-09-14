@@ -1,6 +1,6 @@
 import { vlcStatusStore } from "@renderer/features/vlc/vlc.store"
 import { logger } from "@renderer/lib/utils"
-import type { VlcStatus } from "@shared/types/vlc"
+import type { VlcStatus } from "@shared/vlc/vlc.types"
 import { mediaStore, resetMediaStore } from "./media.store"
 
 /**

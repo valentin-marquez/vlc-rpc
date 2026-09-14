@@ -1,5 +1,6 @@
-import { CONFIG_NAME, DEFAULT_CONFIG } from "@shared/constants"
-import type { AppConfig } from "@shared/types"
+import type { AppConfig } from "@shared/config/app-config"
+import { CONFIG_NAME, DEFAULT_CONFIG } from "@shared/config/defaults"
+
 import { Conf } from "electron-conf/main"
 import { registerHandler } from "./ipc"
 import { logger } from "./logger"

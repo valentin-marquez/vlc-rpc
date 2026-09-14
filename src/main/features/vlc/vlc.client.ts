@@ -1,16 +1,15 @@
 import { createHash } from "node:crypto"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
-import type { VlcConfig } from "@shared/types"
+import type { VlcConfig } from "@shared/config/app-config"
+import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 import type {
-	VlcConnectionStatus,
 	VlcMetadata,
 	VlcPlaylistItem,
 	VlcPlaylistResponse,
 	VlcRawStatus,
-	VlcStatus,
 	VlcStreamInfo,
-} from "@shared/types/vlc"
+} from "./vlc.types"
 
 /**
  * Service to read and process VLC media status through HTTP interface

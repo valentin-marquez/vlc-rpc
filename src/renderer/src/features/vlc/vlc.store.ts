@@ -1,4 +1,5 @@
-import type { ConnectionStatus, VlcConfig } from "@shared/types"
+import type { ConnectionStatus } from "@shared/app/app.types"
+import type { VlcConfig } from "@shared/config/app-config"
 import { atom } from "nanostores"
 
 export const vlcConfigStore = atom<VlcConfig | null>(null)
