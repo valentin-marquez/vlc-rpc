@@ -1,6 +1,6 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { autoUpdaterService } from "@main/services/auto-updater"
+import { autoUpdaterService } from "@main/features/updates/app.updater"
 
 /**
  * Handler for application update operations
