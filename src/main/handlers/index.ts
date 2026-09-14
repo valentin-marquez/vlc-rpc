@@ -1,10 +1,10 @@
 import { logger } from "@main/core/logger"
+import { MetadataHandler } from "@main/features/cover/cover.handler"
 import { DiscordRpcHandler } from "@main/features/discord/discord.handler"
 import { VlcConfigHandler } from "@main/features/vlc/vlc-config.handler"
 import { VlcStatusHandler } from "@main/features/vlc/vlc-status.handler"
 import { AppInfoHandler } from "@main/handlers/app-info-handler"
 import { MediaInfoHandler } from "@main/handlers/media-info-handler"
-import { MetadataHandler } from "@main/handlers/metadata-handler"
 import { UpdateHandler } from "@main/handlers/update-handler"
 
 /**

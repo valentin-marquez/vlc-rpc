@@ -1,11 +1,11 @@
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
+import { coverArtService } from "@main/features/cover/cover.resolver"
 import { applyTemplate, getDefaultLayout, getLayoutByPreset } from "@shared/constants/layouts"
 import type { AppConfig } from "@shared/types"
 import type { DetectedMediaInfo, DiscordPresenceData } from "@shared/types/media"
 import type { VlcStatus } from "@shared/types/vlc"
 import { ActivityType } from "discord-api-types/v10"
-import { coverArtService } from "./cover-art"
 import { VideoAnalyzerService } from "./video-analyzer"
 
 /**
