@@ -1,6 +1,6 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { vlcStatusService } from "@main/services/vlc-status"
+import { vlcStatusService } from "@main/features/vlc/vlc.client"
 
 /**
  * Handler for VLC status operations

@@ -1,10 +1,10 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
+import { vlcStatusService } from "@main/features/vlc/vlc.client"
 import type { DetectedMediaInfo } from "@shared/types/media"
 import type { VlcStatus } from "@shared/types/vlc"
 import { coverArtService } from "../services/cover-art"
 import { imageProxyService } from "../services/image-proxy"
-import { vlcStatusService } from "../services/vlc-status"
 
 /**
  * Handler for accessing media information

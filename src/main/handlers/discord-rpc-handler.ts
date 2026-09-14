@@ -1,8 +1,8 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
+import { vlcStatusService } from "@main/features/vlc/vlc.client"
 import { discordRpcService } from "@main/services/discord-rpc"
 import { mediaStateService } from "@main/services/media-state"
-import { vlcStatusService } from "@main/services/vlc-status"
 
 /**
  * Handler for Discord RPC operations
