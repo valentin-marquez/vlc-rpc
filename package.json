@@ -26,6 +26,7 @@
 	"scripts": {
 		"format": "biome format --write .",
 		"lint": "biome check --write --unsafe .",
+		"lint:check": "biome check .",
 		"lint:fix": "biome check --write .",
 		"lint:files": "biome check --write",
 		"typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",

@@ -1,0 +1,25 @@
+###
+###  vlc 3.0.21
+###
+###  lines beginning with a '#' character are comments
+###
+
+[core] # core program
+
+# Extra interface modules (string)
+#extraintf=
+
+# HTTP host address (string)
+#http-host=
+
+# HTTP server port (integer)
+#http-port=8080
+
+[lua] # Lua interpreter
+
+# Password for web interface (string)
+#http-password=
+
+[qt] # Qt interface
+
+#qt-notification=1
