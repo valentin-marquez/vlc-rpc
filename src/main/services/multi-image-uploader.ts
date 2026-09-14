@@ -106,31 +106,6 @@ export class MultiImageUploaderService {
 		return null
 	}
 
-	public async uploadImageFromUrl(imageUrl: string, expiryHours = 24): Promise<string | null> {
-		logger.info(`Starting multi-service URL upload: ${imageUrl}`)
-
-		try {
-			const response = await fetch(imageUrl, {
-				headers: {
-					"User-Agent": this.getCurrentUserAgent(),
-				},
-			})
-
-			if (!response.ok) {
-				logger.error(`Failed to download image from URL: ${response.status}`)
-				return null
-			}
-
-			const imageBuffer = Buffer.from(await response.arrayBuffer())
-			const filename = `cover_${Date.now()}.jpg`
-
-			return await this.uploadImage(imageBuffer, filename, expiryHours)
-		} catch (error) {
-			logger.error(`Error downloading image from URL: ${error}`)
-			return null
-		}
-	}
-
 	private getCurrentUserAgent(): string {
 		return this.userAgents[this.currentUserAgentIndex]
 	}

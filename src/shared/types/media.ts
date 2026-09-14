@@ -43,18 +43,6 @@ export interface DetectedMediaInfo {
 export type MediaStatus = "stopped" | "playing" | "paused"
 
 /**
- * Current media information
- */
-export interface MediaInfo {
-	title: string | null
-	artist: string | null
-	album: string | null
-	duration: number | null
-	position: number | null
-	artwork: string | null
-}
-
-/**
  * Discord presence update data
  */
 export interface DiscordPresenceData {

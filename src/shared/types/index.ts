@@ -60,16 +60,6 @@ export interface AppConfig {
 }
 
 /**
- * Log levels
- */
-export enum LogLevel {
-	ERROR = "error",
-	WARN = "warn",
-	INFO = "info",
-	DEBUG = "debug",
-}
-
-/**
  * Generic connection status
  */
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error"
