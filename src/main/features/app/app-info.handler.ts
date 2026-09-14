@@ -1,6 +1,6 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { startupService } from "@main/features/app/app.startup"
+import { startupService } from "./app.startup"
 
 /**
  * Handler for app info requests

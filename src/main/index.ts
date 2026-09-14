@@ -1,12 +1,10 @@
 import { electronApp, optimizer } from "@electron-toolkit/utils"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
-import { startupService } from "@main/features/app/app.startup"
-import { trayService } from "@main/features/app/app.tray"
-import { windowService } from "@main/features/app/app.window"
-import { autoUpdaterService } from "@main/features/updates/app.updater"
+import { startupService, trayService, windowService } from "@main/features/app"
+import { autoUpdaterService } from "@main/features/updates"
 import { app } from "electron"
-import { mainHandlers } from "./handlers"
+import { mainHandlers } from "./handlers.registry"
 
 // Add isQuitting property and wasLaunchedAtStartup property to app
 declare global {

@@ -1,7 +1,7 @@
 import { configService } from "@main/core/config"
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { metadataWriterService } from "@main/features/cover/cover.store"
+import { metadataWriterService } from "./cover.store"
 
 /**
  * Metadata handler for IPC communication

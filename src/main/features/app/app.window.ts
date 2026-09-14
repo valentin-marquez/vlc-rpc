@@ -3,7 +3,7 @@ import { is } from "@electron-toolkit/utils"
 import { configService } from "@main/core/config"
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { discordRpcService } from "@main/features/discord/discord.client"
+import { discordRpcService } from "@main/features/discord"
 import { BrowserWindow, app, ipcMain, session, shell } from "electron"
 import { trayService } from "./app.tray"
 

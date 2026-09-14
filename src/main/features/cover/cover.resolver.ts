@@ -1,9 +1,9 @@
 import { promises as fs } from "node:fs"
 import { logger } from "@main/core/logger"
-import { metadataWriterService } from "@main/features/cover/cover.store"
-import { multiImageUploaderService } from "@main/features/cover/cover.uploader"
-import { vlcStatusService } from "@main/features/vlc/vlc.client"
+import { vlcStatusService } from "@main/features/vlc"
 import type { VlcStatus } from "@shared/types/vlc"
+import { metadataWriterService } from "./cover.store"
+import { multiImageUploaderService } from "./cover.uploader"
 
 /** Media data structure for cover art searching */
 interface MediaData {

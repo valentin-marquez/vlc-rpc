@@ -1,11 +1,10 @@
 import { logger } from "@main/core/logger"
-import { AppInfoHandler } from "@main/features/app/app-info.handler"
-import { MetadataHandler } from "@main/features/cover/cover.handler"
-import { DiscordRpcHandler } from "@main/features/discord/discord.handler"
-import { MediaInfoHandler } from "@main/features/media/media.handler"
-import { UpdateHandler } from "@main/features/updates/updates.handler"
-import { VlcConfigHandler } from "@main/features/vlc/vlc-config.handler"
-import { VlcStatusHandler } from "@main/features/vlc/vlc-status.handler"
+import { AppInfoHandler } from "@main/features/app"
+import { MetadataHandler } from "@main/features/cover"
+import { DiscordRpcHandler } from "@main/features/discord"
+import { MediaInfoHandler } from "@main/features/media"
+import { UpdateHandler } from "@main/features/updates"
+import { VlcConfigHandler, VlcStatusHandler } from "@main/features/vlc"
 
 /**
  * Main handlers registry
