@@ -26,9 +26,8 @@ export interface AppConfig {
 	largeImage: string
 	pausedImage: string
 	playingImage: string
-	presenceUpdateInterval: number
-	fastCheckInterval: number
-	statusTimeout: number
+	presenceUpdateInterval: number // milliseconds between polls of VLC's HTTP status endpoint
+	statusTimeout: number // milliseconds before a request to VLC is aborted
 	vlc: VlcConfig
 	isFirstRun: boolean
 	minimizeToTray: boolean

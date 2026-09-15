@@ -8,13 +8,18 @@ vi.mock("@main/core/logger", () => ({
 
 // vi.mock is hoisted above regular declarations, so the mutable config the
 // factory closes over has to be created through vi.hoisted to exist in time.
-const { mockVlcConfig } = vi.hoisted(() => ({
+const { mockVlcConfig, mockStatusTimeout } = vi.hoisted(() => ({
 	mockVlcConfig: { httpPort: 9080, httpPassword: "secret", httpEnabled: true },
+	mockStatusTimeout: { value: 2000 },
 }))
 
 vi.mock("@main/core/config", () => ({
 	configService: {
-		get: (key?: string) => (key === "vlc" ? mockVlcConfig : {}),
+		get: (key?: string) => {
+			if (key === "vlc") return mockVlcConfig
+			if (key === "statusTimeout") return mockStatusTimeout.value
+			return {}
+		},
 		set: () => {},
 		delete: () => {},
 	},
@@ -40,6 +45,7 @@ function respondWith(body: string, status = 200): void {
 afterEach(() => {
 	vi.unstubAllGlobals()
 	mockVlcConfig.httpEnabled = true
+	mockStatusTimeout.value = 2000
 })
 
 // Characterization tests. Every fixture is a real capture from a Spanish
@@ -247,5 +253,33 @@ describe("getCurrentFileUri", () => {
 		const uri = await vlcStatusService.getCurrentFileUri()
 
 		expect(uri).toBe("http://ice1.somafm.com/groovesalad-128-mp3")
+	})
+})
+
+describe("status request timeout", () => {
+	it("uses statusTimeout from config for the abort timeout", async () => {
+		mockStatusTimeout.value = 4000
+		const setTimeoutSpy = vi.spyOn(global, "setTimeout")
+		respondWith(fixture("audio-untagged.status"))
+
+		await vlcStatusService.readStatus(true)
+
+		const abortCall = setTimeoutSpy.mock.calls.find(([, ms]) => ms === 4000)
+		expect(abortCall).toBeDefined()
+
+		setTimeoutSpy.mockRestore()
+	})
+
+	it("clamps an out of range statusTimeout into [500, 10000]", async () => {
+		mockStatusTimeout.value = 50
+		const setTimeoutSpy = vi.spyOn(global, "setTimeout")
+		respondWith(fixture("audio-untagged.status"))
+
+		await vlcStatusService.readStatus(true)
+
+		const abortCall = setTimeoutSpy.mock.calls.find(([, ms]) => ms === 500)
+		expect(abortCall).toBeDefined()
+
+		setTimeoutSpy.mockRestore()
 	})
 })

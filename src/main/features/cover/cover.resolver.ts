@@ -2,11 +2,15 @@ import { promises as fs } from "node:fs"
 import { logger } from "@main/core/logger"
 import type { Client as VlcClient } from "@main/features/vlc"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
+import { coverKey } from "./cover.key"
 import type { Store as CoverStore } from "./cover.store"
 import type { Uploader as CoverUploader } from "./cover.uploader"
 
 /** Service to fetch album cover art for audio files */
 export class Resolver {
+	private lastKey: string | null = null
+	private lastResult: string | null = null
+
 	constructor(
 		private readonly vlc: VlcClient,
 		private readonly store: CoverStore,
@@ -15,13 +19,29 @@ export class Resolver {
 		logger.info("Cover art service initialized")
 	}
 
-	/** Fetch cover art URL using all available media information */
+	/**
+	 * Fetch cover art URL using all available media information. Cached by
+	 * coverKey: advancing to the next track on the same album returns the
+	 * cached result instead of repeating the network round trip.
+	 */
 	public async fetch(mediaInfo: VlcStatus | null): Promise<string | null> {
 		const media = this.extractMediaData(mediaInfo)
-		if (!media) {
+		if (!media || !mediaInfo) {
 			return null
 		}
 
+		const key = coverKey({ mediaType: mediaInfo.mediaType, media })
+		if (key === this.lastKey) {
+			return this.lastResult
+		}
+
+		const result = await this.resolve(media)
+		this.lastKey = key
+		this.lastResult = result
+		return result
+	}
+
+	private async resolve(media: VlcStatus["media"]): Promise<string | null> {
 		// Step 1: Check if media already has an uploaded image URL in its metadata
 		const fileUri = await this.vlc.getCurrentFileUri()
 		if (fileUri && media.artworkUrl) {

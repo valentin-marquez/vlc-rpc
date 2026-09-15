@@ -7,6 +7,7 @@ import type { DiscordPresenceData } from "@shared/presence/presence.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 
 import { ActivityType } from "discord-api-types/v10"
+import type { TimelineWindow } from "./presence.timeline"
 
 /**
  * Base class for media states
@@ -20,18 +21,27 @@ abstract class MediaState {
 		return text
 	}
 
-	public abstract updatePresence(mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null>
+	public abstract updatePresence(
+		mediaInfo: VlcStatus | null,
+		window: TimelineWindow,
+	): Promise<DiscordPresenceData | null>
 }
 
 class StoppedState extends MediaState {
-	public async updatePresence(_mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
+	public async updatePresence(
+		_mediaInfo: VlcStatus | null,
+		_window: TimelineWindow,
+	): Promise<DiscordPresenceData | null> {
 		logger.info("Cleared presence (VLC stopped)")
 		return null
 	}
 }
 
 class NoStatusState extends MediaState {
-	public async updatePresence(_mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
+	public async updatePresence(
+		_mediaInfo: VlcStatus | null,
+		_window: TimelineWindow,
+	): Promise<DiscordPresenceData | null> {
 		logger.info("Cleared presence (no status data)")
 		return null
 	}
@@ -45,13 +55,15 @@ class PlayingState extends MediaState {
 		super()
 	}
 
-	public async updatePresence(mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
+	public async updatePresence(
+		mediaInfo: VlcStatus | null,
+		window: TimelineWindow,
+	): Promise<DiscordPresenceData | null> {
 		if (!mediaInfo) {
 			return null
 		}
 
 		const config = configService.get()
-		const currentTime = Math.floor(Date.now() / 1000)
 
 		const media = mediaInfo.media
 		const mediaType = mediaInfo.mediaType || "unknown"
@@ -111,22 +123,7 @@ class PlayingState extends MediaState {
 		details = this.formatText(details)
 		state = this.formatText(state)
 
-		let startTimestamp: number | undefined
-		let endTimestamp: number | undefined
-
-		const playback = mediaInfo.playback
-
-		if (playback) {
-			const duration = playback.duration
-			const position = playback.time
-
-			if (position >= 0 && duration > 0 && duration < 86400) {
-				startTimestamp = currentTime - position
-				endTimestamp = currentTime + (duration - position)
-			} else {
-				startTimestamp = currentTime
-			}
-		}
+		const { start: startTimestamp, end: endTimestamp } = window
 
 		let smallText = config.playingImage
 		let largeImage = config.largeImage
@@ -195,7 +192,10 @@ class PausedState extends MediaState {
 		super()
 	}
 
-	public async updatePresence(mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
+	public async updatePresence(
+		mediaInfo: VlcStatus | null,
+		_window: TimelineWindow,
+	): Promise<DiscordPresenceData | null> {
 		if (!mediaInfo) {
 			return null
 		}
@@ -319,22 +319,23 @@ export class Service {
 
 	public async getDiscordPresence(
 		vlcStatus: VlcStatus | null,
+		window: TimelineWindow,
 	): Promise<DiscordPresenceData | null> {
 		if (!vlcStatus) {
-			return this.states.noStatus.updatePresence(null)
+			return this.states.noStatus.updatePresence(null, window)
 		}
 
 		if (!vlcStatus.active) {
-			return this.states.stopped.updatePresence(vlcStatus)
+			return this.states.stopped.updatePresence(vlcStatus, window)
 		}
 
 		switch (vlcStatus.status) {
 			case "playing":
-				return this.states.playing.updatePresence(vlcStatus)
+				return this.states.playing.updatePresence(vlcStatus, window)
 			case "paused":
-				return this.states.paused.updatePresence(vlcStatus)
+				return this.states.paused.updatePresence(vlcStatus, window)
 			default:
-				return this.states.stopped.updatePresence(vlcStatus)
+				return this.states.stopped.updatePresence(vlcStatus, window)
 		}
 	}
 }

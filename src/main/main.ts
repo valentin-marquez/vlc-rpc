@@ -1,4 +1,5 @@
 import { electronApp, optimizer } from "@electron-toolkit/utils"
+import { SystemClock } from "@main/core/clock"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import * as App from "@main/features/app"
@@ -99,7 +100,12 @@ if (!gotTheLock) {
 		new Updates.UpdateHandler(updater)
 		new Vlc.VlcConfigHandler(vlc)
 		new Vlc.VlcStatusHandler(vlc)
-		const discordRpcHandler = new Discord.DiscordRpcHandler(discord, vlc, presence)
+		const discordRpcHandler = new Discord.DiscordRpcHandler(
+			discord,
+			vlc,
+			presence,
+			new SystemClock(),
+		)
 
 		const mainWindowPromise = window.createWindow()
 

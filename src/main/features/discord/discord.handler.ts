@@ -1,5 +1,8 @@
+import type { Clock } from "@main/core/clock"
+import { configService } from "@main/core/config"
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
+import { Timeline, presenceKey } from "@main/features/presence"
 import type { Service as PresenceService } from "@main/features/presence"
 import type { Client as VlcClient } from "@main/features/vlc"
 import type { Client as DiscordClient } from "./discord.client"
@@ -8,16 +11,18 @@ import type { Client as DiscordClient } from "./discord.client"
  * Handler for Discord RPC operations
  */
 export class DiscordRpcHandler {
-	private updateIntervalId: NodeJS.Timeout | null = null
-	private fastCheckIntervalId: NodeJS.Timeout | null = null
-	private fastCheckCount = 0
-	private maxFastChecks = 5
+	private pollIntervalId: NodeJS.Timeout | null = null
+	private readonly timeline: Timeline
+	private lastSentKey: string | null = null
+	private wasConnected = false
 
 	constructor(
 		private readonly discord: DiscordClient,
 		private readonly vlc: VlcClient,
 		private readonly presence: PresenceService,
+		clock: Clock,
 	) {
+		this.timeline = new Timeline(clock)
 		this.registerHandlers()
 	}
 
@@ -73,35 +78,29 @@ export class DiscordRpcHandler {
 		})
 	}
 
+	private pollIntervalMs(): number {
+		const configured = configService.get("presenceUpdateInterval")
+		return Math.max(500, Math.min(10000, configured || 1500))
+	}
+
 	/**
 	 * Start the update loop for Discord presence
 	 */
 	public startUpdateLoop(): boolean {
-		if (this.updateIntervalId !== null) {
+		if (this.pollIntervalId !== null) {
 			return true // Already running
 		}
 
 		try {
-			this.discord
-				.connect()
-				.then((connected) => {
-					// Even if initial connection fails, we still set up the loop
-					// as reconnection logic will handle retries
-					logger.info("Starting Discord presence update loop")
+			this.discord.connect().catch((error) => {
+				logger.error(`Initial Discord connection failed: ${error}`)
+			})
 
-					this.updatePresence(connected)
-
-					this.startFastCheckInterval()
-
-					const updateInterval =
-						Math.max(1, Math.min(15, Number(process.env.UPDATE_INTERVAL) || 10)) * 1000
-					this.updateIntervalId = setInterval(() => {
-						this.updatePresence(false)
-					}, updateInterval)
-				})
-				.catch((error) => {
-					logger.error(`Initial Discord connection failed: ${error}`)
-				})
+			logger.info("Starting Discord presence update loop")
+			this.updatePresence(false)
+			this.pollIntervalId = setInterval(() => {
+				this.updatePresence(false)
+			}, this.pollIntervalMs())
 
 			return true
 		} catch (error) {
@@ -111,44 +110,18 @@ export class DiscordRpcHandler {
 	}
 
 	/**
-	 * Start a fast check interval for initial updates
-	 */
-	private startFastCheckInterval(): void {
-		if (this.fastCheckIntervalId !== null) {
-			clearInterval(this.fastCheckIntervalId)
-		}
-
-		this.fastCheckCount = 0
-		const fastCheckInterval = 1000 // 1 second
-
-		this.fastCheckIntervalId = setInterval(() => {
-			this.fastCheckCount++
-			this.updatePresence(false)
-
-			if (this.fastCheckCount >= this.maxFastChecks) {
-				if (this.fastCheckIntervalId !== null) {
-					clearInterval(this.fastCheckIntervalId)
-					this.fastCheckIntervalId = null
-				}
-			}
-		}, fastCheckInterval)
-	}
-
-	/**
 	 * Stop the update loop
 	 */
 	public stopUpdateLoop(): void {
 		logger.info("Stopping Discord presence update loop")
 
-		if (this.updateIntervalId !== null) {
-			clearInterval(this.updateIntervalId)
-			this.updateIntervalId = null
+		if (this.pollIntervalId !== null) {
+			clearInterval(this.pollIntervalId)
+			this.pollIntervalId = null
 		}
 
-		if (this.fastCheckIntervalId !== null) {
-			clearInterval(this.fastCheckIntervalId)
-			this.fastCheckIntervalId = null
-		}
+		this.lastSentKey = null
+		this.wasConnected = false
 
 		this.discord.clear().catch((error) => {
 			logger.error(`Error clearing Discord presence: ${error}`)
@@ -156,26 +129,46 @@ export class DiscordRpcHandler {
 	}
 
 	/**
-	 * Update Discord presence based on current VLC status
+	 * Update Discord presence based on current VLC status. Diffs by
+	 * presenceKey so an unchanged status skips the actual Discord call, and
+	 * always resends right after a reconnect since Discord has lost state.
 	 */
-	private async updatePresence(forceUpdate = false): Promise<boolean> {
+	private async updatePresence(force: boolean): Promise<boolean> {
 		try {
-			const vlcStatus = await this.vlc.readStatus(forceUpdate)
+			const isConnected = this.discord.isConnected()
+			const justReconnected = isConnected && !this.wasConnected
+			this.wasConnected = isConnected
 
+			const vlcStatus = await this.vlc.readStatus(force)
 			if (!vlcStatus) {
-				return await this.discord.clear()
+				return this.pushClear()
 			}
 
-			const presenceData = await this.presence.getDiscordPresence(vlcStatus)
+			const window = this.timeline.update(vlcStatus)
+			const key = presenceKey(vlcStatus, this.timeline.currentEpoch)
 
+			if (!force && !justReconnected && key === this.lastSentKey) {
+				return true
+			}
+
+			const presenceData = await this.presence.getDiscordPresence(vlcStatus, window)
 			if (!presenceData) {
-				return await this.discord.clear()
+				return this.pushClear()
 			}
 
-			return await this.discord.update(presenceData)
+			const sent = await this.discord.update(presenceData)
+			if (sent) {
+				this.lastSentKey = key
+			}
+			return sent
 		} catch (error) {
 			logger.error(`Error updating Discord presence: ${error}`)
 			return false
 		}
+	}
+
+	private async pushClear(): Promise<boolean> {
+		this.lastSentKey = null
+		return await this.discord.clear()
 	}
 }
