@@ -105,6 +105,32 @@ describe("readStatus", () => {
 		expect(status?.playback.time).toBe(0)
 		expect(status?.media.title).toContain("Groove Salad")
 	})
+
+	it("maps plid and rate from the raw status", async () => {
+		respondWith(fixture("audio-untagged.status"))
+		const status = await vlcStatusService.readStatus(true)
+
+		expect(status?.plid).toBe(3)
+		expect(status?.playback.rate).toBe(1)
+	})
+
+	it("maps a missing or negative currentplid to null, not -1 or undefined", async () => {
+		const raw = JSON.parse(fixture("audio-untagged.status"))
+		raw.currentplid = -1
+		respondWith(JSON.stringify(raw))
+		const status = await vlcStatusService.readStatus(true)
+
+		expect(status?.plid).toBeNull()
+	})
+
+	it("defaults rate to 1 when VLC omits it", async () => {
+		const raw = JSON.parse(fixture("audio-untagged.status"))
+		raw.rate = undefined
+		respondWith(JSON.stringify(raw))
+		const status = await vlcStatusService.readStatus(true)
+
+		expect(status?.playback.rate).toBe(1)
+	})
 })
 
 describe("media type detection", () => {

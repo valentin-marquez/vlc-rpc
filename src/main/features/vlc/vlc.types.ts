@@ -7,6 +7,7 @@ export interface VlcRawStatus {
 	length?: number
 	position?: number
 	currentplid?: number
+	rate?: number
 	volume?: number
 	random?: boolean
 	loop?: boolean

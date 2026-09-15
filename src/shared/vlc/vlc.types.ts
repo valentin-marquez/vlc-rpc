@@ -5,10 +5,12 @@ export interface VlcStatus {
 	active: boolean
 	status: string
 	timestamp: number
+	plid: number | null
 	playback: {
 		position: number
 		time: number
 		duration: number
+		rate: number
 	}
 	mediaType: "video" | "audio"
 	media: {

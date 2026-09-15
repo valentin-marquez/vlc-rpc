@@ -204,15 +204,22 @@ export class Client {
 		const time = Number.parseInt(String(vlcStatus.time || 0), 10)
 		const length = Number.parseInt(String(vlcStatus.length || 0), 10)
 		const position = vlcStatus.position || 0
+		const rate = vlcStatus.rate || 1
+		const plid =
+			vlcStatus.currentplid !== undefined && vlcStatus.currentplid >= 0
+				? vlcStatus.currentplid
+				: null
 
 		const status: VlcStatus = {
 			active: state !== "stopped",
 			status: state,
 			timestamp: Math.floor(Date.now() / 1000),
+			plid,
 			playback: {
 				position,
 				time,
 				duration: length,
+				rate,
 			},
 			mediaType: "audio",
 			media: {},
