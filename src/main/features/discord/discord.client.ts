@@ -2,14 +2,13 @@ import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import type { DiscordPresenceData } from "@shared/presence/presence.types"
 
-import { Client, type SetActivity, StatusDisplayType } from "@xhayper/discord-rpc"
+import { Client as RpcClient, type SetActivity, StatusDisplayType } from "@xhayper/discord-rpc"
 
 /**
  * Service for Discord Rich Presence integration
  */
-export class DiscordRpcService {
-	private static instance: DiscordRpcService | null = null
-	private rpc: Client | null = null
+export class Client {
+	private rpc: RpcClient | null = null
 	private connected = false
 	private readonly clientId = "1345358480671772683"
 	private connecting = false
@@ -19,19 +18,9 @@ export class DiscordRpcService {
 	private reconnectDelay = 5000 // 5 seconds
 	private rpcCheckTimer: NodeJS.Timeout | null = null
 
-	private constructor() {
+	constructor() {
 		logger.info("Discord RPC service initialized")
 		this.startRpcCheckTimer()
-	}
-
-	/**
-	 * Get the singleton instance of the Discord RPC service
-	 */
-	public static getInstance(): DiscordRpcService {
-		if (!DiscordRpcService.instance) {
-			DiscordRpcService.instance = new DiscordRpcService()
-		}
-		return DiscordRpcService.instance
 	}
 
 	/**
@@ -110,7 +99,7 @@ export class DiscordRpcService {
 		this.stopReconnectTimer()
 
 		try {
-			this.rpc = new Client({
+			this.rpc = new RpcClient({
 				clientId: this.clientId,
 			})
 
@@ -349,5 +338,3 @@ export class DiscordRpcService {
 		}
 	}
 }
-
-export const discordRpcService = DiscordRpcService.getInstance()

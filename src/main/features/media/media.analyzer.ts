@@ -26,11 +26,10 @@ function isParsedShow(parsed: ParsedFilename): parsed is ParsedShow {
 /**
  * Service to analyze video content and determine its type (TV show, movie, etc.)
  */
-export class VideoAnalyzerService {
-	private static instance: VideoAnalyzerService | null = null
+export class Analyzer {
 	private filenameParse: ((filename: string, isTv?: boolean) => ParsedFilename) | null = null
 
-	private constructor() {
+	constructor() {
 		logger.info("Video analyzer service initialized")
 		this.initializeParser()
 	}
@@ -46,16 +45,6 @@ export class VideoAnalyzerService {
 		} catch (error) {
 			logger.error("Failed to initialize video filename parser:", error)
 		}
-	}
-
-	/**
-	 * Get the singleton instance of the video analyzer service
-	 */
-	public static getInstance(): VideoAnalyzerService {
-		if (!VideoAnalyzerService.instance) {
-			VideoAnalyzerService.instance = new VideoAnalyzerService()
-		}
-		return VideoAnalyzerService.instance
 	}
 
 	/**
@@ -234,5 +223,3 @@ export class VideoAnalyzerService {
 		return "Watching Video"
 	}
 }
-
-export const videoAnalyzerService = VideoAnalyzerService.getInstance()

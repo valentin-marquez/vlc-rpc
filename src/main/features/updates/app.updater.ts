@@ -9,8 +9,7 @@ import { type UpdateInfo, autoUpdater } from "electron-updater"
 /**
  * Service for automatic application updates
  */
-export class AutoUpdaterService {
-	private static instance: AutoUpdaterService | null = null
+export class Updater {
 	private mainWindow: BrowserWindow | null = null
 	private isPortable = false
 	private updateCheckInProgress = false
@@ -18,7 +17,7 @@ export class AutoUpdaterService {
 	private maxRetries = 3
 	private retryDelay = 5000 // 5 seconds
 
-	private constructor() {
+	constructor() {
 		this.detectPortableMode()
 		this.configureUpdater()
 		this.registerAutoUpdateEvents()
@@ -29,16 +28,6 @@ export class AutoUpdaterService {
 			platform: process.platform,
 			version: app.getVersion(),
 		})
-	}
-
-	/**
-	 * Get the singleton instance
-	 */
-	public static getInstance(): AutoUpdaterService {
-		if (!AutoUpdaterService.instance) {
-			AutoUpdaterService.instance = new AutoUpdaterService()
-		}
-		return AutoUpdaterService.instance
 	}
 
 	/**
@@ -426,5 +415,3 @@ export class AutoUpdaterService {
 		}
 	}
 }
-
-export const autoUpdaterService = AutoUpdaterService.getInstance()
