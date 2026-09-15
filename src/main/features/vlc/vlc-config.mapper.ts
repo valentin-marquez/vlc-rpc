@@ -34,7 +34,7 @@ function parseSettings(content: string): VlcrcSetting[] {
 
 		const sectionMatch = line.match(/^\[([^\]]+)\]/)
 		if (sectionMatch) {
-			section = sectionMatch[1]
+			section = sectionMatch[1] ?? section
 			continue
 		}
 

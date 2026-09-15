@@ -221,7 +221,7 @@ export class VlcConfigHandler {
 
 				if (config.httpEnabled) {
 					if (extraIntfLineIndex >= 0) {
-						const extraIntf = configContent[extraIntfLineIndex]
+						const extraIntf = configContent[extraIntfLineIndex] ?? ""
 						if (!extraIntf.includes("http")) {
 							const parts = extraIntf.split("=")
 							configContent[extraIntfLineIndex] =
@@ -229,7 +229,7 @@ export class VlcConfigHandler {
 							configModified = true
 						}
 					} else if (commentedExtraIntfLineIndex >= 0) {
-						const commentedExtraIntf = configContent[commentedExtraIntfLineIndex]
+						const commentedExtraIntf = configContent[commentedExtraIntfLineIndex] ?? ""
 						const extraIntfValue = commentedExtraIntf.replace(/^#extraintf=/, "")
 						configContent[commentedExtraIntfLineIndex] =
 							`extraintf=${extraIntfValue ? `${extraIntfValue},` : ""}http`
@@ -253,10 +253,12 @@ export class VlcConfigHandler {
 					}
 				} else {
 					if (extraIntfLineIndex >= 0) {
-						const extraIntf = configContent[extraIntfLineIndex]
+						const extraIntf = configContent[extraIntfLineIndex] ?? ""
 						if (extraIntf.includes("http")) {
 							const parts = extraIntf.split("=")
-							const interfaces = parts[1].split(",").filter((intf) => intf.trim() !== "http")
+							const interfaces = (parts[1] ?? "")
+								.split(",")
+								.filter((intf) => intf.trim() !== "http")
 							if (interfaces.length > 0) {
 								configContent[extraIntfLineIndex] = `${parts[0]}=${interfaces.join(",")}`
 							} else {

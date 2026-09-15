@@ -108,7 +108,11 @@ export class MultiImageUploaderService {
 	}
 
 	private getCurrentUserAgent(): string {
-		return this.userAgents[this.currentUserAgentIndex]
+		const agent = this.userAgents[this.currentUserAgentIndex]
+		if (agent === undefined) {
+			throw new Error("userAgents is empty")
+		}
+		return agent
 	}
 
 	private rotateUserAgent(): void {
@@ -118,9 +122,12 @@ export class MultiImageUploaderService {
 	private shuffleUserAgents(): void {
 		for (let i = this.userAgents.length - 1; i > 0; i--) {
 			const j = Math.floor(Math.random() * (i + 1))
-			;[this.userAgents[i], this.userAgents[j]] = [this.userAgents[j], this.userAgents[i]]
+			// i siempre es un indice valido por los limites del bucle, y j esta
+			// en [0, i] por construccion: el compilador no puede ver ese invariante.
+			// biome-ignore lint/style/noNonNullAssertion: ver comentario anterior
+			;[this.userAgents[i], this.userAgents[j]] = [this.userAgents[j]!, this.userAgents[i]!]
 		}
-		logger.info(`User agents shuffled, starting with: ${this.userAgents[0]}`)
+		logger.info(`User agents shuffled, starting with: ${this.userAgents.at(0) ?? "unknown"}`)
 	}
 
 	private async uploadToX0At(imageBuffer: Buffer, filename: string): Promise<string | null> {

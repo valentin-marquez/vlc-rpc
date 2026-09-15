@@ -284,9 +284,16 @@ class PausedState extends MediaState {
 /**
  * Service to manage media state and update Discord presence
  */
+interface MediaStates {
+	stopped: MediaState
+	noStatus: MediaState
+	playing: MediaState
+	paused: MediaState
+}
+
 export class MediaStateService {
 	private static instance: MediaStateService | null = null
-	private states: Record<string, MediaState>
+	private states: MediaStates
 
 	private constructor() {
 		this.states = {
