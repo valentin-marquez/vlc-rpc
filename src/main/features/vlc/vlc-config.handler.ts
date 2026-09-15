@@ -7,6 +7,8 @@ import { logger } from "@main/core/logger"
 import type { VlcConfig } from "@shared/config/app-config"
 import { VLC_CONFIG_PATHS } from "@shared/config/defaults"
 
+import { parseVlcConfig } from "./vlc-config.mapper"
+import type { VlcConfigRead } from "./vlc-config.types"
 import { vlcStatusService } from "./vlc.client"
 
 /**
@@ -15,10 +17,18 @@ import { vlcStatusService } from "./vlc.client"
 export class VlcConfigHandler {
 	private vlcConfigPath: string | null = null
 
+	/**
+	 * Resolves once the startup synchronization the constructor kicks off has
+	 * finished. The constructor cannot await it itself; this is here so a
+	 * caller (tests, or startup code that cares) can know when the app's
+	 * config has settled instead of racing it.
+	 */
+	public readonly ready: Promise<void>
+
 	constructor() {
 		this.determineVlcConfigPath()
 		this.registerHandlers()
-		this.synchronizeConfig()
+		this.ready = this.synchronizeConfig()
 	}
 
 	/**
@@ -54,114 +64,66 @@ export class VlcConfigHandler {
 	}
 
 	/**
-	 * Get the current VLC configuration
+	 * Read vlcrc and report whether it was actually read.
+	 *
+	 * The app's stored config is never returned here disguised as a file read:
+	 * synchronizeConfig needs to tell "vlcrc says X" from "could not read vlcrc,
+	 * assuming X" apart, or it ends up comparing the app's belief to itself and
+	 * reporting sync on a file that does not exist.
 	 */
-	public async getVlcConfig(): Promise<VlcConfig> {
+	private async readVlcConfigFile(): Promise<VlcConfigRead> {
 		if (!this.vlcConfigPath) {
 			logger.error("VLC config path not determined")
-			return configService.get<VlcConfig>("vlc")
+			return { found: false, reason: "unresolved-path" }
 		}
 
 		try {
-			try {
-				await fs.access(this.vlcConfigPath)
-			} catch (error) {
-				logger.warn(`VLC config file not found at: ${this.vlcConfigPath}`)
-				logger.warn("Please run VLC at least once to create the config file")
-				return configService.get<VlcConfig>("vlc")
-			}
+			await fs.access(this.vlcConfigPath)
+		} catch {
+			logger.warn(`VLC config file not found at: ${this.vlcConfigPath}`)
+			return { found: false, reason: "not-found" }
+		}
 
+		try {
 			const content = await fs.readFile(this.vlcConfigPath, "utf-8")
-			logger.info(`VLC config file content length: ${content.length} bytes`)
+			const parsed = parseVlcConfig(content)
 
-			const httpPasswordPatterns = [
-				/\[lua\][\s\S]*?(?:#)?http-password\s*=\s*([^\r\n]+)/i,
-				/(?:#)?http-password\s*=\s*([^\r\n]+)/i,
-				/\[http\][\s\S]*?(?:#)?password\s*=\s*([^\r\n]+)/i,
-			]
-
-			let httpPassword: string | null = null
-			for (const pattern of httpPasswordPatterns) {
-				const match = content.match(pattern)
-				if (match) {
-					httpPassword = match[1].trim()
-					logger.info(
-						`Found HTTP password using pattern: ${pattern.toString().substring(0, 30)}...`,
-					)
-					break
-				}
-			}
-
-			const httpPortPatterns = [
-				/\[core\][\s\S]*?(?:#)?http-port\s*=\s*(\d+)/i,
-				/(?:#)?http-port\s*=\s*(\d+)/i,
-				/\[http\][\s\S]*?(?:#)?port\s*=\s*(\d+)/i,
-			]
-
-			let httpPort = 8080 // Default VLC HTTP port
-			for (const pattern of httpPortPatterns) {
-				const match = content.match(pattern)
-				if (match) {
-					httpPort = Number.parseInt(match[1].trim(), 10)
-					logger.info(
-						`Found HTTP port: ${httpPort} using pattern: ${pattern.toString().substring(0, 30)}...`,
-					)
-					break
-				}
-			}
-
-			let httpEnabled = false
-
-			const extraIntfPattern = /(?:#)?extraintf\s*=\s*([^\r\n]+)/i
-			const extraIntfMatch = content.match(extraIntfPattern)
-			if (extraIntfMatch && !extraIntfMatch[0].trim().startsWith("#")) {
-				const extraIntfValues = extraIntfMatch[1].split(",").map((v) => v.trim())
-				if (extraIntfValues.includes("http")) {
-					httpEnabled = true
-					logger.info("HTTP interface is enabled via extraintf setting")
-				}
-			}
-
-			const mainIntfPattern = /(?:#)?intf\s*=\s*([^\r\n]+)/i
-			const mainIntfMatch = content.match(mainIntfPattern)
-			if (mainIntfMatch && !mainIntfMatch[0].trim().startsWith("#")) {
-				const mainIntf = mainIntfMatch[1].trim()
-				if (mainIntf === "http") {
-					httpEnabled = true
-					logger.info("HTTP is enabled as main interface")
-				}
-			}
-
-			if (content.includes("[http]") && !content.includes("[#http]")) {
-				httpEnabled = true
-				logger.info("HTTP section present and not commented")
-			}
-
-			if (!httpEnabled && (httpPort !== 8080 || httpPassword)) {
-				httpEnabled = true
-				logger.info("Assuming HTTP is enabled based on port/password settings")
-			}
-
-			const vlcConfig: VlcConfig = {
-				httpPort,
-				httpPassword: httpPassword || configService.get<VlcConfig>("vlc").httpPassword,
-				httpEnabled,
-			}
-
-			configService.set("vlc", vlcConfig)
-			vlcStatusService.updateConnectionInfo()
-
-			logger.info("VLC configuration retrieved", {
-				port: httpPort,
-				enabled: httpEnabled,
-				hasPassword: httpPassword !== null,
+			logger.info("VLC configuration read from vlcrc", {
+				port: parsed.httpPort,
+				enabled: parsed.httpEnabled,
+				hasPassword: parsed.httpPassword !== null,
 			})
 
-			return vlcConfig
+			return {
+				found: true,
+				config: {
+					httpPort: parsed.httpPort,
+					httpPassword: parsed.httpPassword ?? configService.get<VlcConfig>("vlc").httpPassword,
+					httpEnabled: parsed.httpEnabled,
+				},
+			}
 		} catch (error) {
-			logger.error(`Error parsing VLC config: ${error}`)
+			logger.error(`Error reading VLC config file: ${error}`)
+			return { found: false, reason: "read-error" }
+		}
+	}
+
+	/**
+	 * Get the current VLC configuration.
+	 *
+	 * Falls back to the app's own stored config when vlcrc cannot be read.
+	 * Callers that need to tell a real read from that fallback apart should use
+	 * readVlcConfigFile instead: synchronizeConfig does exactly that.
+	 */
+	public async getVlcConfig(): Promise<VlcConfig> {
+		const result = await this.readVlcConfigFile()
+		if (!result.found) {
 			return configService.get<VlcConfig>("vlc")
 		}
+
+		configService.set("vlc", result.config)
+		vlcStatusService.updateConnectionInfo()
+		return result.config
 	}
 
 	/**
@@ -358,34 +320,41 @@ export class VlcConfigHandler {
 	 * Synchronize the app's VLC configuration with the actual VLC config file
 	 * This ensures that changes made outside the app are reflected in the app's config
 	 */
+	/**
+	 * Reconcile the app's stored config with what vlcrc actually says.
+	 *
+	 * Reads the file directly rather than through getVlcConfig, so a missing
+	 * or unreadable vlcrc is reported honestly instead of comparing the app's
+	 * stored config to itself and calling that "already in sync".
+	 */
 	public async synchronizeConfig(): Promise<void> {
-		try {
-			logger.info("Synchronizing VLC configuration at startup")
+		logger.info("Synchronizing VLC configuration at startup")
 
-			const fileConfig = await this.getVlcConfig()
-			const appConfig = configService.get<VlcConfig>("vlc")
+		const result = await this.readVlcConfigFile()
 
-			const isDifferent =
-				fileConfig.httpPort !== appConfig.httpPort ||
-				fileConfig.httpPassword !== appConfig.httpPassword ||
-				fileConfig.httpEnabled !== appConfig.httpEnabled
-
-			if (isDifferent) {
-				logger.info("VLC configuration has changed, updating app configuration")
-
-				configService.set("vlc", fileConfig)
-				vlcStatusService.updateConnectionInfo()
-
-				logger.info("VLC configuration synchronized successfully", {
-					port: fileConfig.httpPort,
-					enabled: fileConfig.httpEnabled,
-					hasPassword: !!fileConfig.httpPassword,
-				})
-			} else {
-				logger.info("VLC configuration is already in sync")
-			}
-		} catch (error) {
-			logger.error(`Error synchronizing VLC configuration: ${error}`)
+		if (!result.found) {
+			logger.warn(`Could not synchronize VLC configuration: ${result.reason}`)
+			return
 		}
+
+		const appConfig = configService.get<VlcConfig>("vlc")
+		const isDifferent =
+			result.config.httpPort !== appConfig.httpPort ||
+			result.config.httpPassword !== appConfig.httpPassword ||
+			result.config.httpEnabled !== appConfig.httpEnabled
+
+		if (!isDifferent) {
+			logger.info("VLC configuration is already in sync")
+			return
+		}
+
+		logger.info("VLC configuration has changed, updating app configuration", {
+			port: result.config.httpPort,
+			enabled: result.config.httpEnabled,
+			hasPassword: !!result.config.httpPassword,
+		})
+
+		configService.set("vlc", result.config)
+		vlcStatusService.updateConnectionInfo()
 	}
 }

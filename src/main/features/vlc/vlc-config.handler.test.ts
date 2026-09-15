@@ -1,9 +1,10 @@
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs"
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const APP_CONFIG = { httpPort: 4321, httpPassword: "from-app-config", httpEnabled: false }
+const configSetCalls: Array<[string, unknown]> = []
 
 vi.mock("@main/core/logger", () => ({
 	logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
@@ -14,7 +15,9 @@ vi.mock("@main/core/ipc", () => ({ registerHandler: () => {} }))
 vi.mock("@main/core/config", () => ({
 	configService: {
 		get: (key?: string) => (key === "vlc" ? { ...APP_CONFIG } : {}),
-		set: () => {},
+		set: (key: string, value: unknown) => {
+			configSetCalls.push([key, value])
+		},
 		delete: () => {},
 	},
 }))
@@ -40,6 +43,7 @@ function handlerFor(fixture: string | null): VlcConfigHandler {
 
 beforeEach(() => {
 	root = mkdtempSync(join(tmpdir(), "vlcrc-"))
+	configSetCalls.length = 0
 })
 
 afterEach(() => {
@@ -56,32 +60,68 @@ describe.runIf(process.platform === "win32")("getVlcConfig", () => {
 		expect(config.httpEnabled).toBe(true)
 	})
 
-	// KNOWN BUG, pinned deliberately.
-	//
-	// This fixture is a stock vlcrc with every http setting commented out, which
-	// is what a fresh VLC install writes and what HTTP disabled actually looks
-	// like. Every regex in the parser carries an optional `#` prefix, and there
-	// is a fallback that assumes enabled whenever a port or password turns up,
-	// so a commented out setting reads as an active one.
-	//
-	// When this is fixed, httpEnabled becomes false here and the app can finally
-	// tell the user that VLC is not set up.
-	it("reports http as enabled even though every setting is commented out", async () => {
+	it("reports http as disabled when every setting is commented out", async () => {
+		// This fixture is what a fresh VLC install writes: every http setting
+		// present but commented. See parseVlcConfig for the parsing fix.
 		const config = await handlerFor("vlcrc-defaults").getVlcConfig()
 
-		expect(config.httpEnabled).toBe(true)
+		expect(config.httpEnabled).toBe(false)
 	})
 
-	// KNOWN BUG, pinned deliberately.
-	//
-	// With no vlcrc at all, getVlcConfig falls back to returning the app's own
-	// stored config. synchronizeConfig then compares that against the app's
-	// stored config and unsurprisingly finds them identical, so it logs
-	// "VLC configuration is already in sync" about a file that does not exist.
-	// The read gives the caller no way to tell a real answer from a fallback.
-	it("returns the app's own config when vlcrc is missing, indistinguishable from a real read", async () => {
+	it("falls back to the app's own stored config when vlcrc is missing", async () => {
+		// This fallback is intentional and documented on getVlcConfig: callers
+		// that need to tell it apart from a real read use readVlcConfigFile via
+		// synchronizeConfig instead, tested below.
 		const config = await handlerFor(null).getVlcConfig()
 
 		expect(config).toEqual(APP_CONFIG)
+	})
+})
+
+describe.runIf(process.platform === "win32")("synchronizeConfig", () => {
+	// The constructor fires synchronizeConfig() itself, without awaiting it.
+	// Awaiting its exposed .ready before resetting configSetCalls keeps that
+	// initial run's side effect from leaking into the explicit call below.
+	async function settledHandlerFor(fixture: string | null): Promise<VlcConfigHandler> {
+		const handler = handlerFor(fixture)
+		await handler.ready
+		configSetCalls.length = 0
+		return handler
+	}
+
+	it("does not touch the app's config when vlcrc is missing", async () => {
+		const handler = await settledHandlerFor(null)
+		await handler.synchronizeConfig()
+
+		expect(configSetCalls).toHaveLength(0)
+	})
+
+	it("updates the app's config to match a vlcrc that disagrees with it", async () => {
+		// APP_CONFIG says httpEnabled: false; this vlcrc says true. Before the
+		// fix, comparing getVlcConfig()'s fallback against itself meant a
+		// missing file always looked "in sync", and a present but misparsed
+		// file could go undetected the same way.
+		const handler = await settledHandlerFor("vlcrc-configured")
+		await handler.synchronizeConfig()
+
+		expect(configSetCalls).toEqual([
+			["vlc", { httpPort: 9080, httpPassword: "TestPassword123", httpEnabled: true }],
+		])
+	})
+
+	it("leaves the app's config alone when vlcrc already agrees with it", async () => {
+		// Written to match APP_CONFIG exactly: same port, no active interface
+		// setting so httpEnabled parses false, and no password so it falls back
+		// to APP_CONFIG's own, same as APP_CONFIG's stored password.
+		mkdirSync(join(root, "vlc"), { recursive: true })
+		writeFileSync(join(root, "vlc", "vlcrc"), "[core]\nhttp-port=4321\n")
+		process.env.APPDATA = root
+		const handler = new VlcConfigHandler()
+		await handler.ready
+		configSetCalls.length = 0
+
+		await handler.synchronizeConfig()
+
+		expect(configSetCalls).toHaveLength(0)
 	})
 })

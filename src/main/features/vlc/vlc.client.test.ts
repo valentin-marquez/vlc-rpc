@@ -6,10 +6,15 @@ vi.mock("@main/core/logger", () => ({
 	logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
 }))
 
+// vi.mock is hoisted above regular declarations, so the mutable config the
+// factory closes over has to be created through vi.hoisted to exist in time.
+const { mockVlcConfig } = vi.hoisted(() => ({
+	mockVlcConfig: { httpPort: 9080, httpPassword: "secret", httpEnabled: true },
+}))
+
 vi.mock("@main/core/config", () => ({
 	configService: {
-		get: (key?: string) =>
-			key === "vlc" ? { httpPort: 9080, httpPassword: "secret", httpEnabled: true } : {},
+		get: (key?: string) => (key === "vlc" ? mockVlcConfig : {}),
 		set: () => {},
 		delete: () => {},
 	},
@@ -32,6 +37,7 @@ function respondWith(body: string, status = 200): void {
 
 afterEach(() => {
 	vi.unstubAllGlobals()
+	mockVlcConfig.httpEnabled = true
 })
 
 // Characterization tests. Every fixture is a real capture from a Spanish
@@ -110,6 +116,73 @@ describe("media type detection", () => {
 			expect(status?.mediaType).toBe("audio")
 			expect(status?.videoInfo).toBeUndefined()
 		}
+	})
+})
+
+describe("checkVlcStatus", () => {
+	it("reports not-configured without making a request when httpEnabled is false", async () => {
+		mockVlcConfig.httpEnabled = false
+		const fetchSpy = vi.fn()
+		vi.stubGlobal("fetch", fetchSpy)
+
+		const status = await vlcStatusService.checkVlcStatus()
+
+		expect(status).toEqual({
+			isRunning: false,
+			reason: "not-configured",
+			message: "VLC HTTP interface is not enabled in configuration",
+		})
+		expect(fetchSpy).not.toHaveBeenCalled()
+	})
+
+	it("reports running on a 200", async () => {
+		respondWith("{}")
+		const status = await vlcStatusService.checkVlcStatus()
+
+		expect(status.isRunning).toBe(true)
+		expect(status.reason).toBe("running")
+	})
+
+	it.each([
+		[401, "auth-failed"],
+		[404, "misconfigured-endpoint"],
+		[500, "unexpected-status"],
+	])("reports %s as %s", async (httpStatus, reason) => {
+		respondWith("", httpStatus)
+		const status = await vlcStatusService.checkVlcStatus()
+
+		expect(status.isRunning).toBe(false)
+		expect(status.reason).toBe(reason)
+	})
+
+	it("reports not-running when the connection is refused", async () => {
+		const refused = Object.assign(new Error("connect ECONNREFUSED"), {
+			name: "Error",
+			code: "ECONNREFUSED",
+		})
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => {
+				throw refused
+			}),
+		)
+
+		const status = await vlcStatusService.checkVlcStatus()
+
+		expect(status.reason).toBe("not-running")
+	})
+
+	it("reports timeout on an aborted request", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => {
+				throw Object.assign(new Error("aborted"), { name: "AbortError" })
+			}),
+		)
+
+		const status = await vlcStatusService.checkVlcStatus()
+
+		expect(status.reason).toBe("timeout")
 	})
 })
 

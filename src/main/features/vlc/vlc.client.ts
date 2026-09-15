@@ -373,7 +373,11 @@ export class VlcStatusService {
 		const vlcConfig = configService.get<VlcConfig>("vlc")
 
 		if (!vlcConfig.httpEnabled) {
-			return { isRunning: false, message: "VLC HTTP interface is not enabled in configuration" }
+			return {
+				isRunning: false,
+				reason: "not-configured",
+				message: "VLC HTTP interface is not enabled in configuration",
+			}
 		}
 
 		try {
@@ -391,20 +395,27 @@ export class VlcStatusService {
 
 			switch (response.status) {
 				case 200:
-					return { isRunning: true, message: "VLC is running and HTTP interface is accessible" }
+					return {
+						isRunning: true,
+						reason: "running",
+						message: "VLC is running and HTTP interface is accessible",
+					}
 				case 401:
 					return {
 						isRunning: false,
+						reason: "auth-failed",
 						message: "VLC is running but authentication failed (incorrect password)",
 					}
 				case 404:
 					return {
 						isRunning: false,
+						reason: "misconfigured-endpoint",
 						message: "VLC is running but the HTTP interface is not properly configured",
 					}
 				default:
 					return {
 						isRunning: false,
+						reason: "unexpected-status",
 						message: `VLC returned unexpected status code: ${response.status}`,
 					}
 			}
@@ -412,17 +423,26 @@ export class VlcStatusService {
 			const err = error as { name: string; code?: string; message: string }
 			switch (err.name) {
 				case "AbortError":
-					return { isRunning: false, message: "Connection to VLC timed out" }
+					return { isRunning: false, reason: "timeout", message: "Connection to VLC timed out" }
 				case "Error":
 					if (err.code === "ECONNREFUSED" || err.code === "ECONNRESET") {
 						return {
 							isRunning: false,
+							reason: "not-running",
 							message: "VLC is not running or HTTP interface is not enabled",
 						}
 					}
-					return { isRunning: false, message: `Error checking VLC status: ${err.message}` }
+					return {
+						isRunning: false,
+						reason: "unknown-error",
+						message: `Error checking VLC status: ${err.message}`,
+					}
 				default:
-					return { isRunning: false, message: `Error checking VLC status: ${err.message}` }
+					return {
+						isRunning: false,
+						reason: "unknown-error",
+						message: `Error checking VLC status: ${err.message}`,
+					}
 			}
 		}
 	}
