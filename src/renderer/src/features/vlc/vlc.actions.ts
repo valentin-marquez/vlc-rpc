@@ -2,7 +2,13 @@ import { updateFromVlcStatus } from "@renderer/features/media/media.actions"
 import { refreshMediaInfo } from "@renderer/features/media/media.actions"
 import { logger } from "@renderer/lib/utils"
 import type { VlcConfig } from "@shared/config/app-config"
-import { vlcConfigStore, vlcErrorStore, vlcStatusStore } from "./vlc.store"
+import { DEFAULT_CONFIG } from "@shared/config/defaults"
+import {
+	vlcConfigStore,
+	vlcConnectionReasonStore,
+	vlcErrorStore,
+	vlcStatusStore,
+} from "./vlc.store"
 
 let statusPollingInterval: ReturnType<typeof setInterval> | null = null
 
@@ -51,6 +57,7 @@ export async function saveVlcConfig(config: VlcConfig): Promise<VlcConfig | null
 export async function checkVlcConnection(): Promise<boolean> {
 	try {
 		const status = await window.api.vlc.checkStatus()
+		vlcConnectionReasonStore.set(status.reason)
 
 		if (status.isRunning) {
 			vlcStatusStore.set("connected")
@@ -66,10 +73,29 @@ export async function checkVlcConnection(): Promise<boolean> {
 		return false
 	} catch (error) {
 		vlcStatusStore.set("error")
+		vlcConnectionReasonStore.set(null)
 		vlcErrorStore.set("Failed to check VLC connection status")
 		logger.error(`Error checking VLC connection: ${error}`)
 		return false
 	}
+}
+
+/**
+ * Enable VLC's HTTP interface without the user hand editing vlcrc, reusing
+ * the same write path the setup form uses. vlcrc is only read when VLC
+ * starts, so this cannot make an already running VLC pick it up: the caller
+ * still needs to tell the user to restart it.
+ */
+export async function repairVlcConfig(): Promise<boolean> {
+	const current = vlcConfigStore.get() ?? DEFAULT_CONFIG.vlc
+	const repaired = await saveVlcConfig({ ...current, httpEnabled: true })
+
+	if (!repaired) {
+		return false
+	}
+
+	vlcErrorStore.set("Configuration fixed. Restart VLC for the change to take effect.")
+	return true
 }
 
 export function startStatusPolling(interval = 2000): void {
