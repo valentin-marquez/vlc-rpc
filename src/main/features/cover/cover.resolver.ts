@@ -1,24 +1,18 @@
 import { promises as fs } from "node:fs"
 import { logger } from "@main/core/logger"
-import { vlcStatusService } from "@main/features/vlc"
+import type { Client as VlcClient } from "@main/features/vlc"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
-import { metadataWriterService } from "./cover.store"
-import { multiImageUploaderService } from "./cover.uploader"
+import type { Store as CoverStore } from "./cover.store"
+import type { Uploader as CoverUploader } from "./cover.uploader"
 
 /** Service to fetch album cover art for audio files */
-export class CoverArtService {
-	private static instance: CoverArtService | null = null
-
-	private constructor() {
+export class Resolver {
+	constructor(
+		private readonly vlc: VlcClient,
+		private readonly store: CoverStore,
+		private readonly uploader: CoverUploader,
+	) {
 		logger.info("Cover art service initialized")
-	}
-
-	/** Get the singleton instance of the cover art service */
-	public static getInstance(): CoverArtService {
-		if (!CoverArtService.instance) {
-			CoverArtService.instance = new CoverArtService()
-		}
-		return CoverArtService.instance
 	}
 
 	/** Fetch cover art URL using all available media information */
@@ -29,13 +23,13 @@ export class CoverArtService {
 		}
 
 		// Step 1: Check if media already has an uploaded image URL in its metadata
-		const fileUri = await vlcStatusService.getCurrentFileUri()
+		const fileUri = await this.vlc.getCurrentFileUri()
 		if (fileUri && media.artworkUrl) {
-			const filePath = metadataWriterService.vlcUriToFilePath(fileUri)
+			const filePath = this.store.vlcUriToFilePath(fileUri)
 			if (filePath) {
-				const customMetadata = await metadataWriterService.readMetadataTags(filePath)
+				const customMetadata = await this.store.readMetadataTags(filePath)
 				if (customMetadata) {
-					const parsed = multiImageUploaderService.parseMetadataTags(customMetadata)
+					const parsed = this.uploader.parseMetadataTags(customMetadata)
 					if (parsed.imageUrl && !parsed.isExpired) {
 						logger.info(`Using existing uploaded cover image: ${parsed.imageUrl}`)
 						return parsed.imageUrl
@@ -64,21 +58,17 @@ export class CoverArtService {
 				try {
 					const imageBuffer = await fs.readFile(fixedPath)
 					const filename = `cover_${Date.now()}.jpg`
-					const uploadedUrl = await multiImageUploaderService.uploadImage(
-						imageBuffer,
-						filename,
-						24 * 7,
-					) // 7 days
+					const uploadedUrl = await this.uploader.uploadImage(imageBuffer, filename, 24 * 7) // 7 days
 
 					if (uploadedUrl && fileUri) {
 						// Store the uploaded URL in metadata for future use
-						const filePath = metadataWriterService.vlcUriToFilePath(fileUri)
+						const filePath = this.store.vlcUriToFilePath(fileUri)
 						if (filePath) {
 							const expiryDate = new Date()
 							expiryDate.setDate(expiryDate.getDate() + 7) // 7 days from now
 
-							const tags = multiImageUploaderService.generateMetadataTags(uploadedUrl, expiryDate)
-							await metadataWriterService.writeMetadataTags(filePath, tags)
+							const tags = this.uploader.generateMetadataTags(uploadedUrl, expiryDate)
+							await this.store.writeMetadataTags(filePath, tags)
 
 							logger.info(`Uploaded local artwork and saved metadata: ${uploadedUrl}`)
 						}
@@ -107,5 +97,3 @@ export class CoverArtService {
 		return mediaInfo.media
 	}
 }
-
-export const coverArtService = CoverArtService.getInstance()

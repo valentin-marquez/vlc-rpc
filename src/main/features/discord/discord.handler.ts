@@ -1,8 +1,8 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { mediaStateService } from "@main/features/presence"
-import { vlcStatusService } from "@main/features/vlc"
-import { discordRpcService } from "./discord.client"
+import type { Service as PresenceService } from "@main/features/presence"
+import type { Client as VlcClient } from "@main/features/vlc"
+import type { Client as DiscordClient } from "./discord.client"
 
 /**
  * Handler for Discord RPC operations
@@ -13,22 +13,26 @@ export class DiscordRpcHandler {
 	private fastCheckCount = 0
 	private maxFastChecks = 5
 
-	constructor() {
+	constructor(
+		private readonly discord: DiscordClient,
+		private readonly vlc: VlcClient,
+		private readonly presence: PresenceService,
+	) {
 		this.registerHandlers()
 	}
 
 	private registerHandlers(): void {
 		registerHandler("discord:connect", async () => {
-			return await discordRpcService.connect()
+			return await this.discord.connect()
 		})
 
 		registerHandler("discord:disconnect", async () => {
-			await discordRpcService.close()
+			await this.discord.close()
 			return true
 		})
 
 		registerHandler("discord:status", () => {
-			return discordRpcService.isConnected()
+			return this.discord.isConnected()
 		})
 
 		registerHandler("discord:update", async () => {
@@ -46,26 +50,26 @@ export class DiscordRpcHandler {
 
 		registerHandler("discord:reconnect", async () => {
 			logger.info("Forcing Discord reconnection")
-			return await discordRpcService.forceReconnect()
+			return await this.discord.forceReconnect()
 		})
 
 		registerHandler("discord:rpc:enable", () => {
-			discordRpcService.enableRpc()
+			this.discord.enableRpc()
 			return true
 		})
 
 		registerHandler("discord:rpc:disable", () => {
-			discordRpcService.disableRpc()
+			this.discord.disableRpc()
 			return true
 		})
 
 		registerHandler("discord:rpc:disable:temporary", (minutes) => {
-			discordRpcService.disableRpcTemporary(minutes)
+			this.discord.disableRpcTemporary(minutes)
 			return true
 		})
 
 		registerHandler("discord:rpc:status", () => {
-			return discordRpcService.isRpcEnabled()
+			return this.discord.isRpcEnabled()
 		})
 	}
 
@@ -78,7 +82,7 @@ export class DiscordRpcHandler {
 		}
 
 		try {
-			discordRpcService
+			this.discord
 				.connect()
 				.then((connected) => {
 					// Even if initial connection fails, we still set up the loop
@@ -146,7 +150,7 @@ export class DiscordRpcHandler {
 			this.fastCheckIntervalId = null
 		}
 
-		discordRpcService.clear().catch((error) => {
+		this.discord.clear().catch((error) => {
 			logger.error(`Error clearing Discord presence: ${error}`)
 		})
 	}
@@ -156,19 +160,19 @@ export class DiscordRpcHandler {
 	 */
 	private async updatePresence(forceUpdate = false): Promise<boolean> {
 		try {
-			const vlcStatus = await vlcStatusService.readStatus(forceUpdate)
+			const vlcStatus = await this.vlc.readStatus(forceUpdate)
 
 			if (!vlcStatus) {
-				return await discordRpcService.clear()
+				return await this.discord.clear()
 			}
 
-			const presenceData = await mediaStateService.getDiscordPresence(vlcStatus)
+			const presenceData = await this.presence.getDiscordPresence(vlcStatus)
 
 			if (!presenceData) {
-				return await discordRpcService.clear()
+				return await this.discord.clear()
 			}
 
-			return await discordRpcService.update(presenceData)
+			return await this.discord.update(presenceData)
 		} catch (error) {
 			logger.error(`Error updating Discord presence: ${error}`)
 			return false

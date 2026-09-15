@@ -1,10 +1,14 @@
 import { electronApp, optimizer } from "@electron-toolkit/utils"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
-import { startupService, trayService, windowService } from "@main/features/app"
-import { autoUpdaterService } from "@main/features/updates"
+import * as App from "@main/features/app"
+import * as Cover from "@main/features/cover"
+import * as Discord from "@main/features/discord"
+import * as Media from "@main/features/media"
+import * as Presence from "@main/features/presence"
+import * as Updates from "@main/features/updates"
+import * as Vlc from "@main/features/vlc"
 import { app } from "electron"
-import { mainHandlers } from "./handlers.registry"
 
 // Add isQuitting property and wasLaunchedAtStartup property to app
 declare global {
@@ -33,9 +37,15 @@ if (!gotTheLock) {
 		launchArgs.includes("--launch-at-login") ||
 		launchArgs.includes("--autorun")
 
+	// Assigned once the composition root below runs inside whenReady(). A
+	// second-instance launch racing that window is a pre-existing edge case,
+	// not something this refactor introduces: showWindow() no-ops instead of
+	// throwing if it fires first.
+	let window: App.Window | undefined
+
 	app.on("second-instance", () => {
 		logger.info("Another instance tried to launch, focusing our window instead")
-		windowService.showWindow()
+		window?.showWindow()
 	})
 
 	app.on("window-all-closed", (): void => {
@@ -56,38 +66,58 @@ if (!gotTheLock) {
 
 		electronApp.setAppUserModelId("com.valentinmarquez.vlcdiscordrp")
 
-		app.on("browser-window-created", (_, window) => {
-			optimizer.watchWindowShortcuts(window)
+		app.on("browser-window-created", (_, browserWindow) => {
+			optimizer.watchWindowShortcuts(browserWindow)
 		})
 
-		configService
 		configService.set("version", app.getVersion())
 		logger.info(`Set app version in config: ${app.getVersion()}`)
 
-		mainHandlers
+		// Services with no dependency on another feature
+		const vlc = new Vlc.Client()
+		const discord = new Discord.Client()
+		const analyzer = new Media.Analyzer()
+		const imageProxy = new Media.ImageProxy()
+		const coverStore = new Cover.Store()
+		const coverUploader = new Cover.Uploader()
+		const updater = new Updates.Updater()
+		const startup = new App.Startup()
 
-		// Initialize tray service before window service
-		trayService
+		// Services that depend on the above
+		const cover = new Cover.Resolver(vlc, coverStore, coverUploader)
+		const presence = new Presence.Service(cover, analyzer)
 
-		// Initialize window service
-		const mainWindowPromise = windowService.createWindow()
+		// The tray/window cycle, resolved in fixed order
+		const tray = new App.Tray(startup)
+		window = new App.Window(discord, tray)
+		tray.setWindow(window)
 
-		// Initialize auto-updater service after window is created
+		// Handlers, one per feature
+		new App.AppInfoHandler(startup)
+		new Cover.MetadataHandler(coverStore)
+		new Media.MediaInfoHandler(cover, vlc, imageProxy)
+		new Updates.UpdateHandler(updater)
+		new Vlc.VlcConfigHandler(vlc)
+		new Vlc.VlcStatusHandler(vlc)
+		const discordRpcHandler = new Discord.DiscordRpcHandler(discord, vlc, presence)
+
+		const mainWindowPromise = window.createWindow()
+
 		mainWindowPromise.then((mainWindow) => {
-			autoUpdaterService.setMainWindow(mainWindow)
+			updater.setMainWindow(mainWindow)
 		})
 
 		const startWithSystem = configService.get("startWithSystem")
-		startupService.setStartAtLogin(startWithSystem)
+		startup.setStartAtLogin(startWithSystem)
 
-		mainHandlers.discordRpcHandler.startUpdateLoop()
+		discordRpcHandler.startUpdateLoop()
 
 		setTimeout(() => {
-			autoUpdaterService.checkForUpdates(true)
+			updater.checkForUpdates(true)
 		}, 3000)
 
 		app.on("activate", () => {
-			windowService.showWindow()
+			window?.showWindow()
 		})
 
 		app.on("before-quit", () => {

@@ -1,47 +1,47 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { autoUpdaterService } from "./app.updater"
+import type { Updater } from "./app.updater"
 
 /**
  * Handler for application update operations
  */
 export class UpdateHandler {
-	constructor() {
+	constructor(private readonly updater: Updater) {
 		this.registerHandlers()
 	}
 
 	private registerHandlers(): void {
 		registerHandler("update:check", async (silent = true) => {
 			logger.info(`Requested update check (silent: ${silent})`)
-			await autoUpdaterService.checkForUpdates(silent)
+			await this.updater.checkForUpdates(silent)
 			return true
 		})
 
 		registerHandler("update:download", async () => {
 			logger.info("Requested update download")
-			autoUpdaterService.downloadUpdate()
+			this.updater.downloadUpdate()
 			return true
 		})
 
 		registerHandler("update:force-check", async () => {
 			logger.info("Requested force update check")
-			await autoUpdaterService.forceCheckForUpdates()
+			await this.updater.forceCheckForUpdates()
 			return true
 		})
 
 		registerHandler("update:status", async () => {
 			logger.info("Requested update status")
-			return autoUpdaterService.getUpdateStatus()
+			return this.updater.getUpdateStatus()
 		})
 
 		registerHandler("update:installation-type", async () => {
 			logger.info("Requested installation type")
-			return autoUpdaterService.getInstallationType()
+			return this.updater.getInstallationType()
 		})
 
 		registerHandler("update:open-cache-folder", async () => {
 			logger.info("Requested to open update cache folder")
-			await autoUpdaterService.openCacheFolder()
+			await this.updater.openCacheFolder()
 			return undefined
 		})
 	}

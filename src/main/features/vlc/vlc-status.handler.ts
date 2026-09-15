@@ -1,24 +1,24 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { vlcStatusService } from "./vlc.client"
+import type { Client } from "./vlc.client"
 
 /**
  * Handler for VLC status operations
  */
 export class VlcStatusHandler {
-	constructor() {
+	constructor(private readonly vlc: Client) {
 		this.registerHandlers()
 	}
 
 	private registerHandlers(): void {
 		registerHandler("vlc:status:get", async (forceUpdate = false) => {
 			logger.info(`Reading VLC status (forceUpdate: ${forceUpdate})`)
-			return await vlcStatusService.readStatus(forceUpdate)
+			return await this.vlc.readStatus(forceUpdate)
 		})
 
 		registerHandler("vlc:status:check", async () => {
 			logger.info("Checking VLC connection status")
-			return await vlcStatusService.checkVlcStatus()
+			return await this.vlc.checkVlcStatus()
 		})
 	}
 
@@ -26,6 +26,6 @@ export class VlcStatusHandler {
 	 * Update VLC connection info when config changes
 	 */
 	public updateConnectionInfo(): void {
-		vlcStatusService.updateConnectionInfo()
+		this.vlc.updateConnectionInfo()
 	}
 }

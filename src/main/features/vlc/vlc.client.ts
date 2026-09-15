@@ -8,25 +8,14 @@ import type { VlcMetadata, VlcPlaylistItem, VlcPlaylistResponse, VlcRawStatus } 
 /**
  * Service to read and process VLC media status through HTTP interface
  */
-export class VlcStatusService {
-	private static instance: VlcStatusService | null = null
+export class Client {
 	private lastStatusHash = ""
 	private lastStatus: VlcStatus | null = null
 	private baseUrl = ""
 	private authHeader: Record<string, string> = {}
 
-	private constructor() {
+	constructor() {
 		this.updateConnectionInfo()
-	}
-
-	/**
-	 * Get the singleton instance of the VLC status service
-	 */
-	public static getInstance(): VlcStatusService {
-		if (!VlcStatusService.instance) {
-			VlcStatusService.instance = new VlcStatusService()
-		}
-		return VlcStatusService.instance
 	}
 
 	/**
@@ -446,5 +435,3 @@ export class VlcStatusService {
 		}
 	}
 }
-
-export const vlcStatusService = VlcStatusService.getInstance()

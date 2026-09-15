@@ -1,11 +1,11 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { coverArtService } from "@main/features/cover"
-import { vlcStatusService } from "@main/features/vlc"
+import type { Resolver as CoverResolver } from "@main/features/cover"
+import type { Client as VlcClient } from "@main/features/vlc"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 
-import { imageProxyService } from "./media.image-proxy"
+import type { ImageProxy } from "./media.image-proxy"
 
 /**
  * Handler for accessing media information
@@ -14,14 +14,18 @@ export class MediaInfoHandler {
 	// Cache for the last media data
 	private lastMediaInfo: (VlcStatus & DetectedMediaInfo) | null = null
 
-	constructor() {
+	constructor(
+		private readonly cover: CoverResolver,
+		private readonly vlc: VlcClient,
+		private readonly imageProxy: ImageProxy,
+	) {
 		this.registerHandlers()
 	}
 
 	private registerHandlers(): void {
 		registerHandler("media:get-info", async () => {
 			try {
-				const currentStatus = await vlcStatusService.readStatus(false)
+				const currentStatus = await this.vlc.readStatus(false)
 
 				if (!currentStatus || !currentStatus.active) {
 					return null
@@ -35,7 +39,7 @@ export class MediaInfoHandler {
 		})
 
 		registerHandler("image:proxy", async (url) => {
-			return await imageProxyService.getImageAsDataUrl(url)
+			return await this.imageProxy.getImageAsDataUrl(url)
 		})
 	}
 
@@ -54,21 +58,21 @@ export class MediaInfoHandler {
 
 			// For audio content, try to get cover art
 			if (vlcStatus.mediaType === "audio") {
-				const coverUrl = await coverArtService.fetch(vlcStatus)
+				const coverUrl = await this.cover.fetch(vlcStatus)
 				if (coverUrl) {
 					mediaInfo.content_image_url = coverUrl
 				}
 			}
 
 			if (mediaInfo.media?.artworkUrl) {
-				const dataUrl = await imageProxyService.getImageAsDataUrl(mediaInfo.media.artworkUrl)
+				const dataUrl = await this.imageProxy.getImageAsDataUrl(mediaInfo.media.artworkUrl)
 				if (dataUrl) {
 					mediaInfo.media.artworkUrl = dataUrl
 				}
 			}
 
 			if (mediaInfo.content_image_url) {
-				const dataUrl = await imageProxyService.getImageAsDataUrl(mediaInfo.content_image_url)
+				const dataUrl = await this.imageProxy.getImageAsDataUrl(mediaInfo.content_image_url)
 				if (dataUrl) {
 					mediaInfo.content_image_url = dataUrl
 				}

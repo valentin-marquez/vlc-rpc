@@ -22,7 +22,9 @@ vi.mock("@main/core/config", () => ({
 
 // vi.mock se hoistea por encima de los imports, asi que este import normal
 // ya recibe los modulos mockeados.
-import { vlcStatusService } from "./vlc.client"
+import { Client } from "./vlc.client"
+
+const vlcStatusService = new Client()
 
 function fixture(name: string): string {
 	return readFileSync(join(__dirname, "__fixtures__", `${name}.json`), "utf-8")

@@ -4,21 +4,7 @@ import { app } from "electron"
 /**
  * Service to manage application startup with system
  */
-export class StartupService {
-	private static instance: StartupService | null = null
-
-	private constructor() {}
-
-	/**
-	 * Get the singleton instance of the startup service
-	 */
-	public static getInstance(): StartupService {
-		if (!StartupService.instance) {
-			StartupService.instance = new StartupService()
-		}
-		return StartupService.instance
-	}
-
+export class Startup {
 	/**
 	 * Check if the application is running as portable version
 	 */
@@ -68,5 +54,3 @@ export class StartupService {
 		}
 	}
 }
-
-export const startupService = StartupService.getInstance()

@@ -3,29 +3,21 @@ import { is } from "@electron-toolkit/utils"
 import { configService } from "@main/core/config"
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { discordRpcService } from "@main/features/discord"
+import type { Client as DiscordClient } from "@main/features/discord"
 import { BrowserWindow, app, ipcMain, session, shell } from "electron"
-import { trayService } from "./app.tray"
+import type { Tray } from "./app.tray"
 
 /**
  * Window management service
  */
-export class WindowService {
-	private static instance: WindowService | null = null
+export class Window {
 	private mainWindow: BrowserWindow | null = null
 
-	private constructor() {
+	constructor(
+		private readonly discord: DiscordClient,
+		private readonly tray: Tray,
+	) {
 		this.registerIpcHandlers()
-	}
-
-	/**
-	 * Get the singleton instance of the window service
-	 */
-	public static getInstance(): WindowService {
-		if (!WindowService.instance) {
-			WindowService.instance = new WindowService()
-		}
-		return WindowService.instance
 	}
 
 	/**
@@ -83,7 +75,7 @@ export class WindowService {
 		}
 
 		try {
-			await trayService.whenReady()
+			await this.tray.whenReady()
 			logger.info("Tray is ready, proceeding with window creation")
 		} catch (error) {
 			logger.error(`Error waiting for tray: ${error}`)
@@ -184,9 +176,9 @@ export class WindowService {
 
 		// Check Discord connection when window regains focus
 		this.mainWindow.on("focus", () => {
-			if (!discordRpcService.isConnected()) {
+			if (!this.discord.isConnected()) {
 				logger.info("Window focused, trying to reconnect to Discord")
-				discordRpcService.connect().catch((error) => {
+				this.discord.connect().catch((error) => {
 					logger.error(`Failed to reconnect to Discord on window focus: ${error}`)
 				})
 			}
@@ -194,9 +186,9 @@ export class WindowService {
 
 		// Check Discord connection when window is shown (e.g., from tray)
 		this.mainWindow.on("show", () => {
-			if (!discordRpcService.isConnected()) {
+			if (!this.discord.isConnected()) {
 				logger.info("Window shown, trying to reconnect to Discord")
-				discordRpcService.connect().catch((error) => {
+				this.discord.connect().catch((error) => {
 					logger.error(`Failed to reconnect to Discord when showing window: ${error}`)
 				})
 			}
@@ -283,5 +275,3 @@ export class WindowService {
 		}
 	}
 }
-
-export const windowService = WindowService.getInstance()

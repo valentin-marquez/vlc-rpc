@@ -3,28 +3,28 @@ import { is } from "@electron-toolkit/utils"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import {
+	Tray as ElectronTray,
 	Menu,
 	type MenuItemConstructorOptions,
-	Tray,
 	app,
 	nativeImage,
 	powerMonitor,
 } from "electron"
 import iconPath16 from "../../../../resources/icons/16x16.png?asset"
-import { startupService } from "./app.startup"
-import { windowService } from "./app.window"
+import type { Startup } from "./app.startup"
+import type { Window } from "./app.window"
 
 /**
  * System tray service
  */
-export class TrayService {
-	private static instance: TrayService | null = null
-	private tray: Tray | null = null
+export class Tray {
+	private tray: ElectronTray | null = null
+	private window: Window | null = null
 	private readyPromise: Promise<void>
 	private readyResolver: (() => void) | null = null
 	private menuUpdateTimer: NodeJS.Timeout | null = null
 
-	private constructor() {
+	constructor(private readonly startup: Startup) {
 		this.readyPromise = new Promise<void>((resolve) => {
 			this.readyResolver = resolve
 		})
@@ -80,13 +80,14 @@ export class TrayService {
 	}
 
 	/**
-	 * Get the singleton instance of the tray service
+	 * Wire the window reference after both this and the window exist. Tray and
+	 * Window depend on each other only inside callbacks that fire well after
+	 * construction, so neither needs the other to be born; this is the one
+	 * connection the composition root makes explicit instead of leaving it
+	 * hidden behind two modules importing each other.
 	 */
-	public static getInstance(): TrayService {
-		if (!TrayService.instance) {
-			TrayService.instance = new TrayService()
-		}
-		return TrayService.instance
+	public setWindow(window: Window): void {
+		this.window = window
 	}
 
 	/**
@@ -144,13 +145,13 @@ export class TrayService {
 				}
 			}
 
-			this.tray = new Tray(trayIcon)
+			this.tray = new ElectronTray(trayIcon)
 			this.tray.setIgnoreDoubleClickEvents(true)
 			this.tray.setToolTip("VLC Discord Rich Presence")
 			this.updateContextMenu()
 
 			this.tray.on("click", () => {
-				windowService.showWindow()
+				this.window?.showWindow()
 			})
 
 			logger.info("Tray initialized successfully")
@@ -209,13 +210,13 @@ export class TrayService {
 
 			const svgBuffer = Buffer.from(svgIcon)
 			const nativeImg = nativeImage.createFromBuffer(svgBuffer)
-			this.tray = new Tray(nativeImg)
+			this.tray = new ElectronTray(nativeImg)
 
 			this.tray.setToolTip("VLC Discord Rich Presence")
 			this.updateContextMenu()
 
 			this.tray.on("click", () => {
-				windowService.showWindow()
+				this.window?.showWindow()
 			})
 
 			logger.info("Fallback tray initialized")
@@ -283,7 +284,7 @@ export class TrayService {
 			const menuItems: MenuItemConstructorOptions[] = [
 				{
 					label: "Open VLC Discord RP",
-					click: () => windowService.showWindow(),
+					click: () => this.window?.showWindow(),
 				},
 				{ type: "separator" },
 				{
@@ -298,7 +299,7 @@ export class TrayService {
 			]
 
 			// Only show "Start with System" for non-portable versions
-			if (!startupService.isPortable()) {
+			if (!this.startup.isPortable()) {
 				menuItems.push({
 					label: "Start with System",
 					type: "checkbox",
@@ -306,7 +307,7 @@ export class TrayService {
 					click: () => {
 						const newValue = !config.startWithSystem
 						configService.set("startWithSystem", newValue)
-						startupService.setStartAtLogin(newValue)
+						this.startup.setStartAtLogin(newValue)
 					},
 				})
 			}
@@ -330,5 +331,3 @@ export class TrayService {
 		}
 	}
 }
-
-export const trayService = TrayService.getInstance()

@@ -8,8 +8,7 @@ interface ImageUploadService {
 	supportsExpiry: boolean
 }
 
-export class MultiImageUploaderService {
-	private static instance: MultiImageUploaderService | null = null
+export class Uploader {
 	private readonly appVersion = "4.0.2"
 	private readonly appName = "VLC-Discord-RPC"
 
@@ -57,16 +56,9 @@ export class MultiImageUploaderService {
 		},
 	]
 
-	private constructor() {
+	constructor() {
 		logger.info("Multi-service image uploader initialized")
 		this.shuffleUserAgents()
-	}
-
-	public static getInstance(): MultiImageUploaderService {
-		if (!MultiImageUploaderService.instance) {
-			MultiImageUploaderService.instance = new MultiImageUploaderService()
-		}
-		return MultiImageUploaderService.instance
 	}
 
 	public async uploadImage(
@@ -341,5 +333,3 @@ export class MultiImageUploaderService {
 		}
 	}
 }
-
-export const multiImageUploaderService = MultiImageUploaderService.getInstance()

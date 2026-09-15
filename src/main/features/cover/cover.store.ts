@@ -6,21 +6,9 @@ import type { FileMetadata } from "@shared/config/app-config"
  * Service to manage metadata for media files using electron-conf
  * This service handles storing and retrieving metadata centrally without creating individual JSON files
  */
-export class MetadataWriterService {
-	private static instance: MetadataWriterService | null = null
-
-	private constructor() {
+export class Store {
+	constructor() {
 		logger.info("Metadata writer service initialized")
-	}
-
-	/**
-	 * Get the singleton instance of the metadata writer service
-	 */
-	public static getInstance(): MetadataWriterService {
-		if (!MetadataWriterService.instance) {
-			MetadataWriterService.instance = new MetadataWriterService()
-		}
-		return MetadataWriterService.instance
 	}
 
 	/**
@@ -268,5 +256,3 @@ export class MetadataWriterService {
 		}
 	}
 }
-
-export const metadataWriterService = MetadataWriterService.getInstance()

@@ -1,13 +1,13 @@
 import { configService } from "@main/core/config"
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { metadataWriterService } from "./cover.store"
+import type { Store } from "./cover.store"
 
 /**
  * Metadata handler for IPC communication
  */
 export class MetadataHandler {
-	constructor() {
+	constructor(private readonly store: Store) {
 		this.registerHandlers()
 		logger.info("Metadata handler initialized")
 	}
@@ -18,7 +18,7 @@ export class MetadataHandler {
 	private registerHandlers(): void {
 		registerHandler("metadata:clear-cache", async () => {
 			try {
-				const stats = metadataWriterService.getMetadataStats()
+				const stats = this.store.getMetadataStats()
 
 				configService.set("fileMetadata", {})
 
@@ -40,8 +40,8 @@ export class MetadataHandler {
 
 		registerHandler("metadata:get-stats", async () => {
 			try {
-				const stats = metadataWriterService.getMetadataStats()
-				const allMetadata = metadataWriterService.getAllMetadata()
+				const stats = this.store.getMetadataStats()
+				const allMetadata = this.store.getAllMetadata()
 
 				const cacheSize = JSON.stringify(allMetadata).length
 				const cacheSizeKB = Math.round(cacheSize / 1024)
@@ -73,7 +73,7 @@ export class MetadataHandler {
 
 		registerHandler("metadata:cleanup-expired", async () => {
 			try {
-				const cleanedCount = await metadataWriterService.cleanupExpiredMetadata()
+				const cleanedCount = await this.store.cleanupExpiredMetadata()
 
 				logger.info(`Cleaned up ${cleanedCount} expired metadata entries`)
 				return {

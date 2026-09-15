@@ -6,23 +6,12 @@ import { logger } from "@main/core/logger"
  * Service for proxying images from various sources to data URLs
  * to avoid Content Security Policy restrictions
  */
-export class ImageProxyService {
-	private static instance: ImageProxyService | null = null
+export class ImageProxy {
 	private cache: Map<string, { dataUrl: string; timestamp: number }> = new Map()
 	private readonly cacheTtl = 3600 // Cache TTL in seconds (1 hour)
 
-	private constructor() {
+	constructor() {
 		logger.info("Image proxy service initialized")
-	}
-
-	/**
-	 * Get the singleton instance of the image proxy service
-	 */
-	public static getInstance(): ImageProxyService {
-		if (!ImageProxyService.instance) {
-			ImageProxyService.instance = new ImageProxyService()
-		}
-		return ImageProxyService.instance
 	}
 
 	/**
@@ -127,5 +116,3 @@ export class ImageProxyService {
 		return url
 	}
 }
-
-export const imageProxyService = ImageProxyService.getInstance()
