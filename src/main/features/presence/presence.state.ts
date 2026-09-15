@@ -1,7 +1,7 @@
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
-import { coverArtService } from "@main/features/cover"
-import { VideoAnalyzerService } from "@main/features/media"
+import type { Resolver as CoverResolver } from "@main/features/cover"
+import type { Analyzer as MediaAnalyzer } from "@main/features/media"
 import { applyTemplate, getDefaultLayout, getLayoutByPreset } from "@shared/presence/layout"
 import type { DiscordPresenceData } from "@shared/presence/presence.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
@@ -38,6 +38,13 @@ class NoStatusState extends MediaState {
 }
 
 class PlayingState extends MediaState {
+	constructor(
+		private readonly cover: CoverResolver,
+		private readonly analyzer: MediaAnalyzer,
+	) {
+		super()
+	}
+
 	public async updatePresence(mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
 		if (!mediaInfo) {
 			return null
@@ -76,8 +83,7 @@ class PlayingState extends MediaState {
 			state = applyTemplate(layout.musicState, variables)
 		} else {
 			// For video content, analyze the video and provide richer information
-			const videoAnalyzer = VideoAnalyzerService.getInstance()
-			const videoAnalysis = videoAnalyzer.analyzeVideo(mediaInfo)
+			const videoAnalysis = this.analyzer.analyzeVideo(mediaInfo)
 
 			let episodeInfo = ""
 			if (videoAnalysis.isTvShow) {
@@ -146,7 +152,7 @@ class PlayingState extends MediaState {
 		}
 
 		if (mediaType === "audio" && media) {
-			const coverArtUrl = await coverArtService.fetch(mediaInfo)
+			const coverArtUrl = await this.cover.fetch(mediaInfo)
 			if (coverArtUrl) {
 				largeImage = coverArtUrl
 			}
@@ -182,6 +188,13 @@ class PlayingState extends MediaState {
 }
 
 class PausedState extends MediaState {
+	constructor(
+		private readonly cover: CoverResolver,
+		private readonly analyzer: MediaAnalyzer,
+	) {
+		super()
+	}
+
 	public async updatePresence(mediaInfo: VlcStatus | null): Promise<DiscordPresenceData | null> {
 		if (!mediaInfo) {
 			return null
@@ -207,8 +220,7 @@ class PausedState extends MediaState {
 			state = `by ${media.artist || "Unknown Artist"}`
 		} else {
 			// For video content, analyze the video and provide richer information
-			const videoAnalyzer = VideoAnalyzerService.getInstance()
-			const videoAnalysis = videoAnalyzer.analyzeVideo(mediaInfo)
+			const videoAnalysis = this.analyzer.analyzeVideo(mediaInfo)
 
 			if (videoAnalysis.isTvShow) {
 				// TV Show: Show name as details, episode info as state
@@ -258,7 +270,7 @@ class PausedState extends MediaState {
 		}
 
 		if (mediaType === "audio" && media) {
-			const coverArtUrl = await coverArtService.fetch(mediaInfo)
+			const coverArtUrl = await this.cover.fetch(mediaInfo)
 			if (coverArtUrl) {
 				largeImage = coverArtUrl
 			}
@@ -291,26 +303,18 @@ interface MediaStates {
 	paused: MediaState
 }
 
-export class MediaStateService {
-	private static instance: MediaStateService | null = null
+export class Service {
 	private states: MediaStates
 
-	private constructor() {
+	constructor(cover: CoverResolver, analyzer: MediaAnalyzer) {
 		this.states = {
 			stopped: new StoppedState(),
 			noStatus: new NoStatusState(),
-			playing: new PlayingState(),
-			paused: new PausedState(),
+			playing: new PlayingState(cover, analyzer),
+			paused: new PausedState(cover, analyzer),
 		}
 
 		logger.info("Media state service initialized")
-	}
-
-	public static getInstance(): MediaStateService {
-		if (!MediaStateService.instance) {
-			MediaStateService.instance = new MediaStateService()
-		}
-		return MediaStateService.instance
 	}
 
 	public async getDiscordPresence(
@@ -334,5 +338,3 @@ export class MediaStateService {
 		}
 	}
 }
-
-export const mediaStateService = MediaStateService.getInstance()

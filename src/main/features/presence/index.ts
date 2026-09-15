@@ -1,1 +1,1 @@
-export { MediaStateService, mediaStateService } from "./presence.state"
+export { Service } from "./presence.state"
