@@ -50,9 +50,7 @@ export class MediaInfoHandler {
 		}
 
 		try {
-			// Use the media info directly since VLC status service already provides reliable type detection
-			const mediaInfo: VlcStatus & DetectedMediaInfo = { ...vlcStatus } as VlcStatus &
-				DetectedMediaInfo
+			const mediaInfo: VlcStatus & DetectedMediaInfo = { ...vlcStatus }
 
 			// For audio content, try to get cover art
 			if (vlcStatus.mediaType === "audio") {
@@ -82,7 +80,7 @@ export class MediaInfoHandler {
 			return mediaInfo
 		} catch (error) {
 			logger.error(`Error processing media info: ${error}`)
-			return vlcStatus as VlcStatus & DetectedMediaInfo
+			return vlcStatus
 		}
 	}
 
