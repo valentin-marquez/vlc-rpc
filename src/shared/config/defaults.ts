@@ -8,9 +8,8 @@ export const DEFAULT_CONFIG: AppConfig = {
 	largeImage: "logo",
 	pausedImage: "paused",
 	playingImage: "playing",
-	presenceUpdateInterval: 1,
-	fastCheckInterval: 1,
-	statusTimeout: 5,
+	presenceUpdateInterval: 1500,
+	statusTimeout: 2000,
 	vlc: {
 		httpPort: 9080,
 		httpPassword: "",
