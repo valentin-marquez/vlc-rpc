@@ -1,4 +1,5 @@
 import { logger } from "@main/core/logger"
+import type { FileMetadata } from "@shared/config/app-config"
 
 interface ImageUploadService {
 	name: string
@@ -290,8 +291,8 @@ export class MultiImageUploaderService {
 		}
 	}
 
-	public generateMetadataTags(imageUrl: string, expiryDate?: Date): Record<string, string> {
-		const tags: Record<string, string> = {
+	public generateMetadataTags(imageUrl: string, expiryDate?: Date): Partial<FileMetadata> {
+		const tags: Partial<FileMetadata> = {
 			"X-COVER-URL": imageUrl,
 			"X-APP-VERSION": this.appVersion,
 			"X-PROCESSED-BY": this.appName,
@@ -304,7 +305,7 @@ export class MultiImageUploaderService {
 		return tags
 	}
 
-	public parseMetadataTags(metadata: Record<string, string | undefined>): {
+	public parseMetadataTags(metadata: Partial<FileMetadata>): {
 		imageUrl: string | null
 		isExpired: boolean
 		appVersion: string | null

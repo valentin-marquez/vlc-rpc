@@ -62,7 +62,7 @@ export class MetadataWriterService {
 	 * @param tags - Metadata tags to write
 	 * @returns True if successful, false otherwise
 	 */
-	public async writeMetadataTags(filePath: string, tags: Record<string, string>): Promise<boolean> {
+	public async writeMetadataTags(filePath: string, tags: Partial<FileMetadata>): Promise<boolean> {
 		try {
 			logger.info(`Storing metadata for: ${filePath}`)
 
@@ -110,7 +110,7 @@ export class MetadataWriterService {
 	 * @param filePath - Path to the audio file
 	 * @returns Metadata tags object or null if not found
 	 */
-	public async readMetadataTags(filePath: string): Promise<Record<string, string> | null> {
+	public async readMetadataTags(filePath: string): Promise<FileMetadata | null> {
 		try {
 			// Normalize file path for consistent retrieval
 			const normalizedPath = this.normalizeFilePath(filePath)
@@ -123,7 +123,7 @@ export class MetadataWriterService {
 
 			if (metadata) {
 				logger.info(`Read metadata for: ${normalizedPath}`)
-				return metadata as unknown as Record<string, string>
+				return metadata
 			}
 
 			logger.info(`No metadata found for: ${normalizedPath}`)
