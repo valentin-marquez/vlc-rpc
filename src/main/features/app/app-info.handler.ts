@@ -1,12 +1,12 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
-import { startupService } from "./app.startup"
+import type { Startup } from "./app.startup"
 
 /**
  * Handler for app info requests
  */
 export class AppInfoHandler {
-	constructor() {
+	constructor(private readonly startup: Startup) {
 		this.registerHandlers()
 		logger.info("App info handler initialized")
 	}
@@ -14,7 +14,7 @@ export class AppInfoHandler {
 	private registerHandlers(): void {
 		registerHandler("app:is-portable", async () => {
 			try {
-				const isPortable = startupService.isPortable()
+				const isPortable = this.startup.isPortable()
 				logger.info(`App is portable: ${isPortable}`)
 				return isPortable
 			} catch (error) {

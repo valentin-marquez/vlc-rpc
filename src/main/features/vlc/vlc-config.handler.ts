@@ -9,7 +9,7 @@ import { VLC_CONFIG_PATHS } from "@shared/config/defaults"
 
 import { parseVlcConfig } from "./vlc-config.mapper"
 import type { VlcConfigRead } from "./vlc-config.types"
-import { vlcStatusService } from "./vlc.client"
+import type { Client } from "./vlc.client"
 
 /**
  * Handler for VLC configuration operations
@@ -25,7 +25,7 @@ export class VlcConfigHandler {
 	 */
 	public readonly ready: Promise<void>
 
-	constructor() {
+	constructor(private readonly vlc: Client) {
 		this.determineVlcConfigPath()
 		this.registerHandlers()
 		this.ready = this.synchronizeConfig()
@@ -122,7 +122,7 @@ export class VlcConfigHandler {
 		}
 
 		configService.set("vlc", result.config)
-		vlcStatusService.updateConnectionInfo()
+		this.vlc.updateConnectionInfo()
 		return result.config
 	}
 
@@ -357,6 +357,6 @@ export class VlcConfigHandler {
 		})
 
 		configService.set("vlc", result.config)
-		vlcStatusService.updateConnectionInfo()
+		this.vlc.updateConnectionInfo()
 	}
 }

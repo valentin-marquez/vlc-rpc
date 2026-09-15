@@ -23,10 +23,13 @@ vi.mock("@main/core/config", () => ({
 }))
 
 vi.mock("./vlc.client", () => ({
-	vlcStatusService: { updateConnectionInfo: () => {} },
+	Client: class {
+		updateConnectionInfo() {}
+	},
 }))
 
 import { VlcConfigHandler } from "./vlc-config.handler"
+import { Client } from "./vlc.client"
 
 let root: string
 
@@ -38,7 +41,7 @@ function handlerFor(fixture: string | null): VlcConfigHandler {
 		copyFileSync(join(__dirname, "__fixtures__", `${fixture}.txt`), join(vlcDir, "vlcrc"))
 	}
 	process.env.APPDATA = root
-	return new VlcConfigHandler()
+	return new VlcConfigHandler(new Client())
 }
 
 beforeEach(() => {
@@ -116,7 +119,7 @@ describe.runIf(process.platform === "win32")("synchronizeConfig", () => {
 		mkdirSync(join(root, "vlc"), { recursive: true })
 		writeFileSync(join(root, "vlc", "vlcrc"), "[core]\nhttp-port=4321\n")
 		process.env.APPDATA = root
-		const handler = new VlcConfigHandler()
+		const handler = new VlcConfigHandler(new Client())
 		await handler.ready
 		configSetCalls.length = 0
 
