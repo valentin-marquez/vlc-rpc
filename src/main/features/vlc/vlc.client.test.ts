@@ -89,6 +89,20 @@ describe("readStatus", () => {
 
 		expect(second).toBe(first)
 	})
+
+	it("handles a stream with no known duration", async () => {
+		// length: 0 from VLC, distinct from the -1 a VBR file with no Xing
+		// header reports (see the untagged mp3 fixture). Both mean "no bar",
+		// but for different reasons: this one never has a duration to report.
+		respondWith(fixture("stream-no-duration.status"))
+		const status = await vlcStatusService.readStatus(true)
+
+		expect(status?.active).toBe(true)
+		expect(status?.mediaType).toBe("audio")
+		expect(status?.playback.duration).toBe(0)
+		expect(status?.playback.time).toBe(0)
+		expect(status?.media.title).toContain("Groove Salad")
+	})
 })
 
 describe("media type detection", () => {
@@ -198,5 +212,12 @@ describe("getCurrentFileUri", () => {
 	it("returns null when nothing is playing", async () => {
 		respondWith(JSON.stringify({ ro: "rw", type: "node", name: "Playlist", id: "0" }))
 		expect(await vlcStatusService.getCurrentFileUri()).toBeNull()
+	})
+
+	it("returns a stream URL as is, not just file:// paths", async () => {
+		respondWith(fixture("stream-no-duration.playlist"))
+		const uri = await vlcStatusService.getCurrentFileUri()
+
+		expect(uri).toBe("http://ice1.somafm.com/groovesalad-128-mp3")
 	})
 })

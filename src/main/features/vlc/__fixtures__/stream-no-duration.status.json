@@ -1,0 +1,74 @@
+{
+	"fullscreen": 0,
+	"stats": {
+		"inputbitrate": 0,
+		"sentbytes": 0,
+		"lostabuffers": 0,
+		"averagedemuxbitrate": 0,
+		"readpackets": 33,
+		"demuxreadpackets": 0,
+		"lostpictures": 0,
+		"displayedpictures": 0,
+		"sentpackets": 0,
+		"demuxreadbytes": 836,
+		"demuxbitrate": 0,
+		"playedabuffers": 0,
+		"demuxdiscontinuity": 0,
+		"decodedaudio": 1,
+		"sendbitrate": 0,
+		"readbytes": 278266,
+		"averageinputbitrate": 0,
+		"demuxcorrupted": 0,
+		"decodedvideo": 0
+	},
+	"seek_sec": 10,
+	"apiversion": 3,
+	"currentplid": 3,
+	"time": 0,
+	"volume": 0,
+	"length": 0,
+	"random": false,
+	"audiofilters": {
+		"filter_0": ""
+	},
+	"information": {
+		"chapter": 0,
+		"chapters": [],
+		"title": 0,
+		"category": {
+			"meta": {
+				"title": "Groove Salad: a nicely chilled plate of ambient beats and grooves. [SomaFM]",
+				"filename": "groovesalad-128-mp3",
+				"genre": "Ambient Chill",
+				"now_playing": "Big Url: - Broadcasting Around The Worl"
+			},
+			"Emisión 0": {
+				"Códec": "MPEG Audio layer 1/2 (mpga)",
+				"Tasa_de_muestra": "44100 Hz",
+				"Formato_decodificado": "32 bits float LE (f32l)",
+				"Tipo": "Audio",
+				"Decoded_Bitrate": "128 kb/s",
+				"Canales": "Estéreo",
+				"Tasa_de_bits": "128 kb/s",
+				"Decoded_bits_per_sample": "32"
+			}
+		},
+		"titles": []
+	},
+	"rate": 1,
+	"videoeffects": {
+		"hue": 0,
+		"saturation": 1,
+		"contrast": 1,
+		"brightness": 1,
+		"gamma": 1
+	},
+	"state": "playing",
+	"loop": true,
+	"version": "3.0.23 Vetinari",
+	"position": 0,
+	"audiodelay": 0,
+	"repeat": false,
+	"subtitledelay": 0,
+	"equalizer": []
+}
