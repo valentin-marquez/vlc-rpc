@@ -86,32 +86,30 @@ describe("readStatus", () => {
 })
 
 describe("media type detection", () => {
-	// KNOWN BUG, pinned deliberately.
-	//
-	// All three of these fixtures are real video files. VLC translates the keys
-	// inside information.category to its interface language, so on a Spanish VLC
-	// the field is `Tipo: "Vídeo"` and not `Type: "Video"`. convertVlcStatus
-	// compares against the English literal, so isVideo never becomes true and
-	// every video is reported to Discord as music.
-	//
-	// When this is fixed, these three expectations flip to "video" and the
-	// videoInfo one starts returning 1280x720. That diff is the fix.
-	it.each(["video-tv-show", "video-movie", "video-anime"])(
-		"misdetects %s as audio on a non English VLC",
-		async (name) => {
+	// All three fixtures are real video files captured from a Spanish VLC,
+	// where information.category uses "Tipo": "Vídeo", not "Type": "Video".
+	// Detection matches by the resolution value's shape instead, so it holds
+	// regardless of VLC's interface language. See vlc.mapper.ts.
+	it.each([
+		["video-tv-show", 1280, 720],
+		["video-movie", 1280, 720],
+		["video-anime", 1280, 720],
+	])("detects %s as video with its resolution", async (name, width, height) => {
+		respondWith(fixture(`${name}.status`))
+		const status = await vlcStatusService.readStatus(true)
+
+		expect(status?.mediaType).toBe("video")
+		expect(status?.videoInfo).toEqual({ width, height })
+	})
+
+	it("detects untagged and embedded art audio as audio, with no videoInfo", async () => {
+		for (const name of ["audio-no-art", "audio-embedded-art"]) {
 			respondWith(fixture(`${name}.status`))
 			const status = await vlcStatusService.readStatus(true)
 
 			expect(status?.mediaType).toBe("audio")
 			expect(status?.videoInfo).toBeUndefined()
-		},
-	)
-
-	it("detects audio correctly, which is why the bug goes unnoticed", async () => {
-		respondWith(fixture("audio-no-art.status"))
-		const status = await vlcStatusService.readStatus(true)
-
-		expect(status?.mediaType).toBe("audio")
+		}
 	})
 })
 

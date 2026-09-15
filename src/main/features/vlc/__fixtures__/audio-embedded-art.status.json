@@ -1,0 +1,76 @@
+{
+	"fullscreen": 0,
+	"stats": {
+		"inputbitrate": 0,
+		"sentbytes": 0,
+		"lostabuffers": 0,
+		"averagedemuxbitrate": 0,
+		"readpackets": 322,
+		"demuxreadpackets": 0,
+		"lostpictures": 0,
+		"displayedpictures": 0,
+		"sentpackets": 0,
+		"demuxreadbytes": 62693,
+		"demuxbitrate": 0,
+		"playedabuffers": 59,
+		"demuxdiscontinuity": 0,
+		"decodedaudio": 119,
+		"sendbitrate": 0,
+		"readbytes": 329504,
+		"averageinputbitrate": 0,
+		"demuxcorrupted": 0,
+		"decodedvideo": 0
+	},
+	"seek_sec": 10,
+	"apiversion": 3,
+	"currentplid": 3,
+	"time": 20,
+	"volume": 0,
+	"length": 233,
+	"random": false,
+	"audiofilters": {
+		"filter_0": ""
+	},
+	"information": {
+		"chapter": 0,
+		"chapters": [],
+		"title": 0,
+		"category": {
+			"meta": {
+				"album": "Ahora",
+				"filename": "embedded-art.mp3",
+				"date": "2019",
+				"artwork_url": "file:///C:/Users/LENOVO/AppData/Roaming/vlc/art/artistalbum/Christian%20Nodal/Ahora/art.png",
+				"artist": "Christian Nodal",
+				"title": "Probablemente"
+			},
+			"Emisión 0": {
+				"Códec": "MPEG Audio layer 1/2 (mpga)",
+				"Tasa_de_muestra": "44100 Hz",
+				"Formato_decodificado": "32 bits float LE (f32l)",
+				"Tipo": "Audio",
+				"Decoded_Bitrate": "320 kb/s",
+				"Canales": "Estéreo",
+				"Tasa_de_bits": "320 kb/s",
+				"Decoded_bits_per_sample": "32"
+			}
+		},
+		"titles": []
+	},
+	"rate": 1,
+	"videoeffects": {
+		"hue": 0,
+		"saturation": 1,
+		"contrast": 1,
+		"brightness": 1,
+		"gamma": 1
+	},
+	"state": "playing",
+	"loop": true,
+	"version": "3.0.23 Vetinari",
+	"position": 0.085821181535721,
+	"audiodelay": 0,
+	"repeat": false,
+	"subtitledelay": 0,
+	"equalizer": []
+}

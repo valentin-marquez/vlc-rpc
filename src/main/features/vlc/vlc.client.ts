@@ -3,13 +3,8 @@ import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import type { VlcConfig } from "@shared/config/app-config"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
-import type {
-	VlcMetadata,
-	VlcPlaylistItem,
-	VlcPlaylistResponse,
-	VlcRawStatus,
-	VlcStreamInfo,
-} from "./vlc.types"
+import { detectVideoStream } from "./vlc.mapper"
+import type { VlcMetadata, VlcPlaylistItem, VlcPlaylistResponse, VlcRawStatus } from "./vlc.types"
 
 /**
  * Service to read and process VLC media status through HTTP interface
@@ -238,22 +233,11 @@ export class VlcStatusService {
 		const information = vlcStatus.information || {}
 		const category = information.category || {}
 
-		// Simple and reliable media type detection using VLC stream information
-		let isVideo = false
-
-		// Check all streams in the category to determine media type
-		for (const [key, stream] of Object.entries(category)) {
-			if (key !== "meta" && stream) {
-				const typedStream = stream as VlcStreamInfo
-				if (typedStream.Type === "Video") {
-					isVideo = true
-					logger.info(`Found video stream: ${typedStream.Codec}`)
-					break // If we find a video stream, it's definitely video content
-				}
-			}
-		}
+		// See detectVideoStream: matches by shape, not by VLC's localized field names.
+		const { isVideo, videoInfo } = detectVideoStream(category)
 
 		status.mediaType = isVideo ? "video" : "audio"
+		status.videoInfo = videoInfo
 		logger.info(`Media type detected: ${status.mediaType}`)
 
 		// Get metadata from VLC
@@ -298,21 +282,6 @@ export class VlcStatusService {
 			} else {
 				// Use local artwork URL if available
 				status.media.artworkUrl = meta.artwork_url
-			}
-		}
-
-		// Extract video resolution info
-		for (const [streamName, stream] of Object.entries(category)) {
-			if (streamName !== "meta" && stream) {
-				const typedStream = stream as VlcStreamInfo
-				if (typedStream.Type === "Video") {
-					const resolution = typedStream.Video_resolution || ""
-					if (resolution?.includes("x")) {
-						const [width, height] = resolution.split("x").map((dim) => Number.parseInt(dim, 10))
-						status.videoInfo = { width, height }
-						break
-					}
-				}
 			}
 		}
 
