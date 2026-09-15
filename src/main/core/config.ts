@@ -53,20 +53,24 @@ class ConfigService {
 	}
 
 	/**
-	 * Get a configuration value
+	 * Get the full configuration
 	 */
-	public get<T>(key?: string): T {
+	public get(): AppConfig
+	/**
+	 * Get a single configuration value
+	 */
+	public get<K extends keyof AppConfig>(key: K): AppConfig[K]
+	public get<K extends keyof AppConfig>(key?: K): AppConfig | AppConfig[K] {
 		if (key) {
-			return this.conf.get(key) as T
+			return this.conf.get(key)
 		}
-		// When no key is provided, return the full config using the store property
-		return this.conf.store as T
+		return this.conf.store
 	}
 
 	/**
 	 * Set a configuration value
 	 */
-	public set(key: string, value: unknown): void {
+	public set<K extends keyof AppConfig>(key: K, value: AppConfig[K]): void {
 		this.conf.set(key, value)
 		logger.info(`Config updated: ${key}`, { value })
 	}
@@ -74,7 +78,7 @@ class ConfigService {
 	/**
 	 * Delete a configuration value
 	 */
-	public delete(key: string): void {
+	public delete<K extends keyof AppConfig>(key: K): void {
 		this.conf.delete(key)
 		logger.info(`Config deleted: ${key}`)
 	}

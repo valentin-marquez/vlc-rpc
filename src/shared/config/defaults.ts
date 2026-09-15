@@ -21,6 +21,7 @@ export const DEFAULT_CONFIG: AppConfig = {
 	startWithSystem: true,
 	version: "3.0.0", // Default version, will be overridden at runtime
 	fileMetadata: {}, // Empty object for file metadata storage
+	rpcEnabled: true,
 	presenceLayout: getDefaultLayout(),
 	layoutPreset: "default",
 }

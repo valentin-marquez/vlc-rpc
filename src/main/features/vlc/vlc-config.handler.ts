@@ -98,7 +98,7 @@ export class VlcConfigHandler {
 				found: true,
 				config: {
 					httpPort: parsed.httpPort,
-					httpPassword: parsed.httpPassword ?? configService.get<VlcConfig>("vlc").httpPassword,
+					httpPassword: parsed.httpPassword ?? configService.get("vlc").httpPassword,
 					httpEnabled: parsed.httpEnabled,
 				},
 			}
@@ -118,7 +118,7 @@ export class VlcConfigHandler {
 	public async getVlcConfig(): Promise<VlcConfig> {
 		const result = await this.readVlcConfigFile()
 		if (!result.found) {
-			return configService.get<VlcConfig>("vlc")
+			return configService.get("vlc")
 		}
 
 		configService.set("vlc", result.config)
@@ -337,7 +337,7 @@ export class VlcConfigHandler {
 			return
 		}
 
-		const appConfig = configService.get<VlcConfig>("vlc")
+		const appConfig = configService.get("vlc")
 		const isDifferent =
 			result.config.httpPort !== appConfig.httpPort ||
 			result.config.httpPassword !== appConfig.httpPassword ||

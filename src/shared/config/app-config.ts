@@ -36,6 +36,9 @@ export interface AppConfig {
 	version: string
 	// File metadata storage
 	fileMetadata: Record<string, FileMetadata> // key = file path, value = metadata
+	// RPC enable/disable state, including a temporary disable window
+	rpcEnabled: boolean
+	rpcDisabledUntil?: number
 	// Discord Rich Presence layout configuration
 	presenceLayout?: PresenceLayout
 	layoutPreset?: LayoutPreset

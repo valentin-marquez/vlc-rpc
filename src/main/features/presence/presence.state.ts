@@ -2,7 +2,6 @@ import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import { coverArtService } from "@main/features/cover"
 import { VideoAnalyzerService } from "@main/features/media"
-import type { AppConfig } from "@shared/config/app-config"
 import { applyTemplate, getDefaultLayout, getLayoutByPreset } from "@shared/presence/layout"
 import type { DiscordPresenceData } from "@shared/presence/presence.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
@@ -44,7 +43,7 @@ class PlayingState extends MediaState {
 			return null
 		}
 
-		const config = configService.get<AppConfig>()
+		const config = configService.get()
 		const currentTime = Math.floor(Date.now() / 1000)
 
 		const media = mediaInfo.media
@@ -188,7 +187,7 @@ class PausedState extends MediaState {
 			return null
 		}
 
-		const config = configService.get<AppConfig>()
+		const config = configService.get()
 
 		const media = mediaInfo.media
 		const mediaType = mediaInfo.mediaType || "unknown"
