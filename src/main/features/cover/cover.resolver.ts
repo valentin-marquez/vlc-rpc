@@ -5,17 +5,6 @@ import type { VlcStatus } from "@shared/vlc/vlc.types"
 import { metadataWriterService } from "./cover.store"
 import { multiImageUploaderService } from "./cover.uploader"
 
-/** Media data structure for cover art searching */
-interface MediaData {
-	title?: string
-	artist?: string
-	album?: string
-	artworkUrl?: string
-	date?: string
-	year?: string
-	[key: string]: string | undefined
-}
-
 /** Service to fetch album cover art for audio files */
 export class CoverArtService {
 	private static instance: CoverArtService | null = null
@@ -109,13 +98,13 @@ export class CoverArtService {
 	}
 
 	/** Extract media data from the input */
-	private extractMediaData(mediaInfo: VlcStatus | null): MediaData | null {
+	private extractMediaData(mediaInfo: VlcStatus | null): VlcStatus["media"] | null {
 		if (!mediaInfo || typeof mediaInfo !== "object") {
 			logger.info("No valid media info provided for cover art")
 			return null
 		}
 
-		return mediaInfo.media as MediaData
+		return mediaInfo.media
 	}
 }
 
