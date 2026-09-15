@@ -1,0 +1,32 @@
+{
+	"ro": "rw",
+	"type": "node",
+	"name": "",
+	"id": "0",
+	"children": [
+		{
+			"ro": "ro",
+			"type": "node",
+			"name": "Lista de reproducción",
+			"id": "1",
+			"children": [
+				{
+					"ro": "rw",
+					"type": "leaf",
+					"name": "Probablemente",
+					"id": "3",
+					"duration": 233,
+					"uri": "file:///C:/Users/LENOVO/AppData/Local/Temp/claude/C--dev-vlc-rpc/da83dd1f-46ff-483e-b9f1-31b7e75c0212/scratchpad/embedded-art.mp3",
+					"current": "current"
+				}
+			]
+		},
+		{
+			"ro": "ro",
+			"type": "node",
+			"name": "Biblioteca multimedia",
+			"id": "2",
+			"children": []
+		}
+	]
+}

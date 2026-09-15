@@ -115,7 +115,14 @@ def capture(label, target, pause=False, seek=None):
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     try:
-        status = wait_for(lambda s: s.get("state") == "playing" and s.get("length", 0) != 0)
+        # Esperar a que haya streams, no a que haya duracion. Un mp3 VBR sin
+        # cabecera Xing reporta length -1 durante un rato, y un stream de red
+        # reporta 0 para siempre, asi que la duracion no dice si VLC ya parseo
+        # el medio. La presencia de streams si.
+        status = wait_for(
+            lambda s: s.get("state") == "playing"
+            and any(k != "meta" for k in s.get("information", {}).get("category", {}))
+        )
         if status is None:
             print(f"  {label}: TIMEOUT, VLC no llego a reproducir")
             return False
