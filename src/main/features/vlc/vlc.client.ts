@@ -49,6 +49,16 @@ export class Client {
 	}
 
 	/**
+	 * Timeout for a single request to VLC, from config, clamped so a corrupt
+	 * or missing value cannot hang a request forever or make the app hammer
+	 * VLC with sub-second aborts.
+	 */
+	private statusTimeoutMs(): number {
+		const configured = configService.get("statusTimeout")
+		return Math.max(500, Math.min(10000, configured || 2000))
+	}
+
+	/**
 	 * Read VLC status through HTTP interface
 	 *
 	 * @param forceUpdate Whether to force an update even if hash hasn't changed
@@ -67,7 +77,7 @@ export class Client {
 			logger.info(`Fetching VLC status from: ${statusUrl}`)
 
 			const controller = new AbortController()
-			const timeoutId = setTimeout(() => controller.abort(), 2000)
+			const timeoutId = setTimeout(() => controller.abort(), this.statusTimeoutMs())
 
 			logger.info(
 				`Making request with headers: ${JSON.stringify({
@@ -149,7 +159,7 @@ export class Client {
 			)
 
 			const controller = new AbortController()
-			const timeoutId = setTimeout(() => controller.abort(), 2000)
+			const timeoutId = setTimeout(() => controller.abort(), this.statusTimeoutMs())
 
 			const response = await fetch(urlWithAuth.toString(), {
 				signal: controller.signal,
@@ -309,7 +319,7 @@ export class Client {
 			logger.info(`Fetching VLC playlist from: ${playlistUrl}`)
 
 			const controller = new AbortController()
-			const timeoutId = setTimeout(() => controller.abort(), 2000)
+			const timeoutId = setTimeout(() => controller.abort(), this.statusTimeoutMs())
 
 			const response = await fetch(playlistUrl, {
 				headers: this.authHeader,
@@ -379,7 +389,7 @@ export class Client {
 			const statusUrl = new URL("status.json", this.baseUrl).toString()
 
 			const controller = new AbortController()
-			const timeoutId = setTimeout(() => controller.abort(), 2000)
+			const timeoutId = setTimeout(() => controller.abort(), this.statusTimeoutMs())
 
 			const response = await fetch(statusUrl, {
 				headers: this.authHeader,
