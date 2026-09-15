@@ -15,12 +15,14 @@ export interface VlcStatus {
 		title?: string
 		artist?: string
 		album?: string
-		artworkUrl?: string
+		artworkUrl?: string | undefined
 	}
-	videoInfo?: {
-		width: number
-		height: number
-	}
+	videoInfo?:
+		| {
+				width: number
+				height: number
+		  }
+		| undefined
 }
 
 /**

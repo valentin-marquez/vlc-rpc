@@ -5,8 +5,8 @@ import type { ActivityType } from "discord-api-types/v10"
 export interface DiscordPresenceData {
 	details?: string
 	state?: string
-	start_timestamp?: number
-	end_timestamp?: number
+	start_timestamp?: number | undefined
+	end_timestamp?: number | undefined
 	large_image?: string
 	large_text?: string
 	small_image?: string

@@ -9,9 +9,9 @@ export interface VideoAnalysis {
 	isTvShow: boolean
 	isMovie: boolean
 	title: string
-	season?: number
-	episode?: number
-	year?: string
+	season?: number | undefined
+	episode?: number | undefined
+	year?: string | undefined
 	duration?: number
 	originalFilename?: string
 }

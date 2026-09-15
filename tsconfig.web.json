@@ -21,6 +21,7 @@
 		"tsBuildInfoFile": "./.tsbuildinfo-web",
 		"skipLibCheck": true,
 		"resolveJsonModule": true,
-		"noUncheckedIndexedAccess": true
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true
 	}
 }

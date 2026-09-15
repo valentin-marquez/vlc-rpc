@@ -23,6 +23,7 @@
 		"incremental": true,
 		"tsBuildInfoFile": "./.tsbuildinfo-node",
 		"skipLibCheck": true,
-		"noUncheckedIndexedAccess": true
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true
 	}
 }
