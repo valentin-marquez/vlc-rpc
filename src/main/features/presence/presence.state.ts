@@ -3,7 +3,6 @@ import { logger } from "@main/core/logger"
 import { coverArtService } from "@main/features/cover"
 import { VideoAnalyzerService } from "@main/features/media"
 import type { AppConfig } from "@shared/config/app-config"
-import type { DetectedMediaInfo } from "@shared/media/media.types"
 import { applyTemplate, getDefaultLayout, getLayoutByPreset } from "@shared/presence/layout"
 import type { DiscordPresenceData } from "@shared/presence/presence.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
@@ -48,11 +47,8 @@ class PlayingState extends MediaState {
 		const config = configService.get<AppConfig>()
 		const currentTime = Math.floor(Date.now() / 1000)
 
-		// Use the media info directly since VLC status service already provides reliable type detection
-		const detectedInfo = mediaInfo as VlcStatus & DetectedMediaInfo
-
-		const media = detectedInfo.media
-		const mediaType = detectedInfo.mediaType || "unknown"
+		const media = mediaInfo.media
+		const mediaType = mediaInfo.mediaType || "unknown"
 
 		// Simple activity type detection based on VLC's media type
 		const activityType = mediaType === "video" ? ActivityType.Watching : ActivityType.Listening
@@ -144,7 +140,7 @@ class PlayingState extends MediaState {
 			largeText = "Watching Video"
 		}
 
-		const videoInfo = detectedInfo.videoInfo
+		const videoInfo = mediaInfo.videoInfo
 		if (mediaType === "video" && videoInfo && videoInfo.width && videoInfo.height) {
 			const resolution = `${videoInfo.width}x${videoInfo.height}`
 			smallText += ` • ${resolution}`
@@ -194,11 +190,8 @@ class PausedState extends MediaState {
 
 		const config = configService.get<AppConfig>()
 
-		// Use the media info directly since VLC status service already provides reliable type detection
-		const detectedInfo = mediaInfo as VlcStatus & DetectedMediaInfo
-
-		const media = detectedInfo.media
-		const mediaType = detectedInfo.mediaType || "unknown"
+		const media = mediaInfo.media
+		const mediaType = mediaInfo.mediaType || "unknown"
 
 		// Simple activity type detection based on VLC's media type
 		const activityType = mediaType === "video" ? ActivityType.Watching : ActivityType.Listening
@@ -259,7 +252,7 @@ class PausedState extends MediaState {
 			largeText = "Watching Video"
 		}
 
-		const videoInfo = detectedInfo.videoInfo
+		const videoInfo = mediaInfo.videoInfo
 		if (mediaType === "video" && videoInfo && videoInfo.width && videoInfo.height) {
 			const resolution = `${videoInfo.width}x${videoInfo.height}`
 			smallText += ` • ${resolution}`
