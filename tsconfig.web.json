@@ -22,6 +22,8 @@
 		"skipLibCheck": true,
 		"resolveJsonModule": true,
 		"noUncheckedIndexedAccess": true,
-		"exactOptionalPropertyTypes": true
+		"exactOptionalPropertyTypes": true,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true
 	}
 }
