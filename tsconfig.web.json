@@ -20,6 +20,10 @@
 		"incremental": true,
 		"tsBuildInfoFile": "./.tsbuildinfo-web",
 		"skipLibCheck": true,
-		"resolveJsonModule": true
+		"resolveJsonModule": true,
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true
 	}
 }

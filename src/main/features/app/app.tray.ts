@@ -248,7 +248,7 @@ export class TrayService {
 		this.stopMenuUpdateTimer()
 
 		this.menuUpdateTimer = setInterval(() => {
-			const config = configService.get<{ rpcDisabledUntil?: number }>()
+			const config = configService.get()
 
 			// Update menu if RPC is temporarily disabled
 			if (config.rpcDisabledUntil && Date.now() < config.rpcDisabledUntil) {
@@ -278,10 +278,7 @@ export class TrayService {
 		}
 
 		try {
-			const config = configService.get<{
-				minimizeToTray: boolean
-				startWithSystem: boolean
-			}>()
+			const config = configService.get()
 
 			const menuItems: MenuItemConstructorOptions[] = [
 				{

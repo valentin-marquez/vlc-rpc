@@ -1,6 +1,5 @@
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
-import type { AppConfig } from "@shared/config/app-config"
 import type { DiscordPresenceData } from "@shared/presence/presence.types"
 
 import { Client, type SetActivity, StatusDisplayType } from "@xhayper/discord-rpc"
@@ -221,18 +220,24 @@ export class DiscordRpcService {
 		}
 
 		try {
-			const config = configService.get<AppConfig>()
+			const config = configService.get()
 
 			// Log the presence data for debugging
 			logger.info("Updating Discord Rich Presence with data:", presenceData)
 
 			const activity: SetActivity = {
-				details: presenceData.details,
-				state: presenceData.state,
 				largeImageKey: presenceData.large_image || config.largeImage,
 				largeImageText: presenceData.large_text || "VLC Media Player",
 				instance: presenceData.instance !== undefined ? presenceData.instance : false,
 				statusDisplayType: StatusDisplayType.DETAILS,
+			}
+
+			if (presenceData.details !== undefined) {
+				activity.details = presenceData.details
+			}
+
+			if (presenceData.state !== undefined) {
+				activity.state = presenceData.state
 			}
 
 			// Set custom application name if provided

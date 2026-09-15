@@ -62,7 +62,7 @@ export class MetadataWriterService {
 	 * @param tags - Metadata tags to write
 	 * @returns True if successful, false otherwise
 	 */
-	public async writeMetadataTags(filePath: string, tags: Record<string, string>): Promise<boolean> {
+	public async writeMetadataTags(filePath: string, tags: Partial<FileMetadata>): Promise<boolean> {
 		try {
 			logger.info(`Storing metadata for: ${filePath}`)
 
@@ -78,8 +78,7 @@ export class MetadataWriterService {
 			const normalizedPath = this.normalizeFilePath(filePath)
 
 			// Get current fileMetadata from config
-			const currentFileMetadata =
-				configService.get<Record<string, FileMetadata>>("fileMetadata") || {}
+			const currentFileMetadata = configService.get("fileMetadata") || {}
 
 			// Get existing metadata for this file if it exists
 			const existingMetadata = currentFileMetadata[normalizedPath] || {}
@@ -110,20 +109,20 @@ export class MetadataWriterService {
 	 * @param filePath - Path to the audio file
 	 * @returns Metadata tags object or null if not found
 	 */
-	public async readMetadataTags(filePath: string): Promise<Record<string, string> | null> {
+	public async readMetadataTags(filePath: string): Promise<FileMetadata | null> {
 		try {
 			// Normalize file path for consistent retrieval
 			const normalizedPath = this.normalizeFilePath(filePath)
 
 			// Get fileMetadata from config
-			const fileMetadata = configService.get<Record<string, FileMetadata>>("fileMetadata") || {}
+			const fileMetadata = configService.get("fileMetadata") || {}
 
 			// Get metadata for this specific file
 			const metadata = fileMetadata[normalizedPath]
 
 			if (metadata) {
 				logger.info(`Read metadata for: ${normalizedPath}`)
-				return metadata as unknown as Record<string, string>
+				return metadata
 			}
 
 			logger.info(`No metadata found for: ${normalizedPath}`)
@@ -145,8 +144,7 @@ export class MetadataWriterService {
 			const normalizedPath = this.normalizeFilePath(filePath)
 
 			// Get current fileMetadata from config
-			const currentFileMetadata =
-				configService.get<Record<string, FileMetadata>>("fileMetadata") || {}
+			const currentFileMetadata = configService.get("fileMetadata") || {}
 
 			// Remove metadata for this file
 			delete currentFileMetadata[normalizedPath]
@@ -173,7 +171,7 @@ export class MetadataWriterService {
 			const normalizedPath = this.normalizeFilePath(filePath)
 
 			// Get fileMetadata from config
-			const fileMetadata = configService.get<Record<string, FileMetadata>>("fileMetadata") || {}
+			const fileMetadata = configService.get("fileMetadata") || {}
 
 			return normalizedPath in fileMetadata
 		} catch (error) {
@@ -204,8 +202,7 @@ export class MetadataWriterService {
 	 */
 	public async cleanupExpiredMetadata(): Promise<number> {
 		try {
-			const currentFileMetadata =
-				configService.get<Record<string, FileMetadata>>("fileMetadata") || {}
+			const currentFileMetadata = configService.get("fileMetadata") || {}
 			const now = new Date()
 			let cleanedCount = 0
 
@@ -242,7 +239,7 @@ export class MetadataWriterService {
 	 * @returns All stored metadata
 	 */
 	public getAllMetadata(): Record<string, FileMetadata> {
-		return configService.get<Record<string, FileMetadata>>("fileMetadata") || {}
+		return configService.get("fileMetadata") || {}
 	}
 
 	/**
@@ -250,7 +247,7 @@ export class MetadataWriterService {
 	 * @returns Statistics about stored metadata
 	 */
 	public getMetadataStats(): { totalFiles: number; expiredFiles: number } {
-		const fileMetadata = configService.get<Record<string, FileMetadata>>("fileMetadata") || {}
+		const fileMetadata = configService.get("fileMetadata") || {}
 		const now = new Date()
 		let expiredCount = 0
 

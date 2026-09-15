@@ -22,7 +22,7 @@ export function detectVideoStream(
 
 		for (const value of Object.values(stream as VlcStreamInfo)) {
 			const match = typeof value === "string" ? value.match(RESOLUTION_PATTERN) : null
-			if (match) {
+			if (match?.[1] && match[2]) {
 				return {
 					isVideo: true,
 					videoInfo: {

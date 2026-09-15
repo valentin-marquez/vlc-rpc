@@ -39,7 +39,7 @@ if (!gotTheLock) {
 	})
 
 	app.on("window-all-closed", (): void => {
-		const minimizeToTray = configService.get<boolean>("minimizeToTray")
+		const minimizeToTray = configService.get("minimizeToTray")
 		if (!minimizeToTray) {
 			app.quit()
 		}
@@ -77,7 +77,7 @@ if (!gotTheLock) {
 			autoUpdaterService.setMainWindow(mainWindow)
 		})
 
-		const startWithSystem = configService.get<boolean>("startWithSystem")
+		const startWithSystem = configService.get("startWithSystem")
 		startupService.setStartAtLogin(startWithSystem)
 
 		mainHandlers.discordRpcHandler.startUpdateLoop()

@@ -134,9 +134,9 @@ export class WindowService {
 		})
 
 		this.mainWindow.on("ready-to-show", async () => {
-			const isFirstRun = configService.get<boolean>("isFirstRun")
-			const minimizeToTray = configService.get<boolean>("minimizeToTray")
-			const startWithSystem = configService.get<boolean>("startWithSystem")
+			const isFirstRun = configService.get("isFirstRun")
+			const minimizeToTray = configService.get("minimizeToTray")
+			const startWithSystem = configService.get("startWithSystem")
 			const launchedAtStartup = this.wasLaunchedAtStartup()
 
 			// Only start minimized if:
@@ -164,7 +164,7 @@ export class WindowService {
 
 		// @ts-ignore - 'minimize' event exists but TypeScript definitions might be incomplete
 		this.mainWindow.on("minimize", (event: Electron.Event) => {
-			const minimizeToTray = configService.get<boolean>("minimizeToTray")
+			const minimizeToTray = configService.get("minimizeToTray")
 			if (minimizeToTray) {
 				event.preventDefault()
 				this.mainWindow?.hide()
@@ -173,7 +173,7 @@ export class WindowService {
 
 		this.mainWindow.on("close", (event) => {
 			if (!app.isQuitting) {
-				const minimizeToTray = configService.get<boolean>("minimizeToTray")
+				const minimizeToTray = configService.get("minimizeToTray")
 				if (minimizeToTray) {
 					event.preventDefault()
 					this.mainWindow?.hide()

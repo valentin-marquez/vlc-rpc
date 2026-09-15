@@ -1,4 +1,5 @@
 import { logger } from "@main/core/logger"
+import type { FileMetadata } from "@shared/config/app-config"
 
 interface ImageUploadService {
 	name: string
@@ -107,7 +108,11 @@ export class MultiImageUploaderService {
 	}
 
 	private getCurrentUserAgent(): string {
-		return this.userAgents[this.currentUserAgentIndex]
+		const agent = this.userAgents[this.currentUserAgentIndex]
+		if (agent === undefined) {
+			throw new Error("userAgents is empty")
+		}
+		return agent
 	}
 
 	private rotateUserAgent(): void {
@@ -117,9 +122,12 @@ export class MultiImageUploaderService {
 	private shuffleUserAgents(): void {
 		for (let i = this.userAgents.length - 1; i > 0; i--) {
 			const j = Math.floor(Math.random() * (i + 1))
-			;[this.userAgents[i], this.userAgents[j]] = [this.userAgents[j], this.userAgents[i]]
+			// i siempre es un indice valido por los limites del bucle, y j esta
+			// en [0, i] por construccion: el compilador no puede ver ese invariante.
+			// biome-ignore lint/style/noNonNullAssertion: ver comentario anterior
+			;[this.userAgents[i], this.userAgents[j]] = [this.userAgents[j]!, this.userAgents[i]!]
 		}
-		logger.info(`User agents shuffled, starting with: ${this.userAgents[0]}`)
+		logger.info(`User agents shuffled, starting with: ${this.userAgents.at(0) ?? "unknown"}`)
 	}
 
 	private async uploadToX0At(imageBuffer: Buffer, filename: string): Promise<string | null> {
@@ -290,8 +298,8 @@ export class MultiImageUploaderService {
 		}
 	}
 
-	public generateMetadataTags(imageUrl: string, expiryDate?: Date): Record<string, string> {
-		const tags: Record<string, string> = {
+	public generateMetadataTags(imageUrl: string, expiryDate?: Date): Partial<FileMetadata> {
+		const tags: Partial<FileMetadata> = {
 			"X-COVER-URL": imageUrl,
 			"X-APP-VERSION": this.appVersion,
 			"X-PROCESSED-BY": this.appName,
@@ -304,7 +312,7 @@ export class MultiImageUploaderService {
 		return tags
 	}
 
-	public parseMetadataTags(metadata: Record<string, string | undefined>): {
+	public parseMetadataTags(metadata: Partial<FileMetadata>): {
 		imageUrl: string | null
 		isExpired: boolean
 		appVersion: string | null

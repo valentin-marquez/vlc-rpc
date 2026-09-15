@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
-import type { VlcConfig } from "@shared/config/app-config"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 import { detectVideoStream } from "./vlc.mapper"
 import type { VlcMetadata, VlcPlaylistItem, VlcPlaylistResponse, VlcRawStatus } from "./vlc.types"
@@ -34,7 +33,7 @@ export class VlcStatusService {
 	 * Update connection information based on current VLC config
 	 */
 	public updateConnectionInfo(): void {
-		const vlcConfig = configService.get<VlcConfig>("vlc")
+		const vlcConfig = configService.get("vlc")
 		this.baseUrl = `http://localhost:${vlcConfig.httpPort}/requests/`
 		this.authHeader = this.createAuthHeader(vlcConfig.httpPassword)
 		logger.info(`VLC status service configured for ${this.baseUrl}`)
@@ -67,7 +66,7 @@ export class VlcStatusService {
 	 * @returns Parsed status information or null if unavailable
 	 */
 	public async readStatus(forceUpdate = false): Promise<VlcStatus | null> {
-		const vlcConfig = configService.get<VlcConfig>("vlc")
+		const vlcConfig = configService.get("vlc")
 
 		if (!vlcConfig.httpEnabled) {
 			logger.warn("VLC HTTP interface is not enabled")
@@ -150,7 +149,7 @@ export class VlcStatusService {
 	private async retryWithAlternativeAuth(statusUrl: string): Promise<VlcStatus | null> {
 		try {
 			logger.info("Trying alternative authentication method...")
-			const vlcConfig = configService.get<VlcConfig>("vlc")
+			const vlcConfig = configService.get("vlc")
 
 			const urlWithAuth = new URL(statusUrl)
 			urlWithAuth.username = ""
@@ -302,7 +301,7 @@ export class VlcStatusService {
 	 * @returns The file URI of the currently playing item or null
 	 */
 	public async getCurrentFileUri(): Promise<string | null> {
-		const vlcConfig = configService.get<VlcConfig>("vlc")
+		const vlcConfig = configService.get("vlc")
 
 		if (!vlcConfig.httpEnabled) {
 			logger.warn("VLC HTTP interface is not enabled")
@@ -370,7 +369,7 @@ export class VlcStatusService {
 		return null
 	}
 	public async checkVlcStatus(): Promise<VlcConnectionStatus> {
-		const vlcConfig = configService.get<VlcConfig>("vlc")
+		const vlcConfig = configService.get("vlc")
 
 		if (!vlcConfig.httpEnabled) {
 			return {

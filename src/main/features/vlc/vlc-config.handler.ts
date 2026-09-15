@@ -98,7 +98,7 @@ export class VlcConfigHandler {
 				found: true,
 				config: {
 					httpPort: parsed.httpPort,
-					httpPassword: parsed.httpPassword ?? configService.get<VlcConfig>("vlc").httpPassword,
+					httpPassword: parsed.httpPassword ?? configService.get("vlc").httpPassword,
 					httpEnabled: parsed.httpEnabled,
 				},
 			}
@@ -118,7 +118,7 @@ export class VlcConfigHandler {
 	public async getVlcConfig(): Promise<VlcConfig> {
 		const result = await this.readVlcConfigFile()
 		if (!result.found) {
-			return configService.get<VlcConfig>("vlc")
+			return configService.get("vlc")
 		}
 
 		configService.set("vlc", result.config)
@@ -221,7 +221,7 @@ export class VlcConfigHandler {
 
 				if (config.httpEnabled) {
 					if (extraIntfLineIndex >= 0) {
-						const extraIntf = configContent[extraIntfLineIndex]
+						const extraIntf = configContent[extraIntfLineIndex] ?? ""
 						if (!extraIntf.includes("http")) {
 							const parts = extraIntf.split("=")
 							configContent[extraIntfLineIndex] =
@@ -229,7 +229,7 @@ export class VlcConfigHandler {
 							configModified = true
 						}
 					} else if (commentedExtraIntfLineIndex >= 0) {
-						const commentedExtraIntf = configContent[commentedExtraIntfLineIndex]
+						const commentedExtraIntf = configContent[commentedExtraIntfLineIndex] ?? ""
 						const extraIntfValue = commentedExtraIntf.replace(/^#extraintf=/, "")
 						configContent[commentedExtraIntfLineIndex] =
 							`extraintf=${extraIntfValue ? `${extraIntfValue},` : ""}http`
@@ -253,10 +253,12 @@ export class VlcConfigHandler {
 					}
 				} else {
 					if (extraIntfLineIndex >= 0) {
-						const extraIntf = configContent[extraIntfLineIndex]
+						const extraIntf = configContent[extraIntfLineIndex] ?? ""
 						if (extraIntf.includes("http")) {
 							const parts = extraIntf.split("=")
-							const interfaces = parts[1].split(",").filter((intf) => intf.trim() !== "http")
+							const interfaces = (parts[1] ?? "")
+								.split(",")
+								.filter((intf) => intf.trim() !== "http")
 							if (interfaces.length > 0) {
 								configContent[extraIntfLineIndex] = `${parts[0]}=${interfaces.join(",")}`
 							} else {
@@ -337,7 +339,7 @@ export class VlcConfigHandler {
 			return
 		}
 
-		const appConfig = configService.get<VlcConfig>("vlc")
+		const appConfig = configService.get("vlc")
 		const isDifferent =
 			result.config.httpPort !== appConfig.httpPort ||
 			result.config.httpPassword !== appConfig.httpPassword ||
