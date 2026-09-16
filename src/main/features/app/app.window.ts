@@ -93,7 +93,7 @@ export class Window {
 			})
 		})
 
-		const backgroundColor = "#1a1b1e" // Discord dark theme background
+		const backgroundColor = "#000000" // the chrome plane, so the launch flash matches the rail
 
 		this.mainWindow = new BrowserWindow({
 			width: 900,
