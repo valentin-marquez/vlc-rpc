@@ -53,8 +53,7 @@ export class Cache {
 
 	public setUnresolved(key: string, reason: UnresolvedReason): void {
 		const entries = this.conf.get("entries")
-		const ttl =
-			reason === "provider-error" || reason === "timeout" ? TRANSIENT_TTL_MS : STABLE_TTL_MS
+		const ttl = reason === "provider-error" ? TRANSIENT_TTL_MS : STABLE_TTL_MS
 		entries[key] = {
 			status: "unresolved",
 			version: CACHE_VERSION,

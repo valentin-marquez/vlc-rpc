@@ -38,9 +38,4 @@ export type CacheEntry =
 	| { status: "resolved"; version: number; work: CachedWork; lastAccessedAt: number }
 	| { status: "unresolved"; version: number; expiresAt: number; lastAccessedAt: number }
 
-export type UnresolvedReason =
-	| "no-results"
-	| "no-match"
-	| "provider-error"
-	| "timeout"
-	| "parse-invalid"
+export type UnresolvedReason = "no-results" | "no-match" | "provider-error" | "parse-invalid"
