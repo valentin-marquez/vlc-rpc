@@ -22,12 +22,15 @@ export function LayoutPage(): JSX.Element {
 	}, [config])
 
 	const handleSelectPreset = async (preset: LayoutPreset): Promise<void> => {
+		const previousPreset = selectedPreset
 		setSelectedPreset(preset)
 		try {
 			await saveConfig("layoutPreset", preset)
 			await saveConfig("presenceLayout", LAYOUT_PRESETS[preset])
 			logger.info(`Layout preset changed to: ${preset}`)
 		} catch (error) {
+			// Nothing was written, so the cards must not keep showing the new preset.
+			setSelectedPreset(previousPreset)
 			logger.error(`Failed to update layout preset: ${error}`)
 		}
 	}
