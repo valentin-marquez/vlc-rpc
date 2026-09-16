@@ -1,4 +1,5 @@
 import { useStore } from "@nanostores/react"
+import logo from "@renderer/assets/logo.png"
 import { useDiscordHealth } from "@renderer/features/discord/hooks/use-discord-health"
 import { HomePage } from "@renderer/features/home"
 import { LayoutPage } from "@renderer/features/layout"
@@ -6,25 +7,78 @@ import { FirstRunPage } from "@renderer/features/onboarding"
 import { SettingsPage } from "@renderer/features/settings"
 import { UpdateNotification } from "@renderer/features/updates"
 import { useAppInit } from "@renderer/hooks/use-app-init"
+import { cn } from "@renderer/lib/utils"
 import { Navigation } from "@renderer/shell/navigation"
 import { Titlebar } from "@renderer/shell/titlebar"
-import { configStore, isFirstRun } from "@renderer/stores/config.store"
+import { isFirstRun } from "@renderer/stores/config.store"
+import { useEffect, useState } from "react"
 import { Route, Router, Switch } from "wouter"
 import { useHashLocation } from "wouter/use-hash-location"
+
+/** Long enough that a fast start never flashes a loader nobody asked for. */
+const LOADER_DELAY = 400
 
 function App(): JSX.Element {
 	const loading = useAppInit()
 	const firstRun = useStore(isFirstRun)
-	const config = useStore(configStore)
+	const [platform, setPlatform] = useState("win32")
+	const [scrolled, setScrolled] = useState(false)
+	const [loaderVisible, setLoaderVisible] = useState(false)
 
 	useDiscordHealth()
 
+	useEffect(() => {
+		window.api.app
+			.getPlatform()
+			.then(setPlatform)
+			.catch((error) => {
+				console.error("Failed to read the platform", error)
+			})
+	}, [])
+
+	// Two looping animations exist and neither should run while nobody is looking.
+	useEffect(() => {
+		const root = document.documentElement
+
+		const syncIdle = (): void => {
+			const idle = !document.hasFocus() || document.visibilityState !== "visible"
+			root.toggleAttribute("data-window-idle", idle)
+		}
+
+		syncIdle()
+		window.addEventListener("focus", syncIdle)
+		window.addEventListener("blur", syncIdle)
+		document.addEventListener("visibilitychange", syncIdle)
+
+		return () => {
+			window.removeEventListener("focus", syncIdle)
+			window.removeEventListener("blur", syncIdle)
+			document.removeEventListener("visibilitychange", syncIdle)
+			root.removeAttribute("data-window-idle")
+		}
+	}, [])
+
+	useEffect(() => {
+		if (!loading) {
+			return
+		}
+
+		const timer = window.setTimeout(() => setLoaderVisible(true), LOADER_DELAY)
+		return () => window.clearTimeout(timer)
+	}, [loading])
+
 	if (loading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-				<div className="animate-pulse flex items-center space-x-2">
-					<div className="h-6 w-6 bg-primary rounded-full animate-bounce" />
-					<p>Loading...</p>
+			<div className="flex h-dvh items-center justify-center bg-chrome">
+				<div
+					className={cn(
+						"flex flex-col items-center gap-4 transition-opacity ease-out-soft",
+						"[transition-duration:var(--spring-enter-duration)]",
+						loaderVisible ? "opacity-100" : "opacity-0",
+					)}
+				>
+					<img src={logo} alt="" className="size-8" />
+					<p className="type-caption text-muted-foreground">Starting</p>
 				</div>
 			</div>
 		)
@@ -34,36 +88,30 @@ function App(): JSX.Element {
 		return <FirstRunPage />
 	}
 
+	const isMac = platform === "darwin"
+
 	return (
 		<Router hook={useHashLocation}>
-			<div className="h-screen flex flex-col bg-background text-foreground antialiased no-scrollbar overscroll-none">
-				<Titlebar />
+			<div className="grid h-dvh grid-cols-[72px_1fr] grid-rows-[48px_1fr] bg-canvas text-body">
+				<Navigation isMac={isMac} />
+				<Titlebar isMac={isMac} scrolled={scrolled} />
 
-				<div className="flex-1 flex flex-col min-h-0">
-					<Navigation />
-
-					<main className="flex-1 min-h-0 overflow-hidden">
-						<div className="h-full overflow-y-auto no-scrollbar overscroll-y-contain p-4">
-							<Switch>
-								<Route path="/" component={HomePage} />
-								<Route path="/layout" component={LayoutPage} />
-								<Route path="/settings" component={SettingsPage} />
-								<Route>
-									<div className="max-w-2xl mx-auto p-6 text-center">
-										<h2 className="text-xl font-bold">404 - Page Not Found</h2>
-										<p className="mt-2 text-muted-foreground">
-											The page you're looking for doesn't exist.
-										</p>
-									</div>
-								</Route>
-							</Switch>
-						</div>
-					</main>
-
-					<footer className="flex-shrink-0 py-2 px-4 text-center text-xs text-muted-foreground border-t border-border bg-card/30 backdrop-blur-sm">
-						<p>VLC Discord RP v{config?.version || "4.0.1"}</p>
-					</footer>
-				</div>
+				<main
+					onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 0)}
+					className="scroll-region col-start-2 row-start-2 min-h-0 px-6 pt-6 pb-8"
+				>
+					<div className="max-w-[740px] me-auto">
+						<Switch>
+							<Route path="/" component={HomePage} />
+							<Route path="/layout" component={LayoutPage} />
+							<Route path="/settings" component={SettingsPage} />
+							<Route>
+								<h2 className="type-hero text-strong">Not found</h2>
+								<p className="type-body mt-2 text-muted-foreground">That page does not exist.</p>
+							</Route>
+						</Switch>
+					</div>
+				</main>
 			</div>
 
 			<UpdateNotification />

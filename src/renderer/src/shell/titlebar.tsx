@@ -1,11 +1,24 @@
 import { Cross1Icon, MinusIcon, SizeIcon } from "@radix-ui/react-icons"
-import logo from "@renderer/assets/logo.png"
 import { cn } from "@renderer/lib/utils"
+import { NAV_ITEMS } from "@renderer/shell/navigation"
+import { StatusChips } from "@renderer/shell/status-chip"
 import { useEffect, useState } from "react"
+import { useHashLocation } from "wouter/use-hash-location"
 
-export function Titlebar(): JSX.Element {
+const windowControl = cn(
+	"focus-discord inline-flex h-8 w-[46px] cursor-pointer items-center justify-center",
+	"rounded-sm text-muted-foreground",
+	"transition-colors ease-out-soft [transition-duration:var(--dur-tint)]",
+)
+
+interface TitlebarProps {
+	isMac: boolean
+	scrolled: boolean
+}
+
+export function Titlebar({ isMac, scrolled }: TitlebarProps): JSX.Element {
 	const [isMaximized, setIsMaximized] = useState(false)
-	const [platform, setPlatform] = useState<string>("win32")
+	const [location] = useHashLocation()
 
 	useEffect(() => {
 		async function initWindowState() {
@@ -13,12 +26,7 @@ export function Titlebar(): JSX.Element {
 				const maximized = await window.api.app.isMaximized()
 				setIsMaximized(maximized)
 
-				const plat = await window.api.app.getPlatform()
-				setPlatform(plat)
-
-				const removeListener = window.api.app.onMaximizedChange(setIsMaximized)
-
-				return removeListener
+				return window.api.app.onMaximizedChange(setIsMaximized)
 			} catch (error) {
 				console.error("Failed to initialize window state", error)
 				return () => {}
@@ -44,54 +52,64 @@ export function Titlebar(): JSX.Element {
 		await window.api.app.close()
 	}
 
-	const isMac = platform === "darwin"
+	const title = NAV_ITEMS.find((item) => item.path === location)?.label ?? "Not found"
 
 	return (
-		<div
+		<header
 			className={cn(
-				"app-titlebar h-10 flex items-center justify-between",
-				"border-b border-border bg-card text-card-foreground select-none",
-				"sticky top-0 z-[9999]",
-				isMac ? "pl-20" : "pl-4",
+				"app-titlebar relative col-start-2 row-start-1 flex h-12 select-none items-center",
+				"justify-between bg-canvas ps-6 shadow-[inset_0_-1px_0_hsl(var(--divider))]",
+				isMac && "pe-6",
 			)}
 		>
-			<div className="flex items-center gap-2 drag">
-				<img src={logo} alt="VLC Discord RP" className="h-5 w-5" />
-				<span className="text-sm font-medium">VLC Discord RP</span>
+			<h1 className="type-title text-strong">{title}</h1>
+
+			<div className="flex items-center gap-1">
+				<StatusChips />
+
+				{!isMac && (
+					<div className="no-drag ms-2 flex">
+						<button
+							type="button"
+							onClick={handleMinimize}
+							className={cn(windowControl, "hover:bg-float hover:text-strong")}
+							aria-label="Minimize"
+						>
+							<MinusIcon className="size-4" />
+						</button>
+						<button
+							type="button"
+							onClick={handleMaximize}
+							className={cn(windowControl, "hover:bg-float hover:text-strong")}
+							aria-label={isMaximized ? "Restore" : "Maximize"}
+						>
+							{isMaximized ? (
+								<span className="size-3 border border-current" />
+							) : (
+								<SizeIcon className="size-4" />
+							)}
+						</button>
+						<button
+							type="button"
+							onClick={handleClose}
+							className={cn(windowControl, "hover:bg-danger hover:text-white")}
+							aria-label="Close"
+						>
+							<Cross1Icon className="size-4" />
+						</button>
+					</div>
+				)}
 			</div>
 
-			{!isMac && (
-				<div className="flex no-drag">
-					<button
-						type="button"
-						onClick={handleMinimize}
-						className="inline-flex cursor-pointer items-center justify-center h-10 w-10 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-						aria-label="Minimize"
-					>
-						<MinusIcon className="h-4 w-4" />
-					</button>
-					<button
-						type="button"
-						onClick={handleMaximize}
-						className="inline-flex cursor-pointer items-center justify-center h-10 w-10 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-						aria-label={isMaximized ? "Restore" : "Maximize"}
-					>
-						{isMaximized ? (
-							<div className="h-3.5 w-3.5 border border-current" />
-						) : (
-							<SizeIcon className="h-4 w-4" />
-						)}
-					</button>
-					<button
-						type="button"
-						onClick={handleClose}
-						className="inline-flex cursor-pointer items-center justify-center h-10 w-10 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
-						aria-label="Close"
-					>
-						<Cross1Icon className="h-4 w-4" />
-					</button>
-				</div>
-			)}
-		</div>
+			{/* The pane owns the scroll, so the lift under the header is driven by its scrollTop. */}
+			<span
+				aria-hidden="true"
+				className={cn(
+					"pointer-events-none absolute inset-x-0 bottom-0 h-px",
+					"shadow-[0_4px_12px_rgb(0_0_0/0.35)] transition-opacity duration-150 ease-out-soft",
+					scrolled ? "opacity-100" : "opacity-0",
+				)}
+			/>
+		</header>
 	)
 }
