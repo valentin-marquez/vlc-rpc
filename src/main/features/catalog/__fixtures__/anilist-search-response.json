@@ -1,0 +1,22 @@
+{
+	"data": {
+		"Page": {
+			"media": [
+				{
+					"id": 207809,
+					"title": {
+						"romaji": "Sora wa Akai Kawa no Hotori",
+						"english": "Red River",
+						"native": "\u5929\u306f\u8d64\u3044\u6cb3\u306e\u307b\u3068\u308a"
+					},
+					"synonyms": ["Anatolia Story"],
+					"startDate": { "year": 2026 },
+					"format": "TV",
+					"coverImage": {
+						"large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx207809-cpS7CAyjN7iP.jpg"
+					}
+				}
+			]
+		}
+	}
+}
