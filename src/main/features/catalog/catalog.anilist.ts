@@ -31,6 +31,10 @@ interface AniListMedia {
 
 export class AniListProvider implements CatalogProvider {
 	private lastRequestAt = 0
+	// Turns queue on this chain. Without it, concurrent searches all read the
+	// same lastRequestAt, compute the same wait and then fire together, which is
+	// the exact case the throttle exists for (a user skipping through a playlist).
+	private queue: Promise<void> = Promise.resolve()
 
 	// Throws on failure: the resolver reads that as "could not search" (short cache TTL),
 	// which is not the same answer as "searched fine, found nothing".
@@ -61,12 +65,16 @@ export class AniListProvider implements CatalogProvider {
 		}
 	}
 
-	private async throttle(): Promise<void> {
-		const wait = MIN_INTERVAL_MS - (Date.now() - this.lastRequestAt)
-		if (wait > 0) {
-			await new Promise((resolve) => setTimeout(resolve, wait))
-		}
-		this.lastRequestAt = Date.now()
+	private throttle(): Promise<void> {
+		const turn = this.queue.then(async () => {
+			const wait = MIN_INTERVAL_MS - (Date.now() - this.lastRequestAt)
+			if (wait > 0) {
+				await new Promise((resolve) => setTimeout(resolve, wait))
+			}
+			this.lastRequestAt = Date.now()
+		})
+		this.queue = turn
+		return turn
 	}
 
 	private normalize(media: AniListMedia): Candidate {

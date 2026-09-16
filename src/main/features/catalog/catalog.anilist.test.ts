@@ -96,4 +96,23 @@ describe("AniListProvider", () => {
 
 		expect(vi.mocked(fetch).mock.calls.length).toBe(2)
 	})
+
+	it("spaces out concurrent requests instead of firing them all at once", async () => {
+		vi.useFakeTimers()
+		respondWith(fixture("anilist-no-results-response"))
+
+		const provider = new AniListProvider()
+		const all = Promise.all([provider.search("a"), provider.search("b"), provider.search("c")])
+
+		await vi.advanceTimersByTimeAsync(0)
+		expect(vi.mocked(fetch).mock.calls.length).toBe(1)
+
+		await vi.advanceTimersByTimeAsync(250)
+		expect(vi.mocked(fetch).mock.calls.length).toBe(2)
+
+		await vi.advanceTimersByTimeAsync(250)
+		expect(vi.mocked(fetch).mock.calls.length).toBe(3)
+
+		await all
+	})
 })

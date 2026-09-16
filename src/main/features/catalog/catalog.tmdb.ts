@@ -48,13 +48,7 @@ export class TmdbProvider implements CatalogProvider {
 	private async searchTv(query: string, apiKey: string): Promise<Candidate[] | null> {
 		try {
 			const url = `${BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}`
-			const response = await this.fetchWithTimeout(url)
-			if (!response.ok) {
-				logger.warn(`TMDB tv search failed: HTTP ${response.status}`)
-				return null
-			}
-
-			const body = (await response.json()) as { results: TmdbTvResult[] }
+			const body = await this.fetchJson<{ results: TmdbTvResult[] }>(url)
 			return body.results.map((result) => this.normalizeTv(result))
 		} catch (error) {
 			logger.warn(`TMDB tv search failed: ${error}`)
@@ -65,13 +59,7 @@ export class TmdbProvider implements CatalogProvider {
 	private async searchMovies(query: string, apiKey: string): Promise<Candidate[] | null> {
 		try {
 			const url = `${BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`
-			const response = await this.fetchWithTimeout(url)
-			if (!response.ok) {
-				logger.warn(`TMDB movie search failed: HTTP ${response.status}`)
-				return null
-			}
-
-			const body = (await response.json()) as { results: TmdbMovieResult[] }
+			const body = await this.fetchJson<{ results: TmdbMovieResult[] }>(url)
 			return body.results.map((result) => this.normalizeMovie(result))
 		} catch (error) {
 			logger.warn(`TMDB movie search failed: ${error}`)
@@ -79,12 +67,18 @@ export class TmdbProvider implements CatalogProvider {
 		}
 	}
 
-	private async fetchWithTimeout(url: string): Promise<Response> {
+	// The abort timer has to cover reading the body too: clearing it once the
+	// headers arrive leaves a stalled response unbounded.
+	private async fetchJson<T>(url: string): Promise<T> {
 		const controller = new AbortController()
 		const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
 		try {
-			return await fetch(url, { signal: controller.signal })
+			const response = await fetch(url, { signal: controller.signal })
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`)
+			}
+			return (await response.json()) as T
 		} finally {
 			clearTimeout(timeoutId)
 		}
