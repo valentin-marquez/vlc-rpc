@@ -1,7 +1,7 @@
 import { vlcStatusStore } from "@renderer/features/vlc/vlc.store"
 import { logger } from "@renderer/lib/utils"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
-import { mediaStore, resetMediaStore } from "./media.store"
+import { lastPresenceStore, mediaStore, resetMediaStore } from "./media.store"
 
 /**
  * Update media store from VLC status response.
@@ -22,6 +22,7 @@ export function updateFromVlcStatus(status: VlcStatus | null): void {
 			mediaType: null,
 			contentType: null,
 			contentImageUrl: null,
+			contentImageSourceUrl: null,
 			season: null,
 			episode: null,
 			year: null,
@@ -63,6 +64,7 @@ export async function refreshMediaInfo(): Promise<void> {
 				...mediaStore.get(),
 				contentType: null,
 				contentImageUrl: null,
+				contentImageSourceUrl: null,
 				season: null,
 				episode: null,
 				year: null,
@@ -76,6 +78,7 @@ export async function refreshMediaInfo(): Promise<void> {
 			...mediaStore.get(),
 			contentType: mediaInfo.content_type || null,
 			contentImageUrl: mediaInfo.content_image_url || null,
+			contentImageSourceUrl: mediaInfo.content_image_source_url || null,
 			title:
 				mediaInfo.content_metadata?.clean_title ||
 				mediaInfo.content_metadata?.title ||
@@ -98,6 +101,19 @@ export async function refreshMediaInfo(): Promise<void> {
 		logger.info("Media information updated")
 	} catch (error) {
 		logger.error(`Error fetching media info: ${error}`)
+	}
+}
+
+/**
+ * Read back the presence the main process last handed to Discord. Reported
+ * rather than rebuilt here: Home exists to reveal a mismatch between VLC and
+ * Discord, so it must not be able to invent one.
+ */
+export async function refreshLastPresence(): Promise<void> {
+	try {
+		lastPresenceStore.set(await window.api.discord.getLastPresence())
+	} catch (error) {
+		logger.error(`Error fetching the last presence: ${error}`)
 	}
 }
 

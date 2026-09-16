@@ -1,54 +1,107 @@
-import { useStore } from "@nanostores/react"
-import { PresenceCard, type PresenceCardLiveProps } from "@renderer/components/presence-card"
-import { vlcStatusStore } from "@renderer/features/vlc"
-import { configStore } from "@renderer/stores/config.store"
+import {
+	PresenceCard,
+	type PresenceCardLiveProps,
+	type PresenceProgress,
+} from "@renderer/components/presence-card"
+import type { DiscordPresenceData, PresenceClearReason } from "@shared/presence/presence.types"
+import type { ActivityType } from "discord-api-types/v10"
 
+import { useLastPresence } from "../hooks/use-last-presence"
 import { useProxiedArtwork } from "../hooks/use-proxied-artwork"
-import { mediaStore } from "../media.store"
-import { layoutFromConfig, presenceLines } from "../presence-lines"
+
+// Read as wire numbers: discord-api-types is a transitive dependency of the RPC
+// client and has no business in the renderer bundle.
+const LISTENING: ActivityType = 2
+const WATCHING: ActivityType = 3
+
+// Four different facts, and the user acts on each of them differently, so they
+// are never folded into one empty state.
+const CLEARED_BECAUSE: Record<PresenceClearReason, string> = {
+	"rpc-disabled": "Rich presence is turned off",
+	"vlc-unavailable": "VLC is not reachable",
+	"playback-stopped": "VLC has nothing playing",
+	"loop-stopped": "Presence updates are stopped",
+}
 
 /**
- * What Discord shows, drawn the way Discord draws it. The empty and the live
- * card are the same shell at the same height, so the page never jumps when
- * playback stops.
+ * What Discord shows, as the main process reports having sent it rather than as
+ * this screen would have guessed. The three answers share one shell, so the page
+ * does not jump when the activity clears.
  */
 export function NowPlaying(): JSX.Element {
-	const vlcStatus = useStore(vlcStatusStore)
-	const media = useStore(mediaStore)
-	const config = useStore(configStore)
+	const lastPresence = useLastPresence()
 	const artworkUrl = useProxiedArtwork()
 
-	if (vlcStatus !== "connected") {
+	if (lastPresence.kind === "unknown") {
+		return (
+			<PresenceCard kind="empty" header="No activity yet" message="Waiting for the first update" />
+		)
+	}
+
+	if (lastPresence.kind === "cleared") {
 		return (
 			<PresenceCard
 				kind="empty"
-				message={vlcStatus === "connecting" ? "Checking VLC" : "VLC is not connected"}
+				header="No activity"
+				message={CLEARED_BECAUSE[lastPresence.reason]}
 			/>
 		)
 	}
 
-	if (!media.title) {
-		return <PresenceCard kind="empty" />
-	}
-
-	const lines = presenceLines(media, layoutFromConfig(config))
+	const { presence } = lastPresence
 
 	const card: PresenceCardLiveProps = {
 		kind: "presence",
-		header: lines.header,
-		details: lines.details,
-		state: lines.state,
-		largeText: lines.largeText,
+		header: presenceHeader(presence),
+		details: presence.details ?? "",
 		artworkUrl,
 	}
 
-	if (media.duration) {
-		card.progress = {
-			elapsedSeconds: media.position ?? 0,
-			durationSeconds: media.duration,
-			paused: media.mediaStatus === "paused",
-		}
+	if (presence.state) {
+		card.state = presence.state
+	}
+	if (presence.large_text) {
+		card.largeText = presence.large_text
+	}
+
+	const progress = presenceProgress(presence)
+	if (progress) {
+		card.progress = progress
 	}
 
 	return <PresenceCard {...card} />
+}
+
+/** Discord's own verbs. An absent name falls back to the application's own. */
+function presenceHeader(presence: DiscordPresenceData): string {
+	if (presence.activity_type === WATCHING) {
+		return "Watching"
+	}
+	if (presence.activity_type === LISTENING) {
+		return `Listening to ${presence.name ?? "VLC"}`
+	}
+	return `Playing ${presence.name ?? "VLC"}`
+}
+
+/**
+ * The timestamps are absolute wall clock seconds, and Discord draws the bar from
+ * them against the viewer's own clock, so this reads them the same way. `sentAt`
+ * is epoch milliseconds and takes no part in the arithmetic. Paused playback
+ * carries no timestamps at all, which is why there is no bar to pause.
+ */
+function presenceProgress(presence: DiscordPresenceData): PresenceProgress | null {
+	const start = presence.start_timestamp
+	const end = presence.end_timestamp
+
+	if (start === undefined || end === undefined || end <= start) {
+		return null
+	}
+
+	const durationSeconds = end - start
+	const elapsed = Date.now() / 1000 - start
+
+	return {
+		elapsedSeconds: Math.min(Math.max(elapsed, 0), durationSeconds),
+		durationSeconds,
+	}
 }

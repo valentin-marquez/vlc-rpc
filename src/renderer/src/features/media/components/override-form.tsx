@@ -17,8 +17,10 @@ export interface OverrideFormProps {
 	deducedTitle: string
 	/** Named on the fallback choice, so the user can see what they are keeping. */
 	deducedKind: "movie" | "tv" | null
-	/** Shown beside the address field. Usually a data URL, so it cannot prefill the field. */
+	/** Shown beside the address field: what the cover actually draws as, usually a data URL. */
 	currentCoverUrl: string | null
+	/** The address that cover came from, which is what the field can be typed with. */
+	coverSourceUrl: string | null
 	overrideActive: boolean
 	/** Saved or removed: the caller closes the form and refreshes the panel. */
 	onDone: () => void
@@ -32,6 +34,7 @@ export function OverrideForm({
 	deducedTitle,
 	deducedKind,
 	currentCoverUrl,
+	coverSourceUrl,
 	overrideActive,
 	onDone,
 	onCancel,
@@ -42,7 +45,9 @@ export function OverrideForm({
 	const firstFieldRef = React.useRef<HTMLInputElement>(null)
 
 	const [title, setTitle] = React.useState(deducedTitle)
-	const [cover, setCover] = React.useState("")
+	// Prefilled like the title is: the user corrects what is there rather than
+	// retyping an address they would have to go and find first.
+	const [cover, setCover] = React.useState(coverSourceUrl ?? "")
 	// Starts on the fallback so a correction pins only the fields the user chose.
 	const [kind, setKind] = React.useState<MediaKindChoice>("deduced")
 	const [busy, setBusy] = React.useState<"none" | "saving" | "removing">("none")

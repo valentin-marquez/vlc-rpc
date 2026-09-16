@@ -93,6 +93,7 @@ export function SourcePanel(): JSX.Element {
 						deducedTitle={media.title}
 						deducedKind={deducedKind(media)}
 						currentCoverUrl={artworkUrl}
+						coverSourceUrl={media.contentImageSourceUrl}
 						overrideActive={media.overrideActive}
 						onDone={() => {
 							setEditingKey(null)

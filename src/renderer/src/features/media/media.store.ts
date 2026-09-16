@@ -1,4 +1,5 @@
 import type { ContentType, MediaStatus } from "@shared/media/media.types"
+import type { LastSentPresence } from "@shared/presence/presence.types"
 import { atom } from "nanostores"
 
 export interface MediaState {
@@ -21,6 +22,12 @@ export interface MediaState {
 	// Enriched info (from media detection)
 	contentType: ContentType | null
 	contentImageUrl: string | null
+	/**
+	 * Where the cover came from, kept apart from `contentImageUrl` because that one
+	 * is usually a data URL by the time it crosses IPC. This is the address a
+	 * correction can be prefilled with.
+	 */
+	contentImageSourceUrl: string | null
 	season: number | null
 	episode: number | null
 	year: string | null
@@ -44,6 +51,7 @@ const INITIAL_STATE: MediaState = {
 	mediaType: null,
 	contentType: null,
 	contentImageUrl: null,
+	contentImageSourceUrl: null,
 	season: null,
 	episode: null,
 	year: null,
@@ -52,6 +60,13 @@ const INITIAL_STATE: MediaState = {
 }
 
 export const mediaStore = atom<MediaState>(INITIAL_STATE)
+
+/**
+ * What the app last handed to Discord, as the main process reports it. Kept out
+ * of `MediaState` because it is a reading of the other end of the mapping: it
+ * survives VLC going away, which is one of the answers it has to carry.
+ */
+export const lastPresenceStore = atom<LastSentPresence>({ kind: "unknown" })
 
 export function resetMediaStore(): void {
 	mediaStore.set(INITIAL_STATE)
