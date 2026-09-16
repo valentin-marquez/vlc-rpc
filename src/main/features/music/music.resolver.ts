@@ -1,5 +1,5 @@
 import { logger } from "@main/core/logger"
-import type { Override } from "@main/features/overrides"
+import type { Override, OverrideTarget } from "@main/features/overrides"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import type { Cache } from "./music.cache"
 import { splitCollaboration } from "./music.credit"
@@ -110,6 +110,8 @@ function orderReleases(
 /** The corrections the user typed by hand. A resolver only ever reads them. */
 export interface OverrideLookup {
 	get(key: string): Override | null
+	/** Whether a save under this key would be taken, asked before offering it. */
+	accepts(key: string): boolean
 }
 
 export class Resolver {
@@ -156,6 +158,28 @@ export class Resolver {
 		} finally {
 			this.inflight.delete(key)
 		}
+	}
+
+	/**
+	 * Where a correction for this file would be filed, without resolving it. It
+	 * has to come from here: the key is the record's, not the track's, and it is
+	 * built from `buildQuery`, which holds the credit splitting rules and stays
+	 * private to this file so there is only ever one derivation of it.
+	 *
+	 * `null` when the store would turn the key down, which for audio means a file
+	 * with no artist tag: its cover would otherwise become every untagged file's.
+	 */
+	public overrideTargetFor(status: VlcStatus): OverrideTarget | null {
+		if (status.mediaType !== "audio") {
+			return null
+		}
+
+		const key = audioOverrideKey(buildQuery(status.media))
+		if (!this.overrides.accepts(key)) {
+			return null
+		}
+
+		return { key, active: this.overrides.get(key)?.kind === "audio" }
 	}
 
 	/**

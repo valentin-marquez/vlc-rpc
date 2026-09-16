@@ -33,6 +33,15 @@ export interface DetectedMediaInfo {
 	content_type?: ContentType
 	content_metadata?: ContentMetadata
 	content_image_url?: string
+	/**
+	 * Where a manual correction for what is playing is filed, which is what
+	 * `overrides:save` and `overrides:delete` are called with. Absent when the
+	 * store would refuse the key this file produces, so its absence means the
+	 * correction cannot be offered at all, not that nothing is playing.
+	 */
+	override_key?: string
+	/** Whether a correction is already saved under that key. */
+	override_active?: boolean
 }
 
 /**

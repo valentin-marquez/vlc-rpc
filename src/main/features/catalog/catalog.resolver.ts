@@ -1,5 +1,5 @@
 import { logger } from "@main/core/logger"
-import type { Override, VideoOverride } from "@main/features/overrides"
+import type { Override, OverrideTarget, VideoOverride } from "@main/features/overrides"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import type { Cache } from "./catalog.cache"
 import { catalogKey } from "./catalog.key"
@@ -16,6 +16,8 @@ import type {
 /** The corrections the user typed by hand, keyed the way this feature keys. */
 export interface OverrideSource {
 	get(key: string): Override | null
+	/** Whether a save under this key would be taken, asked before offering it. */
+	accepts(key: string): boolean
 }
 
 /**
@@ -85,6 +87,29 @@ export class Resolver {
 		} finally {
 			this.inflight.delete(key)
 		}
+	}
+
+	/**
+	 * Where a correction for this file would be filed, without resolving it. The
+	 * key never leaves this feature otherwise, and the media that most needs a
+	 * correction is the media `resolve` answers `null` for: western film and
+	 * television have no provider, so a key that travelled only with a result
+	 * would reach the renderer for everything except the reason it exists.
+	 *
+	 * `null` when the store would turn the key down, so nothing offers the user a
+	 * form that cannot be saved.
+	 */
+	public overrideTargetFor(status: VlcStatus): OverrideTarget | null {
+		if (status.mediaType !== "video" || !status.media.title) {
+			return null
+		}
+
+		const key = catalogKey(parse(status.media.title))
+		if (!this.overrides.accepts(key)) {
+			return null
+		}
+
+		return { key, active: this.overrides.get(key)?.kind === "video" }
 	}
 
 	/**

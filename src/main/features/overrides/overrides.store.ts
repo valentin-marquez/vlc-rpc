@@ -45,6 +45,15 @@ export class Store {
 		return this.conf.get("entries")[key] ?? null
 	}
 
+	/**
+	 * Whether `save` would take a key, asked before there is anything to save.
+	 * The refusal below is the end of a form the user already filled in, so the
+	 * callers that name a key to the user ask first and name none instead.
+	 */
+	public accepts(key: string): boolean {
+		return hasIdentity(key)
+	}
+
 	public save(key: string, input: OverrideInput): void {
 		if (!hasIdentity(key)) {
 			throw new Error(

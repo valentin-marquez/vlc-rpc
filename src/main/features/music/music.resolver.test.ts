@@ -95,13 +95,16 @@ function fakeCoverSource(covers: Record<string, string> = {}, fails = false) {
 	return { source, asked }
 }
 
-function fakeOverrides(entries: Record<string, Override> = {}) {
+function fakeOverrides(entries: Record<string, Override> = {}, refused: readonly string[] = []) {
 	const asked: string[] = []
-	const overrides = {
+	const overrides: OverrideLookup = {
 		get: (key: string) => {
 			asked.push(key)
 			return entries[key] ?? null
 		},
+		// Which keys the store turns down is the store's rule and is tested there.
+		// A test that cares names the key it expects to be turned down.
+		accepts: (key: string) => !refused.includes(key),
 	}
 	return { overrides, asked }
 }
@@ -744,5 +747,76 @@ describe("Resolver.evictOverride", () => {
 		resolver.evictOverride("tv:Red River|1")
 
 		expect(store.has(key)).toBe(true)
+	})
+})
+
+describe("Resolver.overrideTargetFor", () => {
+	function targeting(entries: Record<string, Override> = {}, refused: readonly string[] = []) {
+		const { cache, calls } = fakeCache()
+		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides } = fakeOverrides(entries, refused)
+		return {
+			resolver: new Resolver(cache, itunes, musicbrainz, source, overrides),
+			calls,
+			itunesCalls,
+		}
+	}
+
+	it("names the record key without asking a provider or reading the cache", () => {
+		const { resolver, calls, itunesCalls } = targeting()
+
+		expect(resolver.overrideTargetFor(status(tagged))).toEqual({
+			key: "audio:christian nodal|me deje llevar",
+			active: false,
+		})
+		expect(itunesCalls.search).toBe(0)
+		expect(calls.get).toBe(0)
+	})
+
+	it("names the same key every track of the record would be corrected under", () => {
+		const { resolver } = targeting()
+
+		const other = status({
+			title: "De Los Besos Que Te Di",
+			artist: "Christian Nodal",
+			album: "Me Dejé Llevar",
+		})
+
+		expect(resolver.overrideTargetFor(other)?.key).toBe("audio:christian nodal|me deje llevar")
+	})
+
+	it("falls back to the title when the file carries no album tag", () => {
+		const { resolver } = targeting()
+
+		const untagged = status({ title: "Probablemente", artist: "Christian Nodal", album: "" })
+
+		expect(resolver.overrideTargetFor(untagged)?.key).toBe("audio:christian nodal|probablemente")
+	})
+
+	it("reports a key an override is already saved under as active", () => {
+		const { resolver } = targeting({ "audio:christian nodal|me deje llevar": handPicked })
+
+		expect(resolver.overrideTargetFor(status(tagged))).toEqual({
+			key: "audio:christian nodal|me deje llevar",
+			active: true,
+		})
+	})
+
+	it("reports no key when the file has no artist, since the store would refuse it", () => {
+		// The credit leads the key precisely so this is the component the store
+		// finds empty: one cover for every untagged file is the wrong answer.
+		const { resolver } = targeting({}, ["audio:|me deje llevar"])
+
+		const anonymous = status({ title: "Probablemente", album: "Me Dejé Llevar" })
+
+		expect(resolver.overrideTargetFor(anonymous)).toBeNull()
+	})
+
+	it("reports no key for video, which the catalog keys its own way", () => {
+		const { resolver } = targeting()
+
+		expect(resolver.overrideTargetFor(status(tagged, "video"))).toBeNull()
 	})
 })

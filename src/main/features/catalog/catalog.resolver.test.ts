@@ -68,12 +68,21 @@ function fakeProvider(results: Candidate[] | (() => Candidate[]), fails = false)
 	return { provider, calls }
 }
 
-function fakeOverrides(entries: Record<string, VideoOverride> = {}) {
-	const calls = { get: 0 }
+function fakeOverrides(
+	entries: Record<string, VideoOverride> = {},
+	refused: readonly string[] = [],
+) {
+	const calls = { get: 0, accepts: 0 }
 	const overrides: OverrideSource = {
 		get: (key: string) => {
 			calls.get++
 			return entries[key] ?? null
+		},
+		// Which keys the store turns down is the store's rule and is tested there.
+		// A test that cares names the key it expects to be turned down.
+		accepts: (key: string) => {
+			calls.accepts++
+			return !refused.includes(key)
 		},
 	}
 	return { overrides, calls }
@@ -376,5 +385,75 @@ describe("Resolver.evictOverride", () => {
 		resolver.evictOverride("tv:Some Show|1")
 
 		expect(store.has("tv:Some Show|2")).toBe(true)
+	})
+})
+
+describe("Resolver.overrideTargetFor", () => {
+	it("names the key of a work nothing can identify, the case the correction exists for", () => {
+		const { cache, calls: cacheCalls } = fakeCache()
+		const { provider: anilist, calls: anilistCalls } = fakeProvider([])
+		const { overrides } = fakeOverrides()
+		const resolver = new Resolver(cache, anilist, overrides)
+
+		// Western naming has no provider at all, so this never resolves.
+		const target = resolver.overrideTargetFor(status("Some.Movie.2019.1080p.BluRay.x264.mp4"))
+
+		expect(target).toEqual({ key: "movie:Some Movie|2019", active: false })
+		expect(anilistCalls.search).toBe(0)
+		expect(cacheCalls.get).toBe(0)
+	})
+
+	it("names the same key the resolution consults, so the two cannot drift", async () => {
+		const { cache } = fakeCache()
+		const { provider: anilist } = fakeProvider([candidate({ title: "Some Show" })])
+		const { overrides, calls } = fakeOverrides({
+			"tv:Some Show|1": videoOverride({ title: "The Show It Really Is" }),
+		})
+		const resolver = new Resolver(cache, anilist, overrides)
+		const playing = status("Some.Show.S01E07.1080p.WEB-DL.mp4")
+
+		const target = resolver.overrideTargetFor(playing)
+		const result = await resolver.resolve(playing)
+
+		expect(target?.key).toBe("tv:Some Show|1")
+		expect(result?.title).toBe("The Show It Really Is")
+		expect(calls.get).toBe(2)
+	})
+
+	it("reports a key an override is already saved under as active", () => {
+		const { cache } = fakeCache()
+		const { provider: anilist } = fakeProvider([])
+		const { overrides } = fakeOverrides({
+			"tv:Some Show|1": videoOverride({ title: "The Show It Really Is" }),
+		})
+		const resolver = new Resolver(cache, anilist, overrides)
+
+		expect(resolver.overrideTargetFor(status("Some.Show.S01E07.1080p.WEB-DL.mp4"))).toEqual({
+			key: "tv:Some Show|1",
+			active: true,
+		})
+	})
+
+	it("reports no key when the store would refuse the one this filename produces", () => {
+		const { cache } = fakeCache()
+		const { provider: anilist } = fakeProvider([])
+		// `catalogKey` is pure and never sees the empty title guard, so a name
+		// with nothing but a group tag and a resolution yields `video:` exactly.
+		const { overrides } = fakeOverrides({}, ["video:"])
+		const resolver = new Resolver(cache, anilist, overrides)
+
+		expect(resolver.overrideTargetFor(status("[Erai-raws] 1080p"))).toBeNull()
+	})
+
+	it("reports no key for a status it would not resolve either", () => {
+		const { cache } = fakeCache()
+		const { provider: anilist } = fakeProvider([])
+		const { overrides } = fakeOverrides()
+		const resolver = new Resolver(cache, anilist, overrides)
+
+		expect(resolver.overrideTargetFor(status(""))).toBeNull()
+		expect(
+			resolver.overrideTargetFor({ ...status("Some.Movie.2019.mkv"), mediaType: "audio" }),
+		).toBeNull()
 	})
 })

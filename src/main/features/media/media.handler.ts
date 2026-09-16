@@ -2,6 +2,7 @@ import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
 import type { Resolver as ArtworkResolver } from "@main/features/artwork"
 import type { Resolver as CatalogResolver, CatalogResult } from "@main/features/catalog"
+import type { OverrideTarget } from "@main/features/overrides"
 import type { Client as VlcClient } from "@main/features/vlc"
 import type { ContentMetadata, ContentType, DetectedMediaInfo } from "@shared/media/media.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
@@ -35,6 +36,22 @@ function toContentType(mediaKind: CatalogResult["mediaKind"]): ContentType {
 }
 
 /**
+ * A resolver asked where a correction for this file would be filed, which is a
+ * question it can answer without resolving. Declared here so the audio side
+ * arrives as the music catalog itself: `artwork` decides between the file's own
+ * artwork and a catalog cover, and knows nothing about how a record is keyed.
+ */
+export interface OverrideTargets {
+	overrideTargetFor(status: VlcStatus): OverrideTarget | null
+}
+
+function reportOverrideTarget(info: DetectedMediaInfo, target: OverrideTarget | null): void {
+	if (!target) return
+	info.override_key = target.key
+	info.override_active = target.active
+}
+
+/**
  * Handler for accessing media information
  */
 export class MediaInfoHandler {
@@ -44,6 +61,7 @@ export class MediaInfoHandler {
 	constructor(
 		private readonly artwork: ArtworkResolver,
 		private readonly catalog: CatalogResolver,
+		private readonly music: OverrideTargets,
 		private readonly vlc: VlcClient,
 		private readonly imageProxy: ImageProxy,
 	) {
@@ -95,6 +113,7 @@ export class MediaInfoHandler {
 				// from the file's own tags, which the renderer already has, so there
 				// is no resolved title or metadata to report alongside the kind.
 				mediaInfo.content_type = "audio"
+				reportOverrideTarget(mediaInfo, this.music.overrideTargetFor(vlcStatus))
 			}
 
 			if (vlcStatus.mediaType === "video") {
@@ -108,6 +127,11 @@ export class MediaInfoHandler {
 					mediaInfo.content_type = toContentType(catalogResult.mediaKind)
 					mediaInfo.content_metadata = toVideoMetadata(catalogResult)
 				}
+
+				// Outside the branch above on purpose. A work the catalog identifies
+				// as nothing is the case a correction is for, and since TMDB was
+				// removed that is all of western film and television.
+				reportOverrideTarget(mediaInfo, this.catalog.overrideTargetFor(vlcStatus))
 			}
 
 			if (mediaInfo.media?.artworkUrl) {

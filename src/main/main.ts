@@ -116,7 +116,7 @@ if (!gotTheLock) {
 		// Handlers, one per feature
 		new App.AppInfoHandler(startup)
 		new Cover.MetadataHandler(coverStore)
-		new Media.MediaInfoHandler(artwork, catalogResolver, vlc, imageProxy)
+		new Media.MediaInfoHandler(artwork, catalogResolver, musicResolver, vlc, imageProxy)
 		// Both resolvers, because the key alone does not say which cache holds what
 		// the correction replaces, and each one answers only for its own keys.
 		new Overrides.Handler(overridesStore, [catalogResolver, musicResolver])

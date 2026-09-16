@@ -44,3 +44,13 @@ export interface OverrideEntry {
 	key: string
 	override: Override
 }
+
+/**
+ * Where a correction for what is playing would be filed, and whether one is
+ * there already. A resolver answers this without resolving, because the media
+ * that most needs correcting is exactly the media that resolves to nothing.
+ */
+export interface OverrideTarget {
+	key: string
+	active: boolean
+}

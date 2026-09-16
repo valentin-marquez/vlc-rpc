@@ -12,7 +12,8 @@ vi.mock("@main/core/logger", () => ({
 vi.mock("@main/core/ipc", () => ({ registerHandler: () => {} }))
 
 import { Resolver as ArtworkResolver } from "@main/features/artwork"
-import { MediaInfoHandler } from "./media.handler"
+import type { OverrideTarget } from "@main/features/overrides"
+import { MediaInfoHandler, type OverrideTargets } from "./media.handler"
 import type { ImageProxy } from "./media.image-proxy"
 
 const LOCAL_ARTWORK = "file:///C:/music/track.jpg"
@@ -38,7 +39,11 @@ function status(artworkUrl?: string): VlcStatus {
 	}
 }
 
-function build(outcome: CoverOutcome, result: MusicResult | null = catalogHit) {
+function build(
+	outcome: CoverOutcome,
+	result: MusicResult | null = catalogHit,
+	target: OverrideTarget | null = null,
+) {
 	const calls = { fetch: 0, resolve: 0 }
 	const artwork = new ArtworkResolver(
 		{
@@ -54,17 +59,17 @@ function build(outcome: CoverOutcome, result: MusicResult | null = catalogHit) {
 			},
 		},
 	)
-	const catalog = {
-		resolve: async () => {
-			throw new Error("the video catalog must not be consulted for audio")
-		},
-	} as unknown as CatalogResolver
+	const refuse = (): never => {
+		throw new Error("the video catalog must not be consulted for audio")
+	}
+	const catalog = { resolve: refuse, overrideTargetFor: refuse } as unknown as CatalogResolver
+	const music: OverrideTargets = { overrideTargetFor: () => target }
 	const vlc = { readStatus: async () => null } as unknown as VlcClient
 	// Null keeps every URL as it was resolved, so the assertions read the
 	// decision under test rather than a data URL.
 	const imageProxy = { getImageAsDataUrl: async () => null } as unknown as ImageProxy
 
-	return { handler: new MediaInfoHandler(artwork, catalog, vlc, imageProxy), calls }
+	return { handler: new MediaInfoHandler(artwork, catalog, music, vlc, imageProxy), calls }
 }
 
 describe("MediaInfoHandler audio artwork", () => {
@@ -131,16 +136,27 @@ function videoStatus(title: string): VlcStatus {
 	}
 }
 
-function buildVideo(result: CatalogResult | null): MediaInfoHandler {
+function buildVideo(
+	result: CatalogResult | null,
+	target: OverrideTarget | null = null,
+): MediaInfoHandler {
 	const refuse = async (): Promise<never> => {
 		throw new Error("the audio path must not be consulted for video")
 	}
 	const artwork = new ArtworkResolver({ fetch: refuse }, { resolve: refuse })
-	const catalog = { resolve: async () => result } as unknown as CatalogResolver
+	const catalog = {
+		resolve: async () => result,
+		overrideTargetFor: () => target,
+	} as unknown as CatalogResolver
+	const music: OverrideTargets = {
+		overrideTargetFor: () => {
+			throw new Error("the audio path must not be consulted for video")
+		},
+	}
 	const vlc = { readStatus: async () => null } as unknown as VlcClient
 	const imageProxy = { getImageAsDataUrl: async () => null } as unknown as ImageProxy
 
-	return new MediaInfoHandler(artwork, catalog, vlc, imageProxy)
+	return new MediaInfoHandler(artwork, catalog, music, vlc, imageProxy)
 }
 
 describe("MediaInfoHandler video content fields", () => {
@@ -193,5 +209,79 @@ describe("MediaInfoHandler video content fields", () => {
 		expect(info?.content_type).toBeUndefined()
 		expect(info?.content_metadata).toBeUndefined()
 		expect(info?.content_image_url).toBeUndefined()
+	})
+})
+
+describe("MediaInfoHandler override key", () => {
+	it("reports the key of a video the catalog identified as nothing", async () => {
+		// Western film and television have no provider, so this is the permanent
+		// state of that half of the library and the case the correction exists for.
+		const handler = buildVideo(null, { key: "movie:Some Movie|2019", active: false })
+
+		const info = await handler.getMediaInfo(videoStatus("Some.Movie.2019.1080p.BluRay.mkv"))
+
+		expect(info?.content_type).toBeUndefined()
+		expect(info?.override_key).toBe("movie:Some Movie|2019")
+		expect(info?.override_active).toBe(false)
+	})
+
+	it("reports the key alongside a work the catalog did identify", async () => {
+		const handler = buildVideo(
+			{ title: "Monster", poster: CATALOG_POSTER, mediaKind: "tv", season: 2 },
+			{ key: "tv:Monster|2", active: false },
+		)
+
+		const info = await handler.getMediaInfo(videoStatus("Monster S02E04.mkv"))
+
+		expect(info?.content_metadata?.clean_title).toBe("Monster")
+		expect(info?.override_key).toBe("tv:Monster|2")
+		expect(info?.override_active).toBe(false)
+	})
+
+	it("says when the key already carries an override, so the form can offer to drop it", async () => {
+		const handler = buildVideo(
+			{ title: "The Show It Really Is", poster: CATALOG_POSTER, mediaKind: "tv", season: 1 },
+			{ key: "tv:Some Show|1", active: true },
+		)
+
+		const info = await handler.getMediaInfo(videoStatus("Some.Show.S01E07.mkv"))
+
+		expect(info?.override_key).toBe("tv:Some Show|1")
+		expect(info?.override_active).toBe(true)
+	})
+
+	it("reports no key at all when the store would refuse the one this file produces", async () => {
+		const handler = buildVideo(null, null)
+
+		const info = await handler.getMediaInfo(videoStatus("[Erai-raws] 1080p"))
+
+		expect(info?.override_key).toBeUndefined()
+		expect(info?.override_active).toBeUndefined()
+	})
+
+	it("reports the audio key of the record, not of the track", async () => {
+		const { handler } = build({ kind: "no-artwork" }, catalogHit, {
+			key: "audio:christina aguilera|mi reflejo",
+			active: false,
+		})
+
+		const info = await handler.getMediaInfo(status())
+
+		expect(info?.content_type).toBe("audio")
+		expect(info?.override_key).toBe("audio:christina aguilera|mi reflejo")
+		expect(info?.override_active).toBe(false)
+	})
+
+	it("reports the audio key even when the file's own artwork won", async () => {
+		const { handler, calls } = build({ kind: "published", url: PUBLISHED_COVER }, catalogHit, {
+			key: "audio:christina aguilera|mi reflejo",
+			active: true,
+		})
+
+		const info = await handler.getMediaInfo(status(LOCAL_ARTWORK))
+
+		expect(calls.resolve).toBe(0)
+		expect(info?.override_key).toBe("audio:christina aguilera|mi reflejo")
+		expect(info?.override_active).toBe(true)
 	})
 })

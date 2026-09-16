@@ -160,6 +160,28 @@ describe("Store", () => {
 		expect(disk.writes).toBe(0)
 	})
 
+	it("says in advance which keys it would refuse, so nothing offers the user one", () => {
+		const store = new Store(new FakeClock())
+
+		expect(store.accepts("tv:Show|1")).toBe(true)
+		expect(store.accepts("audio:christian nodal|me deje llevar")).toBe(true)
+		expect(store.accepts("video:")).toBe(false)
+		expect(store.accepts("tv:|1")).toBe(false)
+		expect(store.accepts("audio:|me deje llevar")).toBe(false)
+		expect(store.accepts("")).toBe(false)
+	})
+
+	it("refuses to save exactly the keys it said it would refuse", () => {
+		const store = new Store(new FakeClock())
+		const draft = { kind: "video", title: "Whatever", sourceFilename: "x.mkv" } as const
+
+		for (const key of ["video:", "tv:|1", "audio:|record", ""]) {
+			expect(store.accepts(key)).toBe(false)
+			expect(() => store.save(key, draft)).toThrow()
+		}
+		expect(disk.writes).toBe(0)
+	})
+
 	it("keeps an override past the cache TTL and past the cache entry cap", () => {
 		const clock = new FakeClock()
 		const store = new Store(clock)

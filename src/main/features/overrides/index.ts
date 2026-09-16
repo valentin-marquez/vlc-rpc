@@ -6,5 +6,6 @@ export type {
 	Override,
 	OverrideEntry,
 	OverrideInput,
+	OverrideTarget,
 	VideoOverride,
 } from "./overrides.types"
