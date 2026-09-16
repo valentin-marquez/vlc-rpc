@@ -1,41 +1,32 @@
 import type { LayoutPreset } from "@shared/presence/layout"
+
 export interface LayoutCardData {
 	preset: LayoutPreset
 	name: string
 	description: string
-	musicExample: {
-		details: string
-		state: string
-	}
+}
+
+/** Stands in for the live track so every preset stays readable before VLC reports one. */
+export const SAMPLE_TRACK = {
+	title: "Bohemian Rhapsody",
+	artist: "Queen",
+	album: "A Night at the Opera",
 }
 
 export const LAYOUT_CARDS: LayoutCardData[] = [
 	{
 		preset: "default",
 		name: "Default",
-		description: "Song title on top with 'by' prefix before artist name for clear attribution",
-		musicExample: {
-			details: "Bohemian Rhapsody",
-			state: "by Queen",
-		},
+		description: "Shows the song title first and the artist below it.",
 	},
 	{
 		preset: "album-focused",
-		name: "Album Focus",
-		description: "Highlights album artwork and name as primary information with song details below",
-		musicExample: {
-			details: "A Night at the Opera",
-			state: "Bohemian Rhapsody • Queen",
-		},
+		name: "Album focus",
+		description: "Shows the album first, with the song and artist below it.",
 	},
 	{
 		preset: "artist-spotlight",
-		name: "Artist Spotlight",
-		description:
-			"Prominent artist display with song title subtly shown below using minimalist punctuation",
-		musicExample: {
-			details: "Queen",
-			state: "• Bohemian Rhapsody",
-		},
+		name: "Artist spotlight",
+		description: "Shows the artist first, with the song title below it.",
 	},
 ]
