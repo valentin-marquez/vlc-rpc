@@ -2,6 +2,7 @@ import { join } from "node:path"
 import { is } from "@electron-toolkit/utils"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
+import type { Client as DiscordClient } from "@main/features/discord"
 import {
 	Tray as ElectronTray,
 	Menu,
@@ -24,7 +25,10 @@ export class Tray {
 	private readyResolver: (() => void) | null = null
 	private menuUpdateTimer: NodeJS.Timeout | null = null
 
-	constructor(private readonly startup: Startup) {
+	constructor(
+		private readonly startup: Startup,
+		private readonly discord: DiscordClient,
+	) {
 		this.readyPromise = new Promise<void>((resolve) => {
 			this.readyResolver = resolve
 		})
@@ -249,10 +253,10 @@ export class Tray {
 		this.stopMenuUpdateTimer()
 
 		this.menuUpdateTimer = setInterval(() => {
-			const config = configService.get()
-
-			// Update menu if RPC is temporarily disabled
-			if (config.rpcDisabledUntil && Date.now() < config.rpcDisabledUntil) {
+			// A pending temporary window is the only thing that changes the menu
+			// on its own. Once it elapses the client drops the timestamp, the
+			// refreshed menu reads as enabled again and this goes quiet.
+			if (configService.get("rpcDisabledUntil") !== undefined) {
 				this.updateContextMenu()
 			}
 		}, 10000)
@@ -312,6 +316,33 @@ export class Tray {
 				})
 			}
 
+			const rpcEnabled = this.discord.isRpcEnabled()
+
+			menuItems.push(
+				{ type: "separator" },
+				{
+					label: this.rpcMenuLabel(rpcEnabled),
+					type: "checkbox",
+					checked: rpcEnabled,
+					click: () => {
+						if (rpcEnabled) {
+							this.discord.disableRpc()
+						} else {
+							this.discord.enableRpc()
+						}
+						this.updateContextMenu()
+					},
+				},
+				{
+					label: "Disable for 30 minutes",
+					enabled: rpcEnabled,
+					click: () => {
+						this.discord.disableRpcTemporary(30)
+						this.updateContextMenu()
+					},
+				},
+			)
+
 			menuItems.push(
 				{ type: "separator" },
 				{
@@ -329,5 +360,27 @@ export class Tray {
 		} catch (error) {
 			logger.error(`Failed to update tray context menu: ${error}`)
 		}
+	}
+
+	/**
+	 * Takes the on/off answer from the client instead of reading the flags a
+	 * second time, so the menu cannot claim one thing while Discord shows
+	 * another. Only the wording is decided here.
+	 */
+	private rpcMenuLabel(enabled: boolean): string {
+		if (enabled) {
+			return "Rich Presence"
+		}
+
+		const disabledUntil = configService.get("rpcDisabledUntil")
+		if (disabledUntil === undefined) {
+			return "Rich Presence (off)"
+		}
+
+		const until = new Date(disabledUntil).toLocaleTimeString(undefined, {
+			hour: "2-digit",
+			minute: "2-digit",
+		})
+		return `Rich Presence (off until ${until})`
 	}
 }
