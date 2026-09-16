@@ -1,6 +1,6 @@
 import logo from "@renderer/assets/logo.png"
 import { loadVlcConfig, saveVlcConfig } from "@renderer/features/vlc"
-import { logger } from "@renderer/lib/utils"
+import { cn, logger } from "@renderer/lib/utils"
 import { saveFullConfig } from "@renderer/stores/config.store"
 import type { VlcConfig } from "@shared/config/app-config"
 import { useState } from "react"
@@ -8,7 +8,9 @@ import { SetupCompleteStep } from "./components/setup-complete-step"
 import { VlcSetupStep } from "./components/vlc-setup-step"
 import { WelcomeStep } from "./components/welcome-step"
 
-type Step = "welcome" | "vlc" | "testing" | "success"
+type Step = "welcome" | "vlc" | "done"
+
+const STEPS: readonly Step[] = ["welcome", "vlc", "done"]
 
 export function FirstRunPage(): JSX.Element {
 	const [currentStep, setCurrentStep] = useState<Step>("welcome")
@@ -38,17 +40,16 @@ export function FirstRunPage(): JSX.Element {
 			if (updatedConfig) {
 				setVlcConfig(updatedConfig)
 				setConnectionStatus("success")
-				setCurrentStep("testing")
+				setErrorMessage(null)
+				setCurrentStep("done")
 			} else {
 				setConnectionStatus("error")
-				setErrorMessage(
-					"Failed to configure VLC. Make sure VLC is installed and not currently running.",
-				)
+				setErrorMessage("Could not configure VLC. Check that VLC is installed and closed.")
 			}
 		} catch (error) {
 			logger.error(`Error during VLC configuration: ${error}`)
 			setConnectionStatus("error")
-			setErrorMessage("An unexpected error occurred while configuring VLC.")
+			setErrorMessage("Something went wrong while configuring VLC.")
 		} finally {
 			setIsLoading(false)
 		}
@@ -66,48 +67,77 @@ export function FirstRunPage(): JSX.Element {
 			window.location.hash = "/"
 		} catch (error) {
 			logger.error(`Error completing setup: ${error}`)
-			setErrorMessage("Failed to complete setup.")
+			setErrorMessage("Could not save your setup.")
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
 	return (
-		<div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6">
-			<div className="w-full max-w-md">
-				<div className="mb-8 flex flex-col items-center justify-center">
-					<div className="relative">
-						<div className="absolute inset-0 blur-lg opacity-50 bg-primary/30 rounded-full scale-110" />
-						<img src={logo} alt="VLC Discord RP" className="relative h-20 w-20 mb-3" />
-					</div>
-					<h1 className="text-3xl font-bold text-primary tracking-tight">VLC Discord RP</h1>
-					<div className="h-1 w-16 bg-primary/30 rounded-full mt-3" />
+		<main className="scroll-region grid h-full place-items-center bg-canvas p-6 text-body">
+			<div className="w-full max-w-[480px]">
+				<div className="mb-8 flex flex-col items-center">
+					<img src={logo} alt="" className="mb-3 size-20" />
+					<h1 className="type-hero text-strong">VLC Discord RP</h1>
 				</div>
 
-				<div className="bg-card text-card-foreground rounded-lg border border-border shadow-lg p-6">
-					{currentStep === "welcome" && <WelcomeStep onNext={() => setCurrentStep("vlc")} />}
+				<div className="relative overflow-hidden rounded-lg border border-divider bg-card p-6 shadow-[0_8px_32px_rgb(0_0_0/0.5)]">
+					<StepIndicator steps={STEPS} currentIndex={STEPS.indexOf(currentStep)} />
 
-					{currentStep === "vlc" && (
-						<VlcSetupStep
-							vlcConfig={vlcConfig}
-							onVlcConfigChange={setVlcConfig}
-							onBack={() => setCurrentStep("welcome")}
-							onSubmit={handleVlcConfig}
-							isLoading={isLoading}
-							connectionStatus={connectionStatus}
-							errorMessage={errorMessage}
-						/>
-					)}
+					<div
+						key={currentStep}
+						className={cn(
+							"onboarding-step opacity-100 [transform:translateX(0)]",
+							"starting:opacity-0 starting:[transform:translateX(8px)]",
+							"[transition:opacity_var(--spring-enter-duration)_var(--spring-enter),transform_var(--spring-enter-duration)_var(--spring-enter)]",
+						)}
+					>
+						{currentStep === "welcome" && <WelcomeStep onNext={() => setCurrentStep("vlc")} />}
 
-					{currentStep === "testing" && (
-						<SetupCompleteStep
-							onBack={() => setCurrentStep("vlc")}
-							onFinish={finishSetup}
-							isLoading={isLoading}
-						/>
-					)}
+						{currentStep === "vlc" && (
+							<VlcSetupStep
+								vlcConfig={vlcConfig}
+								onVlcConfigChange={setVlcConfig}
+								onBack={() => setCurrentStep("welcome")}
+								onSubmit={handleVlcConfig}
+								isLoading={isLoading}
+								connectionStatus={connectionStatus}
+								errorMessage={errorMessage}
+							/>
+						)}
+
+						{currentStep === "done" && (
+							<SetupCompleteStep
+								onBack={() => setCurrentStep("vlc")}
+								onFinish={finishSetup}
+								isLoading={isLoading}
+							/>
+						)}
+					</div>
 				</div>
 			</div>
-		</div>
+		</main>
+	)
+}
+
+interface StepIndicatorProps {
+	steps: readonly Step[]
+	currentIndex: number
+}
+
+// The line sits on the card's top edge so the indicator costs the layout no height.
+function StepIndicator({ steps, currentIndex }: StepIndicatorProps): JSX.Element {
+	return (
+		<>
+			<p className="sr-only">{`Step ${currentIndex + 1} of ${steps.length}`}</p>
+			<div aria-hidden="true" className="absolute inset-x-0 top-0 flex h-[2px] gap-1">
+				{steps.map((step, index) => (
+					<span
+						key={step}
+						className={cn("flex-1", index <= currentIndex ? "bg-brand" : "bg-raised")}
+					/>
+				))}
+			</div>
+		</>
 	)
 }

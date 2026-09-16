@@ -18,6 +18,15 @@ export function updateFromVlcStatus(status: VlcStatus | null): void {
 			duration: null,
 			position: null,
 			artwork: null,
+			fileTitle: null,
+			mediaType: null,
+			contentType: null,
+			contentImageUrl: null,
+			season: null,
+			episode: null,
+			year: null,
+			overrideKey: null,
+			overrideActive: false,
 		})
 		return
 	}
@@ -32,6 +41,8 @@ export function updateFromVlcStatus(status: VlcStatus | null): void {
 		duration: playback.duration || null,
 		position: playback.time || null,
 		artwork: media.artworkUrl || null,
+		fileTitle: media.title || null,
+		mediaType: status.mediaType || null,
 	})
 }
 
@@ -55,6 +66,8 @@ export async function refreshMediaInfo(): Promise<void> {
 				season: null,
 				episode: null,
 				year: null,
+				overrideKey: null,
+				overrideActive: false,
 			})
 			return
 		}
@@ -71,9 +84,15 @@ export async function refreshMediaInfo(): Promise<void> {
 				mediaInfo.content_metadata?.anime_name ||
 				mediaStore.get().title,
 			artist: mediaInfo.media?.artist || mediaStore.get().artist,
+			fileTitle: mediaInfo.media?.title || mediaStore.get().fileTitle,
+			mediaType: mediaInfo.mediaType || mediaStore.get().mediaType,
 			season: mediaInfo.content_metadata?.season || null,
 			episode: mediaInfo.content_metadata?.episode || null,
 			year: mediaInfo.content_metadata?.year || null,
+			// Written together or not at all by the handler, so an absent key means
+			// the store would refuse this file rather than that nothing is playing.
+			overrideKey: mediaInfo.override_key || null,
+			overrideActive: mediaInfo.override_active === true,
 		})
 
 		logger.info("Media information updated")

@@ -11,12 +11,25 @@ export interface MediaState {
 	duration: number | null
 	position: number | null
 	artwork: string | null
+	/**
+	 * The file title exactly as VLC reports it, kept apart from `title` because
+	 * `title` becomes the resolved one as soon as the catalog answers. Home shows
+	 * both so a wrong parse is visible, and a correction is filed against it.
+	 */
+	fileTitle: string | null
+	mediaType: "video" | "audio" | null
 	// Enriched info (from media detection)
 	contentType: ContentType | null
 	contentImageUrl: string | null
 	season: number | null
 	episode: number | null
 	year: string | null
+	/**
+	 * Where a manual correction for what is playing would be filed. Null means the
+	 * store would refuse this file, so the correction cannot be offered at all.
+	 */
+	overrideKey: string | null
+	overrideActive: boolean
 }
 
 const INITIAL_STATE: MediaState = {
@@ -27,11 +40,15 @@ const INITIAL_STATE: MediaState = {
 	duration: null,
 	position: null,
 	artwork: null,
+	fileTitle: null,
+	mediaType: null,
 	contentType: null,
 	contentImageUrl: null,
 	season: null,
 	episode: null,
 	year: null,
+	overrideKey: null,
+	overrideActive: false,
 }
 
 export const mediaStore = atom<MediaState>(INITIAL_STATE)
