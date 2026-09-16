@@ -1,0 +1,1002 @@
+{
+	"created": "2026-09-16T17:38:47.938Z",
+	"count": 5,
+	"offset": 0,
+	"recordings": [
+		{
+			"id": "097cfb49-419c-4b00-97f3-cc86ef4d77c2",
+			"score": 100,
+			"artist-credit-id": "fe7f0c22-b6ef-3873-99be-9e2a8d7c7f88",
+			"title": "Probablemente",
+			"length": 233546,
+			"video": null,
+			"artist-credit": [
+				{
+					"name": "Christian Nodal",
+					"artist": {
+						"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+						"name": "Christian Nodal",
+						"sort-name": "Nodal, Christian",
+						"aliases": [
+							{
+								"sort-name": "González Nodal, Christian Jaime",
+								"type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+								"name": "Christian Jaime González Nodal",
+								"locale": null,
+								"type": "Legal name",
+								"primary": null,
+								"begin-date": null,
+								"end-date": null
+							}
+						]
+					}
+				}
+			],
+			"first-release-date": "2017-07-07",
+			"releases": [
+				{
+					"id": "7b01281d-7402-4967-adae-142dfefcad85",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "733f166e-813d-477f-bf21-46f154df1e31",
+					"count": 1,
+					"title": "Lo mejor de dos grandes",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"joinphrase": " & ",
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						},
+						{
+							"name": "Jorge Medina",
+							"artist": {
+								"id": "1df2e165-15aa-45b3-8bed-278273afe480",
+								"name": "Jorge Medina",
+								"sort-name": "Medina, Jorge",
+								"disambiguation": "Mexican singer"
+							}
+						}
+					],
+					"release-group": {
+						"id": "e33f4557-95f2-435f-a6fa-c676eac43423",
+						"type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+						"primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"title": "Lo mejor de dos grandes",
+						"primary-type": "Album",
+						"secondary-types": ["Compilation"],
+						"secondary-type-ids": ["dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"]
+					},
+					"track-count": 20,
+					"media": [
+						{
+							"id": "0bdec8d5-b5d5-4b94-9cce-e4f62ab16697",
+							"position": 1,
+							"format": "Digital Media",
+							"track": [
+								{
+									"id": "144d974d-abf9-47d9-a156-84b4b554fbeb",
+									"number": "17",
+									"title": "Probablemente",
+									"length": 233546
+								}
+							],
+							"track-count": 20,
+							"track-offset": 16
+						}
+					]
+				},
+				{
+					"id": "2e492e2c-6054-4fed-bc1b-31f14ae9ba60",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "29d62aed-e0ec-4ff6-8913-a3f021b1ebc2",
+					"count": 1,
+					"title": "Duelo romántico",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"joinphrase": " & ",
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						},
+						{
+							"name": "El Bebeto",
+							"artist": {
+								"id": "91e4f95e-9d52-43bf-b26b-b88f4d88e40d",
+								"name": "El Bebeto",
+								"sort-name": "Bebeto, El",
+								"disambiguation": "Carlos Alberto García Villanueva"
+							}
+						}
+					],
+					"release-group": {
+						"id": "c9faff69-c4bd-419d-9494-f1c358e356e6",
+						"type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+						"primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"title": "Duelo romántico",
+						"primary-type": "Album",
+						"secondary-types": ["Compilation"],
+						"secondary-type-ids": ["dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"]
+					},
+					"track-count": 20,
+					"media": [
+						{
+							"id": "7c6ef9ca-afa1-46dd-af47-106ae28ec883",
+							"position": 1,
+							"format": "Digital Media",
+							"track": [
+								{
+									"id": "a2211e96-0f82-4269-8cd6-ba7f2b4f3c58",
+									"number": "13",
+									"title": "Probablemente",
+									"length": 233546
+								}
+							],
+							"track-count": 20,
+							"track-offset": 12
+						}
+					]
+				},
+				{
+					"id": "fe38d5dc-d123-4cd9-a4cd-a9b555abec5a",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "fe7f0c22-b6ef-3873-99be-9e2a8d7c7f88",
+					"count": 1,
+					"title": "La voz de México ¡Lo mejor!",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						}
+					],
+					"release-group": {
+						"id": "1a93ae84-9087-42f4-8848-0eab47f900b6",
+						"type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+						"primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"title": "La voz de México ¡Lo mejor!",
+						"primary-type": "Album",
+						"secondary-types": ["Compilation"],
+						"secondary-type-ids": ["dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"]
+					},
+					"date": "2023-11-24",
+					"country": "XW",
+					"release-events": [
+						{
+							"date": "2023-11-24",
+							"area": {
+								"id": "525d4e18-3d00-31b9-a58b-a146a916de8f",
+								"name": "[Worldwide]",
+								"sort-name": "[Worldwide]",
+								"iso-3166-1-codes": ["XW"]
+							}
+						}
+					],
+					"track-count": 20,
+					"media": [
+						{
+							"id": "c6bfc4d5-a595-3d8b-85f2-7a9388fddcbd",
+							"position": 1,
+							"format": "Digital Media",
+							"track": [
+								{
+									"id": "5ac23281-67fa-418d-ba86-acdabfafad07",
+									"number": "9",
+									"title": "Probablemente",
+									"length": 233546
+								}
+							],
+							"track-count": 20,
+							"track-offset": 8
+						}
+					]
+				},
+				{
+					"id": "40c32a0e-37b3-4bc3-9570-b1d8eddd7153",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "fe7f0c22-b6ef-3873-99be-9e2a8d7c7f88",
+					"count": 2,
+					"title": "Me dejé llevar",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						}
+					],
+					"release-group": {
+						"id": "1f9763bf-5ebf-4ecc-b5aa-4d462df0e20a",
+						"type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"title": "Me dejé llevar",
+						"primary-type": "Album"
+					},
+					"date": "2017",
+					"country": "CO",
+					"release-events": [
+						{
+							"date": "2017",
+							"area": {
+								"id": "02b60d8d-7164-339d-868d-22d147d9f74a",
+								"name": "Colombia",
+								"sort-name": "Colombia",
+								"iso-3166-1-codes": ["CO"]
+							}
+						}
+					],
+					"track-count": 22,
+					"media": [
+						{
+							"id": "d36084e8-215f-3101-8905-55c016b23c1d",
+							"position": 1,
+							"format": "CD",
+							"track": [
+								{
+									"id": "fd0cf9d2-10c5-458d-89e3-aa8abbbeac39",
+									"number": "2",
+									"title": "Probablemente",
+									"length": 233546
+								}
+							],
+							"track-count": 13,
+							"track-offset": 1
+						}
+					]
+				},
+				{
+					"id": "4192cac3-03f2-42af-b410-d4cedfa384a5",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "fe7f0c22-b6ef-3873-99be-9e2a8d7c7f88",
+					"count": 1,
+					"title": "Probablemente",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						}
+					],
+					"release-group": {
+						"id": "1a02a523-4d16-43e6-9c99-b56289d09cd7",
+						"type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+						"primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+						"title": "Probablemente",
+						"primary-type": "Single"
+					},
+					"date": "2017-07-07",
+					"country": "XW",
+					"release-events": [
+						{
+							"date": "2017-07-07",
+							"area": {
+								"id": "525d4e18-3d00-31b9-a58b-a146a916de8f",
+								"name": "[Worldwide]",
+								"sort-name": "[Worldwide]",
+								"iso-3166-1-codes": ["XW"]
+							}
+						}
+					],
+					"track-count": 1,
+					"media": [
+						{
+							"id": "678e8e04-df8a-3664-957e-c2e1b7053128",
+							"position": 1,
+							"format": "Digital Media",
+							"track": [
+								{
+									"id": "ac6a2f48-43c3-4a9e-bdc5-2f92d67aee8f",
+									"number": "1",
+									"title": "Probablemente",
+									"length": 233000
+								}
+							],
+							"track-count": 1,
+							"track-offset": 0
+						}
+					]
+				},
+				{
+					"id": "c2150cf2-85f5-4256-818a-2763e89bf404",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "fe7f0c22-b6ef-3873-99be-9e2a8d7c7f88",
+					"count": 1,
+					"title": "Me dejé llevar",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						}
+					],
+					"release-group": {
+						"id": "1f9763bf-5ebf-4ecc-b5aa-4d462df0e20a",
+						"type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"title": "Me dejé llevar",
+						"primary-type": "Album"
+					},
+					"date": "2017-08-25",
+					"country": "XW",
+					"release-events": [
+						{
+							"date": "2017-08-25",
+							"area": {
+								"id": "525d4e18-3d00-31b9-a58b-a146a916de8f",
+								"name": "[Worldwide]",
+								"sort-name": "[Worldwide]",
+								"iso-3166-1-codes": ["XW"]
+							}
+						}
+					],
+					"track-count": 13,
+					"media": [
+						{
+							"id": "1e6f94ef-b4c9-348f-969f-752c36118118",
+							"position": 1,
+							"format": "Digital Media",
+							"track": [
+								{
+									"id": "54db6a8b-fd81-4340-90c4-f3031c24c1bf",
+									"number": "2",
+									"title": "Probablemente",
+									"length": 233547
+								}
+							],
+							"track-count": 13,
+							"track-offset": 1
+						}
+					]
+				}
+			],
+			"isrcs": ["MXUM71700839"]
+		},
+		{
+			"id": "5697b367-a36c-4b6f-aa0c-ce9e49a9afa7",
+			"score": 100,
+			"artist-credit-id": "fe7f0c22-b6ef-3873-99be-9e2a8d7c7f88",
+			"title": "Probablemente",
+			"length": 233586,
+			"video": null,
+			"artist-credit": [
+				{
+					"name": "Christian Nodal",
+					"artist": {
+						"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+						"name": "Christian Nodal",
+						"sort-name": "Nodal, Christian",
+						"aliases": [
+							{
+								"sort-name": "González Nodal, Christian Jaime",
+								"type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+								"name": "Christian Jaime González Nodal",
+								"locale": null,
+								"type": "Legal name",
+								"primary": null,
+								"begin-date": null,
+								"end-date": null
+							}
+						]
+					}
+				}
+			],
+			"first-release-date": "2026-01-30",
+			"releases": [
+				{
+					"id": "210d75fe-86bd-474a-90bc-cd500c79d458",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "fe7f0c22-b6ef-3873-99be-9e2a8d7c7f88",
+					"count": 1,
+					"title": "Entre Besos Y Heridas",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						}
+					],
+					"release-group": {
+						"id": "eca50e94-30d3-4b4c-b4a5-dff74c9859de",
+						"type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"title": "Entre Besos Y Heridas",
+						"primary-type": "Album"
+					},
+					"date": "2026-01-30",
+					"country": "XW",
+					"release-events": [
+						{
+							"date": "2026-01-30",
+							"area": {
+								"id": "525d4e18-3d00-31b9-a58b-a146a916de8f",
+								"name": "[Worldwide]",
+								"sort-name": "[Worldwide]",
+								"iso-3166-1-codes": ["XW"]
+							}
+						}
+					],
+					"track-count": 15,
+					"media": [
+						{
+							"id": "88043036-47e0-4bdc-868e-cf551d1a87e6",
+							"position": 1,
+							"format": "Digital Media",
+							"track": [
+								{
+									"id": "ca60dc76-a72c-46ca-bd9f-f88b3b81337b",
+									"number": "4",
+									"title": "Probablemente",
+									"length": 233586
+								}
+							],
+							"track-count": 15,
+							"track-offset": 3
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "0a25e4b3-fdf1-4c20-917b-6721a744cfbc",
+			"score": 82,
+			"artist-credit-id": "208d172d-4c40-374e-82fd-e15ca67d91fd",
+			"title": "Probablemente",
+			"length": 233533,
+			"video": null,
+			"artist-credit": [
+				{
+					"joinphrase": " ft. ",
+					"name": "Christian Nodal",
+					"artist": {
+						"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+						"name": "Christian Nodal",
+						"sort-name": "Nodal, Christian",
+						"aliases": [
+							{
+								"sort-name": "González Nodal, Christian Jaime",
+								"type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+								"name": "Christian Jaime González Nodal",
+								"locale": null,
+								"type": "Legal name",
+								"primary": null,
+								"begin-date": null,
+								"end-date": null
+							}
+						]
+					}
+				},
+				{
+					"name": "David Bisbal",
+					"artist": {
+						"id": "95c8b6b7-1e24-4987-804c-024f6b05cd91",
+						"name": "David Bisbal",
+						"sort-name": "Bisbal, David",
+						"aliases": [
+							{
+								"sort-name": "Bisbal Ferre, David",
+								"type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+								"name": "David Bisbal Ferre",
+								"locale": null,
+								"type": "Legal name",
+								"primary": null,
+								"begin-date": null,
+								"end-date": null
+							},
+							{
+								"sort-name": "David Bisbay",
+								"type-id": "1937e404-b981-3cb7-8151-4c86ebfc8d8e",
+								"name": "David Bisbay",
+								"locale": null,
+								"type": "Search hint",
+								"primary": null,
+								"begin-date": null,
+								"end-date": null
+							}
+						]
+					}
+				}
+			],
+			"first-release-date": "2017-06-09",
+			"releases": [
+				{
+					"id": "40c32a0e-37b3-4bc3-9570-b1d8eddd7153",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "fe7f0c22-b6ef-3873-99be-9e2a8d7c7f88",
+					"count": 2,
+					"title": "Me dejé llevar",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						}
+					],
+					"release-group": {
+						"id": "1f9763bf-5ebf-4ecc-b5aa-4d462df0e20a",
+						"type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"title": "Me dejé llevar",
+						"primary-type": "Album"
+					},
+					"date": "2017",
+					"country": "CO",
+					"release-events": [
+						{
+							"date": "2017",
+							"area": {
+								"id": "02b60d8d-7164-339d-868d-22d147d9f74a",
+								"name": "Colombia",
+								"sort-name": "Colombia",
+								"iso-3166-1-codes": ["CO"]
+							}
+						}
+					],
+					"track-count": 22,
+					"media": [
+						{
+							"id": "d36084e8-215f-3101-8905-55c016b23c1d",
+							"position": 1,
+							"format": "CD",
+							"track": [
+								{
+									"id": "1c5939c4-277c-4fe8-a1d5-52a6c32e0172",
+									"number": "12",
+									"title": "Probablemente",
+									"length": 233533
+								}
+							],
+							"track-count": 13,
+							"track-offset": 11
+						}
+					]
+				},
+				{
+					"id": "624464cf-4992-49b8-b283-8064e4c5489d",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "208d172d-4c40-374e-82fd-e15ca67d91fd",
+					"count": 1,
+					"title": "Probablemente",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"joinphrase": " ft. ",
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						},
+						{
+							"name": "David Bisbal",
+							"artist": {
+								"id": "95c8b6b7-1e24-4987-804c-024f6b05cd91",
+								"name": "David Bisbal",
+								"sort-name": "Bisbal, David"
+							}
+						}
+					],
+					"release-group": {
+						"id": "fd91af28-bb83-43bc-ba27-7711baf3b8ad",
+						"type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+						"primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+						"title": "Probablemente",
+						"primary-type": "Single"
+					},
+					"date": "2017-06-09",
+					"country": "XW",
+					"release-events": [
+						{
+							"date": "2017-06-09",
+							"area": {
+								"id": "525d4e18-3d00-31b9-a58b-a146a916de8f",
+								"name": "[Worldwide]",
+								"sort-name": "[Worldwide]",
+								"iso-3166-1-codes": ["XW"]
+							}
+						}
+					],
+					"track-count": 1,
+					"media": [
+						{
+							"id": "7906d3bb-0772-3a3a-8933-0786aa375b44",
+							"position": 1,
+							"format": "Digital Media",
+							"track": [
+								{
+									"id": "2a775b92-b433-4389-8638-f2ad12a58f55",
+									"number": "1",
+									"title": "Probablemente",
+									"length": 233000
+								}
+							],
+							"track-count": 1,
+							"track-offset": 0
+						}
+					]
+				},
+				{
+					"id": "884ed4c1-0153-4ff6-a551-9616fae1faa9",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "d4721846-6f9c-3ee9-a83d-9afa4bb5855c",
+					"count": 3,
+					"title": "20 años contigo",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"name": "David Bisbal",
+							"artist": {
+								"id": "95c8b6b7-1e24-4987-804c-024f6b05cd91",
+								"name": "David Bisbal",
+								"sort-name": "Bisbal, David"
+							}
+						}
+					],
+					"release-group": {
+						"id": "545fe57f-ee51-4895-a7dd-60cb2c021b7a",
+						"type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+						"primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"title": "20 años contigo",
+						"primary-type": "Album",
+						"secondary-types": ["Compilation"],
+						"secondary-type-ids": ["dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"]
+					},
+					"date": "2021-12-02",
+					"country": "XW",
+					"release-events": [
+						{
+							"date": "2021-12-02",
+							"area": {
+								"id": "525d4e18-3d00-31b9-a58b-a146a916de8f",
+								"name": "[Worldwide]",
+								"sort-name": "[Worldwide]",
+								"iso-3166-1-codes": ["XW"]
+							}
+						}
+					],
+					"track-count": 60,
+					"media": [
+						{
+							"id": "4fd86275-90b0-3a4a-8ba7-44e7a22711d4",
+							"position": 3,
+							"format": "Digital Media",
+							"track": [
+								{
+									"id": "4c30a9d5-c764-41dd-9cd2-e46ab01ede10",
+									"number": "7",
+									"title": "Probablemente",
+									"length": 233760
+								}
+							],
+							"track-count": 20,
+							"track-offset": 6
+						}
+					]
+				},
+				{
+					"id": "c2150cf2-85f5-4256-818a-2763e89bf404",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "fe7f0c22-b6ef-3873-99be-9e2a8d7c7f88",
+					"count": 1,
+					"title": "Me dejé llevar",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						}
+					],
+					"release-group": {
+						"id": "1f9763bf-5ebf-4ecc-b5aa-4d462df0e20a",
+						"type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"title": "Me dejé llevar",
+						"primary-type": "Album"
+					},
+					"date": "2017-08-25",
+					"country": "XW",
+					"release-events": [
+						{
+							"date": "2017-08-25",
+							"area": {
+								"id": "525d4e18-3d00-31b9-a58b-a146a916de8f",
+								"name": "[Worldwide]",
+								"sort-name": "[Worldwide]",
+								"iso-3166-1-codes": ["XW"]
+							}
+						}
+					],
+					"track-count": 13,
+					"media": [
+						{
+							"id": "1e6f94ef-b4c9-348f-969f-752c36118118",
+							"position": 1,
+							"format": "Digital Media",
+							"track": [
+								{
+									"id": "c7c0d66e-aa21-4271-93ba-e675fa3f251d",
+									"number": "12",
+									"title": "Probablemente",
+									"length": 233533
+								}
+							],
+							"track-count": 13,
+							"track-offset": 11
+						}
+					]
+				}
+			],
+			"isrcs": ["MXUM71700840"]
+		},
+		{
+			"id": "926d3484-b7af-4fc7-9f20-352728cbec19",
+			"score": 82,
+			"artist-credit-id": "208d172d-4c40-374e-82fd-e15ca67d91fd",
+			"title": "Probablemente",
+			"video": true,
+			"artist-credit": [
+				{
+					"joinphrase": " ft. ",
+					"name": "Christian Nodal",
+					"artist": {
+						"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+						"name": "Christian Nodal",
+						"sort-name": "Nodal, Christian",
+						"aliases": [
+							{
+								"sort-name": "González Nodal, Christian Jaime",
+								"type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+								"name": "Christian Jaime González Nodal",
+								"locale": null,
+								"type": "Legal name",
+								"primary": null,
+								"begin-date": null,
+								"end-date": null
+							}
+						]
+					}
+				},
+				{
+					"name": "David Bisbal",
+					"artist": {
+						"id": "95c8b6b7-1e24-4987-804c-024f6b05cd91",
+						"name": "David Bisbal",
+						"sort-name": "Bisbal, David",
+						"aliases": [
+							{
+								"sort-name": "Bisbal Ferre, David",
+								"type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+								"name": "David Bisbal Ferre",
+								"locale": null,
+								"type": "Legal name",
+								"primary": null,
+								"begin-date": null,
+								"end-date": null
+							},
+							{
+								"sort-name": "David Bisbay",
+								"type-id": "1937e404-b981-3cb7-8151-4c86ebfc8d8e",
+								"name": "David Bisbay",
+								"locale": null,
+								"type": "Search hint",
+								"primary": null,
+								"begin-date": null,
+								"end-date": null
+							}
+						]
+					}
+				}
+			],
+			"first-release-date": "2017",
+			"releases": [
+				{
+					"id": "40c32a0e-37b3-4bc3-9570-b1d8eddd7153",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "fe7f0c22-b6ef-3873-99be-9e2a8d7c7f88",
+					"count": 2,
+					"title": "Me dejé llevar",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						}
+					],
+					"release-group": {
+						"id": "1f9763bf-5ebf-4ecc-b5aa-4d462df0e20a",
+						"type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"title": "Me dejé llevar",
+						"primary-type": "Album"
+					},
+					"date": "2017",
+					"country": "CO",
+					"release-events": [
+						{
+							"date": "2017",
+							"area": {
+								"id": "02b60d8d-7164-339d-868d-22d147d9f74a",
+								"name": "Colombia",
+								"sort-name": "Colombia",
+								"iso-3166-1-codes": ["CO"]
+							}
+						}
+					],
+					"track-count": 22,
+					"media": [
+						{
+							"id": "5fad275a-ccb6-3923-99ff-fd8fcfcf6b67",
+							"position": 2,
+							"format": "DVD-Video",
+							"track": [
+								{
+									"id": "db95bd4d-d380-4eae-a576-a50182cbbfb7",
+									"number": "2",
+									"title": "Probablemente"
+								}
+							],
+							"track-count": 9,
+							"track-offset": 1
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "518deef6-bd16-4abb-8604-6b88c328365e",
+			"score": 66,
+			"artist-credit-id": "208d172d-4c40-374e-82fd-e15ca67d91fd",
+			"title": "Probablemente (Detrás de cámaras)",
+			"video": true,
+			"artist-credit": [
+				{
+					"joinphrase": " ft. ",
+					"name": "Christian Nodal",
+					"artist": {
+						"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+						"name": "Christian Nodal",
+						"sort-name": "Nodal, Christian",
+						"aliases": [
+							{
+								"sort-name": "González Nodal, Christian Jaime",
+								"type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+								"name": "Christian Jaime González Nodal",
+								"locale": null,
+								"type": "Legal name",
+								"primary": null,
+								"begin-date": null,
+								"end-date": null
+							}
+						]
+					}
+				},
+				{
+					"name": "David Bisbal",
+					"artist": {
+						"id": "95c8b6b7-1e24-4987-804c-024f6b05cd91",
+						"name": "David Bisbal",
+						"sort-name": "Bisbal, David",
+						"aliases": [
+							{
+								"sort-name": "Bisbal Ferre, David",
+								"type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+								"name": "David Bisbal Ferre",
+								"locale": null,
+								"type": "Legal name",
+								"primary": null,
+								"begin-date": null,
+								"end-date": null
+							},
+							{
+								"sort-name": "David Bisbay",
+								"type-id": "1937e404-b981-3cb7-8151-4c86ebfc8d8e",
+								"name": "David Bisbay",
+								"locale": null,
+								"type": "Search hint",
+								"primary": null,
+								"begin-date": null,
+								"end-date": null
+							}
+						]
+					}
+				}
+			],
+			"first-release-date": "2017",
+			"releases": [
+				{
+					"id": "40c32a0e-37b3-4bc3-9570-b1d8eddd7153",
+					"status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+					"artist-credit-id": "fe7f0c22-b6ef-3873-99be-9e2a8d7c7f88",
+					"count": 2,
+					"title": "Me dejé llevar",
+					"status": "Official",
+					"artist-credit": [
+						{
+							"name": "Christian Nodal",
+							"artist": {
+								"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+								"name": "Christian Nodal",
+								"sort-name": "Nodal, Christian"
+							}
+						}
+					],
+					"release-group": {
+						"id": "1f9763bf-5ebf-4ecc-b5aa-4d462df0e20a",
+						"type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+						"title": "Me dejé llevar",
+						"primary-type": "Album"
+					},
+					"date": "2017",
+					"country": "CO",
+					"release-events": [
+						{
+							"date": "2017",
+							"area": {
+								"id": "02b60d8d-7164-339d-868d-22d147d9f74a",
+								"name": "Colombia",
+								"sort-name": "Colombia",
+								"iso-3166-1-codes": ["CO"]
+							}
+						}
+					],
+					"track-count": 22,
+					"media": [
+						{
+							"id": "5fad275a-ccb6-3923-99ff-fd8fcfcf6b67",
+							"position": 2,
+							"format": "DVD-Video",
+							"track": [
+								{
+									"id": "7b2ee482-3b92-446d-9cb3-379d8c19b096",
+									"number": "7",
+									"title": "Probablemente (Detrás de cámaras)"
+								}
+							],
+							"track-count": 9,
+							"track-offset": 6
+						}
+					]
+				}
+			]
+		}
+	]
+}

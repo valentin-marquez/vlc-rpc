@@ -3,10 +3,12 @@ import { SystemClock } from "@main/core/clock"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import * as App from "@main/features/app"
+import * as Artwork from "@main/features/artwork"
 import * as Catalog from "@main/features/catalog"
 import * as Cover from "@main/features/cover"
 import * as Discord from "@main/features/discord"
 import * as Media from "@main/features/media"
+import * as Music from "@main/features/music"
 import * as Presence from "@main/features/presence"
 import * as Updates from "@main/features/updates"
 import * as Vlc from "@main/features/vlc"
@@ -93,7 +95,15 @@ if (!gotTheLock) {
 			new Catalog.TmdbProvider(),
 			new Catalog.AniListProvider(),
 		)
-		const presence = new Presence.Service(cover, catalogResolver)
+		const musicCache = new Music.Cache(systemClock)
+		const musicResolver = new Music.Resolver(
+			musicCache,
+			new Music.ITunesProvider(),
+			new Music.MusicBrainzProvider(),
+			new Music.CoverArtArchive(),
+		)
+		const artwork = new Artwork.Resolver(cover, musicResolver)
+		const presence = new Presence.Service(artwork, catalogResolver)
 
 		// The tray/window cycle, resolved in fixed order
 		const tray = new App.Tray(startup)
@@ -104,7 +114,7 @@ if (!gotTheLock) {
 		new App.AppInfoHandler(startup)
 		new Catalog.TmdbKeyHandler()
 		new Cover.MetadataHandler(coverStore)
-		new Media.MediaInfoHandler(cover, catalogResolver, vlc, imageProxy)
+		new Media.MediaInfoHandler(artwork, catalogResolver, vlc, imageProxy)
 		new Updates.UpdateHandler(updater)
 		new Vlc.VlcConfigHandler(vlc)
 		new Vlc.VlcStatusHandler(vlc)
