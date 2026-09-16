@@ -36,6 +36,7 @@ function status(title: string): VlcStatus {
 function fakeCache() {
 	const store = new Map<string, CacheEntry>()
 	const calls = { get: 0, setResolved: 0, setUnresolved: 0 }
+	const unresolvedReasons: string[] = []
 	const cache = {
 		get: (key: string) => {
 			calls.get++
@@ -50,16 +51,16 @@ function fakeCache() {
 		},
 		setUnresolved: (key: string, reason: string) => {
 			calls.setUnresolved++
+			unresolvedReasons.push(reason)
 			store.set(key, {
 				status: "unresolved",
 				version: 1,
 				expiresAt: 999_999_999,
 				lastAccessedAt: 0,
 			})
-			void reason
 		},
 	}
-	return { cache: cache as unknown as Cache, calls, store }
+	return { cache: cache as unknown as Cache, calls, unresolvedReasons, store }
 }
 
 function fakeProvider(results: Candidate[] | (() => Candidate[]), fails = false) {
@@ -193,5 +194,46 @@ describe("Resolver.resolve", () => {
 
 		expect(result).toBeNull()
 		expect(calls.setUnresolved).toBe(1)
+	})
+
+	it("skips TMDB on the ambiguous route when no key is configured", async () => {
+		const { cache } = fakeCache()
+		const { provider: tmdb, calls: tmdbCalls } = fakeProvider([])
+		const { provider: anilist, calls: anilistCalls } = fakeProvider([
+			candidate({ title: "Some Show" }),
+		])
+		const resolver = new Resolver(cache, tmdb, anilist)
+
+		await resolver.resolve(status("[SubsPlease] Some Show S01E07 1080p.mkv"))
+
+		expect(tmdbCalls.search).toBe(0)
+		expect(anilistCalls.search).toBe(1)
+	})
+
+	it("caches an ambiguous route miss as a transient provider failure, not no results, when AniList fails and TMDB has no key", async () => {
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: tmdb } = fakeProvider([])
+		const { provider: anilist } = fakeProvider([], true)
+		const resolver = new Resolver(cache, tmdb, anilist)
+
+		const result = await resolver.resolve(status("[SubsPlease] Some Show S01E07 1080p.mkv"))
+
+		expect(result).toBeNull()
+		expect(unresolvedReasons).toEqual(["provider-error"])
+	})
+
+	it("queries both providers on the ambiguous route when a TMDB key is present", async () => {
+		mockTmdbApiKey.value = "a-key"
+		const { cache } = fakeCache()
+		const { provider: tmdb, calls: tmdbCalls } = fakeProvider([])
+		const { provider: anilist, calls: anilistCalls } = fakeProvider([
+			candidate({ title: "Some Show" }),
+		])
+		const resolver = new Resolver(cache, tmdb, anilist)
+
+		await resolver.resolve(status("[SubsPlease] Some Show S01E07 1080p.mkv"))
+
+		expect(tmdbCalls.search).toBe(1)
+		expect(anilistCalls.search).toBe(1)
 	})
 })

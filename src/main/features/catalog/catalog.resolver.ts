@@ -105,7 +105,8 @@ export class Resolver {
 
 	private providersFor(signal: ParsedVideo["signal"]): CatalogProvider[] {
 		if (signal === "fansub") return [this.anilist]
-		if (signal === "ambiguous") return [this.anilist, this.tmdb]
-		return configService.get("tmdbApiKey") ? [this.tmdb] : [this.anilist]
+		const hasTmdbKey = Boolean(configService.get("tmdbApiKey"))
+		if (signal === "ambiguous") return hasTmdbKey ? [this.anilist, this.tmdb] : [this.anilist]
+		return hasTmdbKey ? [this.tmdb] : [this.anilist]
 	}
 }
