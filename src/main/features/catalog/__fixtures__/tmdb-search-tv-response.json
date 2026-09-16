@@ -1,0 +1,21 @@
+{
+	"page": 1,
+	"results": [
+		{
+			"id": 1399,
+			"name": "Game of Thrones",
+			"original_name": "Game of Thrones",
+			"first_air_date": "2011-04-17",
+			"poster_path": "/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg"
+		},
+		{
+			"id": 71446,
+			"name": "Money Heist",
+			"original_name": "La Casa de Papel",
+			"first_air_date": "2017-05-02",
+			"poster_path": "/reEMJA1uzscCbkpeRJeTT2bjqUp.jpg"
+		}
+	],
+	"total_pages": 1,
+	"total_results": 2
+}
