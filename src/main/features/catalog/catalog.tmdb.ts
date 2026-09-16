@@ -1,5 +1,6 @@
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
+import type { TmdbKeyCheck } from "@shared/catalog/catalog.types"
 import type { Candidate, CatalogProvider } from "./catalog.types"
 
 interface TmdbTvResult {
@@ -21,6 +22,60 @@ interface TmdbMovieResult {
 const BASE_URL = "https://api.themoviedb.org/3"
 const POSTER_BASE = "https://image.tmdb.org/t/p/w500"
 const REQUEST_TIMEOUT_MS = 5000
+const VERIFY_QUERY = "matrix"
+
+// The abort timer has to cover reading the body too: clearing it once the
+// headers arrive leaves a stalled response unbounded.
+async function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+	const controller = new AbortController()
+	const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+	try {
+		return await run(controller.signal)
+	} finally {
+		clearTimeout(timeoutId)
+	}
+}
+
+/**
+ * Run one real search with the given key and report whether TMDB took it.
+ *
+ * The key is a parameter rather than a config read so a key can be checked
+ * before it is saved. It never reaches the log: neither the URL it is embedded
+ * in nor the raw fetch error (which can quote that URL) is logged.
+ */
+export async function verifyKey(apiKey: string): Promise<TmdbKeyCheck> {
+	// An empty key is a guaranteed 401, so skip the round trip.
+	if (!apiKey.trim()) {
+		return "rejected"
+	}
+
+	const url = `${BASE_URL}/search/movie?api_key=${encodeURIComponent(apiKey)}&query=${VERIFY_QUERY}`
+
+	try {
+		return await withTimeout(async (signal) => {
+			const response = await fetch(url, { signal })
+
+			if (response.ok) {
+				return "valid"
+			}
+
+			// 401 is a bad key, 403 a suspended account: both are the user's to fix.
+			if (response.status === 401 || response.status === 403) {
+				logger.warn(`TMDB rejected the api key with HTTP ${response.status}`)
+				return "rejected"
+			}
+
+			logger.warn(`TMDB key verification got an unexpected HTTP ${response.status}`)
+			return "unreachable"
+		})
+	} catch (error) {
+		logger.warn(
+			`TMDB key verification could not reach TMDB: ${error instanceof Error ? error.name : "unknown error"}`,
+		)
+		return "unreachable"
+	}
+}
 
 export class TmdbProvider implements CatalogProvider {
 	public async search(query: string): Promise<Candidate[]> {
@@ -67,21 +122,14 @@ export class TmdbProvider implements CatalogProvider {
 		}
 	}
 
-	// The abort timer has to cover reading the body too: clearing it once the
-	// headers arrive leaves a stalled response unbounded.
 	private async fetchJson<T>(url: string): Promise<T> {
-		const controller = new AbortController()
-		const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-		try {
-			const response = await fetch(url, { signal: controller.signal })
+		return await withTimeout(async (signal) => {
+			const response = await fetch(url, { signal })
 			if (!response.ok) {
 				throw new Error(`HTTP ${response.status}`)
 			}
 			return (await response.json()) as T
-		} finally {
-			clearTimeout(timeoutId)
-		}
+		})
 	}
 
 	private normalizeTv(result: TmdbTvResult): Candidate {

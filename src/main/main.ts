@@ -102,6 +102,7 @@ if (!gotTheLock) {
 
 		// Handlers, one per feature
 		new App.AppInfoHandler(startup)
+		new Catalog.TmdbKeyHandler()
 		new Cover.MetadataHandler(coverStore)
 		new Media.MediaInfoHandler(cover, catalogResolver, vlc, imageProxy)
 		new Updates.UpdateHandler(updater)

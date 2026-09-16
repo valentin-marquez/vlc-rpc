@@ -1,6 +1,7 @@
 import { useStore } from "@nanostores/react"
 import { configStore } from "@renderer/stores/config.store"
 import { AppSettingsPanel } from "./components/app-settings-panel"
+import { TmdbKeyForm } from "./components/tmdb-key-form"
 import { VlcConfigForm } from "./components/vlc-config-form"
 
 export function SettingsPage(): JSX.Element {
@@ -20,6 +21,7 @@ export function SettingsPage(): JSX.Element {
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 				<VlcConfigForm initialConfig={config.vlc} />
 				<AppSettingsPanel config={config} />
+				<TmdbKeyForm savedApiKey={config.tmdbApiKey ?? ""} />
 			</div>
 		</div>
 	)

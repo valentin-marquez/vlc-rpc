@@ -1,4 +1,5 @@
 import type { ElectronAPI } from "@electron-toolkit/preload"
+import type { TmdbKeyCheck } from "@shared/catalog/catalog.types"
 import type { AppConfig, VlcConfig } from "@shared/config/app-config"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
@@ -32,6 +33,9 @@ declare global {
 				startUpdateLoop: () => Promise<boolean>
 				stopUpdateLoop: () => Promise<boolean>
 				reconnect: () => Promise<boolean>
+			}
+			catalog: {
+				verifyTmdbKey: (apiKey: string) => Promise<TmdbKeyCheck>
 			}
 			media: {
 				getMediaInfo: () => Promise<(VlcStatus & DetectedMediaInfo) | null>
