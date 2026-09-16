@@ -55,6 +55,12 @@ export function FirstRunPage(): JSX.Element {
 		}
 	}
 
+	function backToWelcome(): void {
+		setConnectionStatus("idle")
+		setErrorMessage(null)
+		setCurrentStep("welcome")
+	}
+
 	async function finishSetup(): Promise<void> {
 		setIsLoading(true)
 
@@ -89,7 +95,7 @@ export function FirstRunPage(): JSX.Element {
 						className={cn(
 							"onboarding-step opacity-100 [transform:translateX(0)]",
 							"starting:opacity-0 starting:[transform:translateX(8px)]",
-							"[transition:opacity_var(--spring-enter-duration)_var(--spring-enter),transform_var(--spring-enter-duration)_var(--spring-enter)]",
+							"[transition:opacity_var(--dur-tint)_var(--ease-out),transform_var(--spring-enter-duration)_var(--spring-enter)]",
 						)}
 					>
 						{currentStep === "welcome" && <WelcomeStep onNext={() => setCurrentStep("vlc")} />}
@@ -98,7 +104,7 @@ export function FirstRunPage(): JSX.Element {
 							<VlcSetupStep
 								vlcConfig={vlcConfig}
 								onVlcConfigChange={setVlcConfig}
-								onBack={() => setCurrentStep("welcome")}
+								onBack={backToWelcome}
 								onSubmit={handleVlcConfig}
 								isLoading={isLoading}
 								connectionStatus={connectionStatus}
