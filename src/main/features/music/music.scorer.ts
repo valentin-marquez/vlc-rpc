@@ -65,19 +65,35 @@ function normalizedNames(names: string[]): string[] {
 }
 
 /**
+ * The whole credit as one string. Neither side is split on punctuation, so the
+ * same credit arrives in two shapes: iTunes answers "Lady Gaga & Bradley
+ * Cooper" as one name where MusicBrainz lists the two, and the artist tag can
+ * be written either way. Joined, both shapes compare equal.
+ */
+function creditedAsWhole(wanted: string[], credited: string[]): boolean {
+	return matches(wanted.join(" "), credited.join(" "))
+}
+
+/**
  * Two different songs share a title constantly, so the performer is what tells
- * them apart. Compared against the whole credit, not only the first name: a
- * collaboration can credit the tagged artist second.
+ * them apart. Both comparisons are needed: "AC/DC" and "Lady Gaga & Bradley
+ * Cooper" only match whole, while a tag naming one artist matches a
+ * collaboration through a single credited name, in any position.
  */
 function isCredited(wanted: string[], credited: string[]): boolean {
+	if (creditedAsWhole(wanted, credited)) return true
 	return wanted.some((name) => credited.some((other) => matches(name, other)))
 }
 
 function creditScore(wanted: string[], credited: string[]): number {
+	// The same fuzzy rule the gate uses. With strict equality a candidate spelled
+	// slightly differently scored as a collaboration the tag does not name, and
+	// the solo and the collaboration both landed on the floor, leaving the rank
+	// to decide which cover the user sees.
 	const isSameCredit =
-		wanted.length === credited.length && wanted.every((name) => credited.includes(name))
-	// Every candidate reaching here already shares at least one name, so the
-	// only question left is whether the credits are the same set.
+		creditedAsWhole(wanted, credited) ||
+		(wanted.length === credited.length &&
+			wanted.every((name) => credited.some((other) => matches(name, other))))
 	return isSameCredit ? 1 : SHARED_CREDIT_SCORE
 }
 

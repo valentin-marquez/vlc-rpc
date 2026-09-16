@@ -1,6 +1,7 @@
 import { logger } from "@main/core/logger"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import type { Cache } from "./music.cache"
+import { splitCollaboration } from "./music.credit"
 import { musicKey } from "./music.key"
 import { albumMatches, pickBest } from "./music.scorer"
 import type {
@@ -12,13 +13,6 @@ import type {
 	TrackQuery,
 	UnresolvedReason,
 } from "./music.types"
-
-/**
- * Tags pack several performers into one field. The slash is the ID3
- * convention; commas, semicolons and ampersands are what taggers and players
- * write in practice.
- */
-const ARTIST_SEPARATORS = /[,;/&]/
 
 /**
  * The mapper falls back to the filename when no title tag exists, so a title
@@ -39,18 +33,21 @@ interface ChainStep {
 	provider: MusicProvider
 }
 
-function splitArtists(artist: string | undefined): string[] {
-	if (!artist) return []
-	return artist
-		.split(ARTIST_SEPARATORS)
-		.map((name) => name.trim())
-		.filter((name) => name.length > 0)
-}
-
 function buildQuery(media: VlcStatus["media"]): TrackQuery {
+	const artist = media.artist?.trim() ?? ""
+	// The suffix leaves the title on both sides of the comparison or on neither.
+	// The candidates arrive stripped, so a tag like "Love the Way You Lie (feat.
+	// Rihanna)" measured 0.745 against a 0.92 gate and resolved to nothing.
+	const { title, collaborators } = splitCollaboration(media.title?.trim() ?? "")
+
+	// The tag is deliberately not split on commas, slashes, semicolons or
+	// ampersands. Every one of those belongs inside an artist name far more
+	// often than it separates two: splitting turned "AC/DC" into two names that
+	// match no candidate, excluded the correct one at the identity gate, and
+	// cached that miss for a day.
 	return {
-		artists: splitArtists(media.artist),
-		title: media.title?.trim() ?? "",
+		artists: artist.length === 0 ? [] : [artist, ...collaborators],
+		title,
 		album: media.album?.trim() || undefined,
 	}
 }
@@ -166,12 +163,13 @@ export class Resolver {
 	/**
 	 * A chain, not a pool: iTunes answers in one request and ships the cover
 	 * with it, while MusicBrainz needs a throttled search plus a Cover Art
-	 * Archive hop. Running those anyway after a confident match would spend
-	 * exactly what the order is there to save.
+	 * Archive hop. Running those anyway after a match that produced a cover would
+	 * spend exactly what the order is there to save.
 	 */
 	private async runChain(query: TrackQuery): Promise<ChainOutcome> {
 		let providerFailed = false
 		let sawCandidates = false
+		let identifiedWithoutCover = false
 
 		for (const { name, provider } of this.chain()) {
 			const candidates = await this.search(provider, name, query)
@@ -190,16 +188,23 @@ export class Resolver {
 				if (cover !== null) {
 					return { kind: "resolved", result: { cover, provider: best.provider, id: best.id } }
 				}
+				// This catalog has the recording and no artwork for it. The next one
+				// may still have both, and it is a cheap chain to finish.
+				identifiedWithoutCover = true
 			} catch {
 				logger.warn(`Music cover lookup failed after a ${name} match`)
 				providerFailed = true
 			}
-
-			// The recording is identified, so the chain is done either way: no
-			// artwork is a fact about this recording, not a failure to match it.
-			return { kind: "unresolved", reason: providerFailed ? "provider-error" : "no-cover" }
 		}
 
+		// Each reason describes the outcome that actually happened, in order of how
+		// much it says about the track. An identification with no artwork is a fact
+		// about the recording and outlives a sibling provider's hiccup, while a
+		// failure inside the artwork lookup itself never reaches that conclusion and
+		// stays transient.
+		if (identifiedWithoutCover) {
+			return { kind: "unresolved", reason: "no-cover" }
+		}
 		if (providerFailed) {
 			return { kind: "unresolved", reason: "provider-error" }
 		}

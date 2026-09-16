@@ -72,6 +72,91 @@ describe("pickBest, the shape of the credit", () => {
 	})
 })
 
+describe("pickBest, artist names the tag is never split on", () => {
+	// Measured against the live iTunes API: every one of these comes back as a
+	// single `artistName`. Splitting the tag on its commas, slashes or ampersands
+	// left names that match nothing, excluded the correct candidate at step 1,
+	// and cached that miss for a day.
+	const WHOLE_NAMES = [
+		"AC/DC",
+		"Simon & Garfunkel",
+		"Lady Gaga & Bradley Cooper",
+		"Earth, Wind & Fire",
+		"Tyler, The Creator",
+		"Daryl Hall & John Oates",
+	]
+
+	for (const name of WHOLE_NAMES) {
+		it(`keeps the candidate credited to ${name}`, () => {
+			const track = candidate({ id: name, artists: [name] })
+
+			expect(pickBest(query({ artists: [name] }), [track])?.id).toBe(name)
+		})
+	}
+
+	it("matches a duet that a catalog credits as two separate names", () => {
+		// MusicBrainz lists what iTunes returns whole, so the tag has to compare
+		// against the credit joined, not only name by name.
+		const track = candidate({ id: "duet", artists: ["Lady Gaga", "Bradley Cooper"] })
+
+		expect(pickBest(query({ artists: ["Lady Gaga & Bradley Cooper"] }), [track])?.id).toBe("duet")
+	})
+
+	it("does not let the whole credit comparison turn into a substring test", () => {
+		const track = candidate({ id: "fire", artists: ["Fire"] })
+
+		expect(pickBest(query({ artists: ["Earth, Wind & Fire"] }), [track])).toBeNull()
+	})
+
+	it("reads a credit spelled one letter differently as the same credit", () => {
+		// The gate already admitted both of these, so with a strict comparison here
+		// the solo and the collaboration landed on the same floor and the rank, not
+		// the credit, chose the cover.
+		const solo = candidate({ id: "solo", artists: ["Lady Gaga & Bradley Cooper"], rank: 1 })
+		const remix = candidate({
+			id: "remix",
+			artists: ["Lady Gaga & Bradley Cooper", "Some Remixer"],
+			rank: 0,
+		})
+		const misspelled = query({ artists: ["Lady Gaga & Bradly Cooper"] })
+
+		expect(pickBest(misspelled, [remix, solo])?.id).toBe("solo")
+	})
+})
+
+describe("pickBest, the collaboration suffix", () => {
+	it("matches the collaboration once the suffix has left the title on both sides", () => {
+		// The tag read "Love the Way You Lie (feat. Rihanna)". Stripped on one side
+		// only it scored 0.745 against the 0.92 gate and resolved to nothing.
+		const collab = candidate({
+			id: "collab",
+			title: "Love the Way You Lie",
+			artists: ["Eminem", "Rihanna"],
+			releases: [{ title: "Recovery" }],
+		})
+		const tagged = query({
+			artists: ["Eminem", "Rihanna"],
+			title: "Love the Way You Lie",
+			album: "Recovery",
+		})
+
+		expect(pickBest(tagged, [collab])?.id).toBe("collab")
+	})
+
+	it("prefers the collaboration over the solo take when the suffix named a second artist", () => {
+		const solo = candidate({ id: "solo", title: "Love the Way You Lie", artists: ["Eminem"] })
+		const collab = candidate({
+			id: "collab",
+			title: "Love the Way You Lie",
+			artists: ["Eminem", "Rihanna"],
+			rank: 1,
+		})
+		const tagged = query({ artists: ["Eminem", "Rihanna"], title: "Love the Way You Lie" })
+
+		expect(pickBest(tagged, [solo, collab])?.id).toBe("collab")
+	})
+})
+
 describe("pickBest, hard exclusion on the artist", () => {
 	it("excludes a candidate by a different artist even when the title matches exactly", () => {
 		const other = candidate({ id: "other", artists: ["Julión Álvarez"] })
@@ -181,6 +266,16 @@ describe("pickBest, against the real normalizers", () => {
 		album: "Ahora",
 	}
 
+	/**
+	 * Both fixtures return the solo take first, so the rank tie break alone would
+	 * satisfy these tests and they would keep passing with the credit
+	 * discriminator deleted. Reversed and re-ranked, a collaboration holds rank 0
+	 * and only the shape of the credit can still pick the solo.
+	 */
+	function reversed(candidates: RecordingCandidate[]): RecordingCandidate[] {
+		return [...candidates].reverse().map((candidate, index) => ({ ...candidate, rank: index }))
+	}
+
 	function respondWith(name: string): void {
 		const body = readFileSync(join(__dirname, "__fixtures__", `${name}.json`), "utf-8")
 		vi.stubGlobal(
@@ -197,20 +292,20 @@ describe("pickBest, against the real normalizers", () => {
 		respondWith("itunes-search-response")
 
 		const candidates = await new ITunesProvider().search(TAGGED_FILE)
-		const winner = pickBest(TAGGED_FILE, candidates)
+		const winner = pickBest(TAGGED_FILE, reversed(candidates))
 
-		expect(winner?.id).toBe("1440902743")
+		expect(winner?.id).toBe("1445298058")
 		expect(winner?.artists).toEqual(["Christian Nodal"])
-		expect(winner?.releases[0]?.title).toBe("Me Dejé Llevar")
+		expect(winner?.releases[0]?.title).toBe("Probablemente - Single")
 	})
 
 	it("picks the solo version out of the captured MusicBrainz response", async () => {
 		respondWith("musicbrainz-recording-search-response")
 
 		const candidates = await new MusicBrainzProvider().search(TAGGED_FILE)
-		const winner = pickBest(TAGGED_FILE, candidates)
+		const winner = pickBest(TAGGED_FILE, reversed(candidates))
 
-		expect(winner?.id).toBe("097cfb49-419c-4b00-97f3-cc86ef4d77c2")
+		expect(winner?.id).toBe("5697b367-a36c-4b6f-aa0c-ce9e49a9afa7")
 		expect(winner?.artists).toEqual(["Christian Nodal"])
 	})
 })

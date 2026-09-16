@@ -172,7 +172,27 @@ describe("Resolver.resolve", () => {
 		expect(itunesCalls.search).toBe(0)
 	})
 
-	it("splits a multi artist tag so both names reach the providers", async () => {
+	it("sends the artist tag to the providers whole, punctuation included", async () => {
+		// Measured against the live iTunes API: split into "AC" and "DC" the
+		// correct candidate is excluded at the identity gate, and the miss is
+		// cached for a day. Same for "Simon & Garfunkel" and "Earth, Wind & Fire".
+		const { cache } = fakeCache()
+		const { provider: itunes, queries } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const resolver = new Resolver(cache, itunes, musicbrainz, source)
+
+		await resolver.resolve(
+			status({ title: "Back In Black", artist: "AC/DC", album: "Back In Black" }),
+		)
+
+		expect(queries[0]?.artists).toEqual(["AC/DC"])
+	})
+
+	it("moves the collaboration suffix off the query title and onto the credit", async () => {
+		// The candidates arrive with the suffix already stripped, so a tag that
+		// keeps it compares in a different shape: measured at 0.745 against the
+		// 0.92 gate, which resolved this track to nothing for a day.
 		const { cache } = fakeCache()
 		const { provider: itunes, queries } = fakeProvider([])
 		const { provider: musicbrainz } = fakeProvider([])
@@ -181,13 +201,14 @@ describe("Resolver.resolve", () => {
 
 		await resolver.resolve(
 			status({
-				title: "Probablemente",
-				artist: "Christian Nodal, David Bisbal",
-				album: "Me Dejé Llevar",
+				title: "Love the Way You Lie (feat. Rihanna)",
+				artist: "Eminem",
+				album: "Recovery",
 			}),
 		)
 
-		expect(queries[0]?.artists).toEqual(["Christian Nodal", "David Bisbal"])
+		expect(queries[0]?.title).toBe("Love the Way You Lie")
+		expect(queries[0]?.artists).toEqual(["Eminem", "Rihanna"])
 	})
 
 	it("stops at iTunes when it resolves, leaving MusicBrainz alone", async () => {
@@ -293,7 +314,11 @@ describe("Resolver.resolve", () => {
 		const resolver = new Resolver(cache, itunes, musicbrainz, source)
 
 		let cachedOnSettle: CacheEntry | null = null
-		const key = musicKey({ artists: ["Christian Nodal"], title: "Probablemente" })
+		const key = musicKey({
+			artists: ["Christian Nodal"],
+			title: "Probablemente",
+			album: "Me Dejé Llevar",
+		})
 		const result = await resolver.resolve(status(tagged)).then((value) => {
 			cachedOnSettle = store.get(key) ?? null
 			return value
@@ -415,5 +440,104 @@ describe("Resolver.resolve", () => {
 
 		expect(result?.cover).toBe("https://example.com/deluxe.jpg")
 		expect(asked).toEqual(["r2"])
+	})
+
+	it("does not serve the album track's cover to the single, which the album tag chose", async () => {
+		// Same recording, same credit, two album tags, two covers. One cache entry
+		// for both would hand whichever resolved first to the other file.
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([
+			candidate({
+				releases: [
+					{ id: "r1", title: "Me Dejé Llevar", coverUrl: "https://example.com/album.jpg" },
+					{
+						id: "r2",
+						title: "Probablemente - Single",
+						coverUrl: "https://example.com/single.jpg",
+					},
+				],
+			}),
+		])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const resolver = new Resolver(cache, itunes, musicbrainz, source)
+
+		const fromTheAlbum = await resolver.resolve(status(tagged))
+		const fromTheSingle = await resolver.resolve(
+			status({
+				title: "Probablemente",
+				artist: "Christian Nodal",
+				album: "Probablemente - Single",
+			}),
+		)
+
+		expect(fromTheAlbum?.cover).toBe("https://example.com/album.jpg")
+		expect(fromTheSingle?.cover).toBe("https://example.com/single.jpg")
+	})
+
+	it("carries on to MusicBrainz when iTunes identifies the track and has no artwork", async () => {
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([
+			candidate({ releases: [{ title: "Me Dejé Llevar" }] }),
+		])
+		const { provider: musicbrainz, calls: mbCalls } = fakeProvider([
+			candidate({
+				provider: "musicbrainz",
+				id: "mb-1",
+				releases: [{ id: "r1", title: "Me Dejé Llevar" }],
+			}),
+		])
+		const { source } = fakeCoverSource({ r1: "https://example.com/caa.jpg" })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source)
+
+		const result = await resolver.resolve(status(tagged))
+
+		expect(mbCalls.search).toBe(1)
+		expect(result).toEqual({
+			cover: "https://example.com/caa.jpg",
+			provider: "musicbrainz",
+			id: "mb-1",
+		})
+	})
+
+	it("caches a no cover from the second provider even though the first one failed", async () => {
+		// The archive answered that it holds no front image for a recording it
+		// identified. That is a fact about the recording and keeps the long TTL:
+		// a transient entry would ask both APIs again seconds later.
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([], true)
+		const { provider: musicbrainz } = fakeProvider([
+			candidate({
+				provider: "musicbrainz",
+				id: "mb-1",
+				releases: [{ id: "r1", title: "Me Dejé Llevar" }],
+			}),
+		])
+		const { source } = fakeCoverSource()
+		const resolver = new Resolver(cache, itunes, musicbrainz, source)
+
+		const result = await resolver.resolve(status(tagged))
+
+		expect(result).toBeNull()
+		expect(unresolvedReasons).toEqual(["no-cover"])
+	})
+
+	it("reports a provider error when the artwork lookup itself failed", async () => {
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([
+			candidate({
+				provider: "musicbrainz",
+				id: "mb-1",
+				releases: [{ id: "r1", title: "Me Dejé Llevar" }],
+			}),
+		])
+		const { source } = fakeCoverSource({}, true)
+		const resolver = new Resolver(cache, itunes, musicbrainz, source)
+
+		const result = await resolver.resolve(status(tagged))
+
+		expect(result).toBeNull()
+		expect(unresolvedReasons).toEqual(["provider-error"])
 	})
 })

@@ -1,11 +1,16 @@
 export interface TrackQuery {
 	/**
-	 * Already split from the tag. Tags pack several artists into one field
-	 * separated by commas, slashes, semicolons or ampersands, and a single
-	 * string would match no individual name in a provider credit, excluding
-	 * every candidate and caching that failure.
+	 * The credit the file claims: the artist tag verbatim in the first entry,
+	 * plus one entry per name the title's collaboration suffix credited.
+	 *
+	 * The tag is never split on punctuation. Commas, slashes and ampersands sit
+	 * inside ordinary artist names ("AC/DC", "Earth, Wind & Fire", "Tyler, The
+	 * Creator") far more often than they separate two artists, and the providers
+	 * do not split them either: iTunes answers "Lady Gaga & Bradley Cooper" as a
+	 * single `artistName`. The scorer compares both sides whole and name by name.
 	 */
 	artists: string[]
+	/** Without the collaboration suffix, the shape the candidates arrive in. */
 	title: string
 	album?: string | undefined
 }

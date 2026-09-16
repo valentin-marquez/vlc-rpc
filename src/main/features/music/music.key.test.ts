@@ -20,20 +20,45 @@ describe("musicKey", () => {
 		expect(reversed).toBe(forward)
 	})
 
-	it("does not depend on the album", () => {
+	it("separates the same recording tagged with two different albums", () => {
+		// The album picks which release supplies the cover, so the album track and
+		// the single resolve to two different covers. One key would serve whichever
+		// of them resolved first to both files.
+		const onTheAlbum = musicKey({
+			artists: ["Christian Nodal"],
+			title: "Probablemente",
+			album: "Me Dejé Llevar",
+		})
+		const onTheSingle = musicKey({
+			artists: ["Christian Nodal"],
+			title: "Probablemente",
+			album: "Probablemente - Single",
+		})
+		expect(onTheSingle).not.toBe(onTheAlbum)
+	})
+
+	it("separates a file with no album tag from one that has it", () => {
 		const untagged = musicKey({ artists: ["Christian Nodal"], title: "Probablemente" })
 		const tagged = musicKey({
 			artists: ["Christian Nodal"],
 			title: "Probablemente",
 			album: "Ahora",
 		})
-		const mistagged = musicKey({
+		expect(tagged).not.toBe(untagged)
+	})
+
+	it("ignores case and punctuation in the album too", () => {
+		const tagged = musicKey({
 			artists: ["Christian Nodal"],
 			title: "Probablemente",
 			album: "Me Dejé Llevar",
 		})
-		expect(tagged).toBe(untagged)
-		expect(mistagged).toBe(untagged)
+		const sloppy = musicKey({
+			artists: ["Christian Nodal"],
+			title: "Probablemente",
+			album: "me deje llevar!",
+		})
+		expect(sloppy).toBe(tagged)
 	})
 
 	it("separates two titles by the same artist", () => {

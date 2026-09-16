@@ -93,10 +93,10 @@ export class MusicBrainzProvider implements MusicProvider {
 	private buildUrl(query: TrackQuery): string {
 		// Artist and title only. Measured: adding `AND release:"Ahora"` took a
 		// search that returned five recordings down to count 0. The album tag
-		// orients the ranking downstream, it never enters the query. The first
-		// credited artist for the same reason, a tag that packs several names
-		// would over constrain the same way, and the scorer compares against the
-		// whole credit anyway.
+		// orients the ranking downstream, it never enters the query. Only the
+		// artist tag goes in for the same reason, never the names the title's
+		// collaboration suffix added, and the scorer compares against the whole
+		// credit anyway.
 		const artist = query.artists.find((name) => name.trim().length > 0)
 		const clauses = artist
 			? [`artist:"${escapeLucene(artist)}"`, `recording:"${escapeLucene(query.title)}"`]
