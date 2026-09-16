@@ -34,6 +34,34 @@ describe("parse, fansub naming", () => {
 	})
 })
 
+describe("parse, fansub naming of movies", () => {
+	it("falls back to a movie parse when the TV attempt found no episode", () => {
+		const result = parse("[EMBER] Suzume no Tojimari (2022) [BDRip 1080p HEVC].mkv")
+		expect(result.title).toBe("Suzume no Tojimari")
+		expect(result.year).toBe(2022)
+		expect(result.season).toBeUndefined()
+		expect(result.episode).toBeUndefined()
+		expect(result.signal).toBe("fansub")
+	})
+
+	it("drops the dangling parenthesis a movie parse leaves behind", () => {
+		const result = parse("[SubsPlease] Demon Slayer Movie - Infinity Castle (1080p) [ABCD1234].mkv")
+		expect(result.title).toBe("Demon Slayer Movie - Infinity Castle")
+		expect(result.episode).toBeUndefined()
+		expect(result.signal).toBe("fansub")
+	})
+
+	it("never reads a release hash as a year", () => {
+		const result = parse("[SubsPlease] Demon Slayer Movie - Infinity Castle (1080p) [ABCD1234].mkv")
+		expect(result.year).toBeUndefined()
+
+		for (const filename of corpus()) {
+			const { year } = parse(filename)
+			expect(year === undefined || Number.isFinite(year)).toBe(true)
+		}
+	})
+})
+
 describe("parse, ambiguous naming, group tag plus season/episode", () => {
 	it("classifies a bracketed group using S/E numbering as ambiguous, not fansub", () => {
 		const result = parse(
