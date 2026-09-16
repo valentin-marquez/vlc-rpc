@@ -1,7 +1,8 @@
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
+import type { Resolver as CatalogResolver } from "@main/features/catalog"
+import { parse as parseVideo } from "@main/features/catalog"
 import type { Resolver as CoverResolver } from "@main/features/cover"
-import type { Analyzer as MediaAnalyzer } from "@main/features/media"
 import { applyTemplate, getDefaultLayout, getLayoutByPreset } from "@shared/presence/layout"
 import type { DiscordPresenceData } from "@shared/presence/presence.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
@@ -50,7 +51,7 @@ class NoStatusState extends MediaState {
 class PlayingState extends MediaState {
 	constructor(
 		private readonly cover: CoverResolver,
-		private readonly analyzer: MediaAnalyzer,
+		private readonly catalog: CatalogResolver,
 	) {
 		super()
 	}
@@ -75,6 +76,10 @@ class PlayingState extends MediaState {
 			`Activity type: ${activityType === ActivityType.Watching ? "WATCHING" : "LISTENING"} for media type: ${mediaType}`,
 		)
 
+		const catalogResult = mediaType === "video" ? await this.catalog.resolve(mediaInfo) : null
+		const localParse =
+			mediaType === "video" && !catalogResult ? parseVideo(media.title || "") : null
+
 		// Get the layout configuration
 		const layout =
 			config.presenceLayout ||
@@ -94,26 +99,30 @@ class PlayingState extends MediaState {
 			details = applyTemplate(layout.musicDetails, variables)
 			state = applyTemplate(layout.musicState, variables)
 		} else {
-			// For video content, analyze the video and provide richer information
-			const videoAnalysis = this.analyzer.analyzeVideo(mediaInfo)
+			const isTvShow = catalogResult
+				? catalogResult.mediaKind === "tv"
+				: localParse?.season !== undefined || localParse?.episode !== undefined
 
 			let episodeInfo = ""
-			if (videoAnalysis.isTvShow) {
-				if (videoAnalysis.season && videoAnalysis.episode) {
-					episodeInfo = `S${videoAnalysis.season}E${videoAnalysis.episode}`
-				} else if (videoAnalysis.season) {
-					episodeInfo = `Season ${videoAnalysis.season}`
-				} else if (videoAnalysis.episode) {
-					episodeInfo = `Episode ${videoAnalysis.episode}`
+			const season = catalogResult?.season ?? localParse?.season
+			const episode = catalogResult?.episode ?? localParse?.episode
+			if (isTvShow) {
+				if (season !== undefined && episode !== undefined) {
+					episodeInfo = `S${season}E${episode}`
+				} else if (episode !== undefined) {
+					episodeInfo = `Episode ${episode}`
 				}
 			}
 
+			const title = catalogResult?.title ?? localParse?.title ?? media.title ?? "Unknown"
+			const year = localParse?.year
+
 			const variables = {
-				title: videoAnalysis.title,
-				episodeInfo: episodeInfo || (videoAnalysis.isTvShow ? "TV Show" : "Movie"),
-				year: videoAnalysis.year || "",
-				season: videoAnalysis.season?.toString() || "",
-				episode: videoAnalysis.episode?.toString() || "",
+				title,
+				episodeInfo: episodeInfo || (isTvShow ? "TV Show" : "Movie"),
+				year: year?.toString() ?? "",
+				season: season?.toString() ?? "",
+				episode: episode?.toString() ?? "",
 			}
 
 			details = applyTemplate(layout.videoDetails, variables)
@@ -140,6 +149,10 @@ class PlayingState extends MediaState {
 			largeText = media.album || "Listening to Music"
 		} else {
 			largeText = "Watching Video"
+		}
+
+		if (mediaType === "video" && catalogResult?.poster) {
+			largeImage = catalogResult.poster
 		}
 
 		const videoInfo = mediaInfo.videoInfo
@@ -187,7 +200,7 @@ class PlayingState extends MediaState {
 class PausedState extends MediaState {
 	constructor(
 		private readonly cover: CoverResolver,
-		private readonly analyzer: MediaAnalyzer,
+		private readonly catalog: CatalogResolver,
 	) {
 		super()
 	}
@@ -212,6 +225,10 @@ class PausedState extends MediaState {
 			`Paused activity type: ${activityType === ActivityType.Watching ? "WATCHING" : "LISTENING"} for media type: ${mediaType}`,
 		)
 
+		const catalogResult = mediaType === "video" ? await this.catalog.resolve(mediaInfo) : null
+		const localParse =
+			mediaType === "video" && !catalogResult ? parseVideo(media.title || "") : null
+
 		let details = ""
 		let state = ""
 
@@ -219,27 +236,32 @@ class PausedState extends MediaState {
 			details = media.title || "Unknown Song"
 			state = `by ${media.artist || "Unknown Artist"}`
 		} else {
-			// For video content, analyze the video and provide richer information
-			const videoAnalysis = this.analyzer.analyzeVideo(mediaInfo)
+			const isTvShow = catalogResult
+				? catalogResult.mediaKind === "tv"
+				: localParse?.season !== undefined || localParse?.episode !== undefined
 
-			if (videoAnalysis.isTvShow) {
+			const season = catalogResult?.season ?? localParse?.season
+			const episode = catalogResult?.episode ?? localParse?.episode
+			const title = catalogResult?.title ?? localParse?.title ?? media.title ?? "Unknown"
+
+			if (isTvShow) {
 				// TV Show: Show name as details, episode info as state
-				details = videoAnalysis.title
+				details = title
 
 				let episodeInfo = ""
-				if (videoAnalysis.season && videoAnalysis.episode) {
-					episodeInfo = `S${videoAnalysis.season}E${videoAnalysis.episode}`
-				} else if (videoAnalysis.season) {
-					episodeInfo = `Season ${videoAnalysis.season}`
-				} else if (videoAnalysis.episode) {
-					episodeInfo = `Episode ${videoAnalysis.episode}`
+				if (season !== undefined && episode !== undefined) {
+					episodeInfo = `S${season}E${episode}`
+				} else if (season !== undefined) {
+					episodeInfo = `Season ${season}`
+				} else if (episode !== undefined) {
+					episodeInfo = `Episode ${episode}`
 				}
 
 				state = episodeInfo || "TV Show"
 			} else {
 				// Movie: Movie title as details, year as state
-				details = videoAnalysis.title
-				state = videoAnalysis.year ? `(${videoAnalysis.year})` : "Movie"
+				details = title
+				state = localParse?.year ? `(${localParse.year})` : "Movie"
 			}
 		}
 
@@ -261,6 +283,10 @@ class PausedState extends MediaState {
 			largeText = media.album || "Listening to Music"
 		} else {
 			largeText = "Watching Video"
+		}
+
+		if (mediaType === "video" && catalogResult?.poster) {
+			largeImage = catalogResult.poster
 		}
 
 		const videoInfo = mediaInfo.videoInfo
@@ -306,12 +332,12 @@ interface MediaStates {
 export class Service {
 	private states: MediaStates
 
-	constructor(cover: CoverResolver, analyzer: MediaAnalyzer) {
+	constructor(cover: CoverResolver, catalog: CatalogResolver) {
 		this.states = {
 			stopped: new StoppedState(),
 			noStatus: new NoStatusState(),
-			playing: new PlayingState(cover, analyzer),
-			paused: new PausedState(cover, analyzer),
+			playing: new PlayingState(cover, catalog),
+			paused: new PausedState(cover, catalog),
 		}
 
 		logger.info("Media state service initialized")

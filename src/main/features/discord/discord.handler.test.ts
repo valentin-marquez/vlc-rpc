@@ -25,6 +25,16 @@ vi.mock("@main/core/config", () => ({
 	},
 }))
 
+// The presence barrel reaches the catalog cache, which opens its own Conf store.
+vi.mock("electron-conf/main", () => ({
+	Conf: class {
+		get(): Record<string, never> {
+			return {}
+		}
+		set(): void {}
+	},
+}))
+
 afterEach(() => {
 	vi.useRealTimers()
 	mockPresenceUpdateInterval.value = 1500
