@@ -170,6 +170,7 @@ describe("Resolver.resolve", () => {
 	})
 
 	it("keeps candidates from a provider that succeeded when the other times out, in the ambiguous case", async () => {
+		mockTmdbApiKey.value = "test-key"
 		const { cache } = fakeCache()
 		const { provider: anilist } = fakeProvider([candidate({ title: "KAMUI Hes Behind You" })])
 		const { provider: tmdb } = fakeProvider([], true)
