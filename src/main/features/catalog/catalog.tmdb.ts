@@ -106,7 +106,9 @@ export class TmdbProvider implements CatalogProvider {
 			const body = await this.fetchJson<{ results: TmdbTvResult[] }>(url)
 			return body.results.map((result) => this.normalizeTv(result))
 		} catch (error) {
-			logger.warn(`TMDB tv search failed: ${error}`)
+			// Same reason as verifyKey: the raw error can quote the url, which
+			// carries the api key.
+			logger.warn(`TMDB tv search failed: ${error instanceof Error ? error.name : "unknown error"}`)
 			return null
 		}
 	}
@@ -117,7 +119,9 @@ export class TmdbProvider implements CatalogProvider {
 			const body = await this.fetchJson<{ results: TmdbMovieResult[] }>(url)
 			return body.results.map((result) => this.normalizeMovie(result))
 		} catch (error) {
-			logger.warn(`TMDB movie search failed: ${error}`)
+			logger.warn(
+				`TMDB movie search failed: ${error instanceof Error ? error.name : "unknown error"}`,
+			)
 			return null
 		}
 	}

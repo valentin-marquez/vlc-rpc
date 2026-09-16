@@ -38,9 +38,9 @@ export class Client {
 		const authString = `${username}:${password || ""}`
 		const base64Auth = Buffer.from(authString).toString("base64")
 
-		logger.info(
-			`Creating auth header with username: '' and password length: ${password ? password.length : 0}`,
-		)
+		// The password itself, and even its length, stays out of the log: only
+		// whether one is set is worth knowing here.
+		logger.info(`Creating auth header (password set: ${password ? "yes" : "no"})`)
 
 		return {
 			Authorization: `Basic ${base64Auth}`,
