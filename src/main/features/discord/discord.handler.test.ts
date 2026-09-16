@@ -71,6 +71,7 @@ function fakeDiscord(connected = true) {
 	const calls = { update: 0, clear: 0, connect: 0 }
 	let isConnected = connected
 	let rpcEnabled = true
+	let updateAccepted = true
 	const client = {
 		isRpcEnabled: () => rpcEnabled,
 		isConnected: () => isConnected,
@@ -81,7 +82,7 @@ function fakeDiscord(connected = true) {
 		},
 		update: async () => {
 			calls.update++
-			return true
+			return updateAccepted
 		},
 		clear: async () => {
 			calls.clear++
@@ -97,6 +98,9 @@ function fakeDiscord(connected = true) {
 		setRpcEnabled: (value: boolean) => {
 			rpcEnabled = value
 		},
+		setUpdateAccepted: (value: boolean) => {
+			updateAccepted = value
+		},
 	}
 }
 
@@ -104,8 +108,9 @@ function fakeVlc(getStatus: () => VlcStatus | null) {
 	return { readStatus: async () => getStatus() } as unknown as VlcClient
 }
 
-function fakePresence() {
-	const data: DiscordPresenceData = { details: "x", state: "y" }
+const PRESENCE: DiscordPresenceData = { details: "x", state: "y" }
+
+function fakePresence(data: DiscordPresenceData | null = PRESENCE) {
 	return { getDiscordPresence: async () => data } as unknown as PresenceService
 }
 
@@ -234,5 +239,135 @@ describe("DiscordRpcHandler update loop", () => {
 		expect(intervalCall).toBeDefined()
 
 		setIntervalSpy.mockRestore()
+	})
+})
+
+describe("DiscordRpcHandler last sent presence", () => {
+	it("reports nothing looked at yet before the first poll", () => {
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => status())
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), new FakeClock())
+
+		expect(handler.getLastPresence()).toEqual({ kind: "unknown" })
+	})
+
+	it("reports the very data it handed to Discord, and when it went out", async () => {
+		vi.useFakeTimers()
+		const clock = new FakeClock()
+		clock.advance(4200)
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => status())
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), clock)
+
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+
+		expect(handler.getLastPresence()).toEqual({
+			kind: "sent",
+			presence: PRESENCE,
+			sentAt: 4200,
+		})
+	})
+
+	it("keeps reporting the last sent presence across a poll the diff skipped", async () => {
+		vi.useFakeTimers()
+		const clock = new FakeClock()
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => status())
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), clock)
+
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+		clock.advance(1500)
+		await vi.advanceTimersByTimeAsync(1500)
+
+		expect(discord.calls.update).toBe(1)
+		expect(handler.getLastPresence()).toEqual({ kind: "sent", presence: PRESENCE, sentAt: 0 })
+	})
+
+	it("reports nothing sent when Discord refused the update", async () => {
+		vi.useFakeTimers()
+		const discord = fakeDiscord()
+		discord.setUpdateAccepted(false)
+		const vlc = fakeVlc(() => status())
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), new FakeClock())
+
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+
+		expect(discord.calls.update).toBe(1)
+		expect(handler.getLastPresence()).toEqual({ kind: "unknown" })
+	})
+
+	it("reports a cleared presence while the RPC is disabled", async () => {
+		vi.useFakeTimers()
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => status())
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), new FakeClock())
+
+		discord.setRpcEnabled(false)
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+
+		expect(handler.getLastPresence()).toEqual({ kind: "cleared", reason: "rpc-disabled" })
+	})
+
+	it("reports a cleared presence when VLC reports no status", async () => {
+		vi.useFakeTimers()
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => null)
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), new FakeClock())
+
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+
+		expect(handler.getLastPresence()).toEqual({ kind: "cleared", reason: "vlc-unavailable" })
+	})
+
+	it("reports a cleared presence when the state machine produced none", async () => {
+		vi.useFakeTimers()
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => status({ status: "stopped" }))
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(null), new FakeClock())
+
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+
+		expect(handler.getLastPresence()).toEqual({ kind: "cleared", reason: "playback-stopped" })
+	})
+
+	it("reports a cleared presence once the loop stops, the activity is gone", async () => {
+		vi.useFakeTimers()
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => status())
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), new FakeClock())
+
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+		handler.stopUpdateLoop()
+
+		expect(handler.getLastPresence()).toEqual({ kind: "cleared", reason: "loop-stopped" })
+	})
+
+	it("reports the fresh presence after the RPC comes back on", async () => {
+		vi.useFakeTimers()
+		const clock = new FakeClock()
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => status())
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), clock)
+
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+
+		discord.setRpcEnabled(false)
+		clock.advance(1500)
+		await vi.advanceTimersByTimeAsync(1500)
+		expect(handler.getLastPresence()).toEqual({ kind: "cleared", reason: "rpc-disabled" })
+
+		discord.setRpcEnabled(true)
+		clock.advance(1500)
+		await vi.advanceTimersByTimeAsync(1500)
+
+		expect(handler.getLastPresence()).toEqual({ kind: "sent", presence: PRESENCE, sentAt: 3000 })
 	})
 })

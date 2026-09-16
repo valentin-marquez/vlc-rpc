@@ -2,6 +2,7 @@ import type { ElectronAPI } from "@electron-toolkit/preload"
 import type { AppConfig, VlcConfig } from "@shared/config/app-config"
 import type { OverrideDraft, OverrideListEntry, OverrideSaveResult } from "@shared/ipc/channels"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
+import type { LastSentPresence } from "@shared/presence/presence.types"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 
 declare global {
@@ -33,6 +34,7 @@ declare global {
 				startUpdateLoop: () => Promise<boolean>
 				stopUpdateLoop: () => Promise<boolean>
 				reconnect: () => Promise<boolean>
+				getLastPresence: () => Promise<LastSentPresence>
 			}
 			media: {
 				getMediaInfo: () => Promise<(VlcStatus & DetectedMediaInfo) | null>

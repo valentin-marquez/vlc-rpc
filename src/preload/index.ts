@@ -33,6 +33,7 @@ const api = {
 		startUpdateLoop: typedInvoke("discord:start-loop"),
 		stopUpdateLoop: typedInvoke("discord:stop-loop"),
 		reconnect: typedInvoke("discord:reconnect"),
+		getLastPresence: typedInvoke("discord:presence:last"),
 	},
 	media: {
 		getMediaInfo: typedInvoke("media:get-info"),

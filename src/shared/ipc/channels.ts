@@ -1,5 +1,6 @@
 import type { AppConfig, VlcConfig } from "@shared/config/app-config"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
+import type { LastSentPresence } from "@shared/presence/presence.types"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 
 // ─── Overrides ──────────────────────────────────────────────────────────────
@@ -79,6 +80,7 @@ export interface IpcInvokeChannelMap {
 	"discord:rpc:disable": { request: []; response: boolean }
 	"discord:rpc:disable:temporary": { request: [minutes: number]; response: boolean }
 	"discord:rpc:status": { request: []; response: boolean }
+	"discord:presence:last": { request: []; response: LastSentPresence }
 
 	// ── Media ───────────────────────────────────────────────────────────────
 	"media:get-info": { request: []; response: (VlcStatus & DetectedMediaInfo) | null }

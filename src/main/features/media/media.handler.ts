@@ -142,6 +142,8 @@ export class MediaInfoHandler {
 			}
 
 			if (mediaInfo.content_image_url) {
+				mediaInfo.content_image_source_url = mediaInfo.content_image_url
+
 				const dataUrl = await this.imageProxy.getImageAsDataUrl(mediaInfo.content_image_url)
 				if (dataUrl) {
 					mediaInfo.content_image_url = dataUrl

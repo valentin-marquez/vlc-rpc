@@ -43,6 +43,7 @@ function build(
 	outcome: CoverOutcome,
 	result: MusicResult | null = catalogHit,
 	target: OverrideTarget | null = null,
+	proxied: string | null = null,
 ) {
 	const calls = { fetch: 0, resolve: 0 }
 	const artwork = new ArtworkResolver(
@@ -66,9 +67,9 @@ function build(
 	const catalog = { resolve: refuse, overrideTargetFor: refuse } as unknown as CatalogResolver
 	const music: OverrideTargets = { overrideTargetFor: () => target }
 	const vlc = { readStatus: async () => null } as unknown as VlcClient
-	// Null keeps every URL as it was resolved, so the assertions read the
-	// decision under test rather than a data URL.
-	const imageProxy = { getImageAsDataUrl: async () => null } as unknown as ImageProxy
+	// Null by default, which keeps every URL as it was resolved, so the
+	// assertions read the decision under test rather than a data URL.
+	const imageProxy = { getImageAsDataUrl: async () => proxied } as unknown as ImageProxy
 
 	return { handler: new MediaInfoHandler(artwork, catalog, music, vlc, imageProxy), calls }
 }
@@ -140,6 +141,7 @@ function videoStatus(title: string): VlcStatus {
 function buildVideo(
 	result: CatalogResult | null,
 	target: OverrideTarget | null = null,
+	proxied: string | null = null,
 ): MediaInfoHandler {
 	const refuse = (): never => {
 		throw new Error("the audio path must not be consulted for video")
@@ -158,7 +160,7 @@ function buildVideo(
 		},
 	}
 	const vlc = { readStatus: async () => null } as unknown as VlcClient
-	const imageProxy = { getImageAsDataUrl: async () => null } as unknown as ImageProxy
+	const imageProxy = { getImageAsDataUrl: async () => proxied } as unknown as ImageProxy
 
 	return new MediaInfoHandler(artwork, catalog, music, vlc, imageProxy)
 }
@@ -287,5 +289,54 @@ describe("MediaInfoHandler override key", () => {
 		expect(calls.resolve).toBe(0)
 		expect(info?.override_key).toBe("audio:christina aguilera|mi reflejo")
 		expect(info?.override_active).toBe(true)
+	})
+})
+
+const PROXIED = "data:image/jpeg;base64,MA=="
+
+describe("MediaInfoHandler cover address", () => {
+	it("keeps the address a cover came from beside the data URL it proxied it to", async () => {
+		const { handler } = build(
+			{ kind: "published", url: PUBLISHED_COVER },
+			catalogHit,
+			null,
+			PROXIED,
+		)
+
+		const info = await handler.getMediaInfo(status(LOCAL_ARTWORK))
+
+		expect(info?.content_image_url).toBe(PROXIED)
+		expect(info?.content_image_source_url).toBe(PUBLISHED_COVER)
+	})
+
+	it("keeps the poster address beside the data URL it proxied it to", async () => {
+		const handler = buildVideo(
+			{ title: "Akira", poster: CATALOG_POSTER, mediaKind: "movie" },
+			null,
+			PROXIED,
+		)
+
+		const info = await handler.getMediaInfo(videoStatus("Akira.1988.1080p.mkv"))
+
+		expect(info?.content_image_url).toBe(PROXIED)
+		expect(info?.content_image_source_url).toBe(CATALOG_POSTER)
+	})
+
+	it("reports the address even when the proxy could not fetch it", async () => {
+		const { handler } = build({ kind: "published", url: PUBLISHED_COVER })
+
+		const info = await handler.getMediaInfo(status(LOCAL_ARTWORK))
+
+		expect(info?.content_image_url).toBe(PUBLISHED_COVER)
+		expect(info?.content_image_source_url).toBe(PUBLISHED_COVER)
+	})
+
+	it("reports no address when no cover resolved at all", async () => {
+		const { handler } = build({ kind: "publish-failed" }, catalogHit, null, PROXIED)
+
+		const info = await handler.getMediaInfo(status(LOCAL_ARTWORK))
+
+		expect(info?.content_image_url).toBeUndefined()
+		expect(info?.content_image_source_url).toBeUndefined()
 	})
 })
