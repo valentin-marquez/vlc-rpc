@@ -112,6 +112,17 @@ for and verifies nothing. Key it off the real shape instead:
 get<K extends keyof AppConfig>(key: K): AppConfig[K]
 ```
 
+## Logging
+
+Never pass a configuration value, a configuration object, or a whole error object to the logger.
+The app config holds two secrets, the VLC HTTP password and the TMDB api key, and TMDB takes its
+key as a query parameter, so a failed request's error can carry it inside the URL.
+
+Log the key that changed, not its value. Log whether a password is set, never the value and never
+its length. Log `error.name` rather than the error itself for any request whose URL may embed a
+credential. Port numbers and boolean flags are safe and worth keeping, they are what makes a
+connection problem diagnosable.
+
 ## Tests
 
 Pure units (mappers, key builders, timeline math, presence building) are tested directly with
