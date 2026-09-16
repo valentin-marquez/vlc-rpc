@@ -1,0 +1,6 @@
+export { Cache } from "./music.cache"
+export { CoverArtArchive } from "./music.coverart"
+export { ITunesProvider } from "./music.itunes"
+export { MusicBrainzProvider } from "./music.musicbrainz"
+export { Resolver } from "./music.resolver"
+export type { MusicResult } from "./music.types"
