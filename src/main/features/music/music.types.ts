@@ -71,7 +71,8 @@ export interface CoverArtSource {
 
 export interface MusicResult {
 	cover: string
-	provider: "itunes" | "musicbrainz"
+	/** `override` is the user, who outranks both catalogs and is asked first. */
+	provider: "itunes" | "musicbrainz" | "override"
 	id: string
 }
 

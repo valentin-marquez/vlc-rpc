@@ -16,6 +16,18 @@ export interface OverridesStore {
 	delete(key: string): void
 }
 
+/**
+ * A feature that caches answers for the identities these keys name. The
+ * resolvers implement it: each one owns its cache and is the only place that
+ * knows how an override key relates to the keys that cache holds, which for
+ * audio is not a lookup at all. What they cannot know is that a correction was
+ * typed, so the call is made from here, the one place a save and a delete both
+ * pass through.
+ */
+export interface OverrideEvictor {
+	evictOverride(key: string): void
+}
+
 // The abort timer has to cover reading the body too: a host can answer with
 // image/png and then stall, and clearing the timer once the headers arrive
 // would leave that unbounded.
@@ -88,7 +100,10 @@ async function checkCover(url: string): Promise<OverrideSaveResult | null> {
  * user typed by hand.
  */
 export class Handler {
-	constructor(private readonly store: OverridesStore) {
+	constructor(
+		private readonly store: OverridesStore,
+		private readonly evictors: readonly OverrideEvictor[],
+	) {
 		this.registerHandlers()
 	}
 
@@ -101,9 +116,19 @@ export class Handler {
 
 		registerHandler("overrides:delete", (key) => {
 			this.store.delete(key)
+			// A delete has to evict too, and for the same reason a save does. The
+			// entry cached before the correction has no TTL, so leaving it behind is
+			// what would make the answer the user rejected come back.
+			this.evict(key)
 			logger.info("Deleted an override")
 			return true
 		})
+	}
+
+	private evict(key: string): void {
+		for (const evictor of this.evictors) {
+			evictor.evictOverride(key)
+		}
 	}
 
 	private async save(key: string, draft: OverrideDraft): Promise<OverrideSaveResult> {
@@ -126,6 +151,7 @@ export class Handler {
 			return { saved: false, reason: "store-refused" }
 		}
 
+		this.evict(key)
 		logger.info("Saved an override", { kind: draft.kind, hasCover: draft.cover !== undefined })
 		return { saved: true }
 	}

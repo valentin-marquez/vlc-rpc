@@ -45,9 +45,7 @@ export class Resolver {
 	constructor(
 		private readonly cache: Cache,
 		private readonly anilist: CatalogProvider,
-		// Optional only so this can land before the composition root passes the
-		// store in. Without that wiring the overrides never reach the presence.
-		private readonly overrides?: OverrideSource,
+		private readonly overrides: OverrideSource,
 	) {}
 
 	public async resolve(status: VlcStatus): Promise<CatalogResult | null> {
@@ -60,7 +58,7 @@ export class Resolver {
 
 		// Ahead of the cache on purpose: the user already answered this question,
 		// so there is nothing to look up and no provider worth asking.
-		const override = this.overrides?.get(key)
+		const override = this.overrides.get(key)
 		if (override?.kind === "video") {
 			const work = applyOverride(override, parsed)
 			return { ...work, season: parsed.season, episode: parsed.episode }
@@ -87,6 +85,17 @@ export class Resolver {
 		} finally {
 			this.inflight.delete(key)
 		}
+	}
+
+	/**
+	 * Drops what was cached under the identity an override names, so removing the
+	 * correction later shows what the app deduces now and not the answer that was
+	 * cached before the correction was typed. A video override is filed under the
+	 * very `catalogKey` the cache uses, so one delete is the whole job. A key from
+	 * another feature simply matches nothing here.
+	 */
+	public evictOverride(key: string): void {
+		this.cache.delete(key)
 	}
 
 	private async resolveUncached(parsed: ParsedVideo, key: string): Promise<CatalogResult | null> {

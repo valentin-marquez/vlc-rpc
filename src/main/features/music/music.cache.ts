@@ -87,6 +87,23 @@ export class Cache {
 		this.conf.set("entries", entries)
 	}
 
+	/**
+	 * Removes every entry whose key the predicate accepts, in one pass and one
+	 * write. An audio override is filed per record while these keys are per track,
+	 * so evicting one correction is a question no single key can answer, and the
+	 * caller owns the key shapes: this walks, it does not interpret.
+	 */
+	public deleteWhere(matches: (key: string) => boolean): void {
+		const entries = this.conf.get("entries")
+		const doomed = Object.keys(entries).filter(matches)
+		if (doomed.length === 0) return
+
+		for (const key of doomed) {
+			delete entries[key]
+		}
+		this.conf.set("entries", entries)
+	}
+
 	// Unresolved entries do not count against the resolved cap, so without this
 	// every track this feature ever failed to identify would leave a permanent row.
 	private dropExpired(entries: Record<string, CacheEntry>): void {

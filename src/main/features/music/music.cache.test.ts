@@ -226,4 +226,39 @@ describe("Cache", () => {
 		expect(disk.writes).toBe(writesAfterSet)
 		expect(cache.get("track:Song|1")).not.toBeNull()
 	})
+
+	it("removes every entry the predicate accepts and keeps the rest", () => {
+		const cache = new Cache(new FakeClock())
+		cache.setResolved("track:nodal|probablemente|me deje llevar", result("1"))
+		cache.setResolved("track:nodal|de los besos|me deje llevar", result("2"))
+		cache.setResolved("track:nodal|adios amor|ahora", result("3"))
+
+		cache.deleteWhere((key) => key.endsWith("|me deje llevar"))
+
+		expect(cache.get("track:nodal|probablemente|me deje llevar")).toBeNull()
+		expect(cache.get("track:nodal|de los besos|me deje llevar")).toBeNull()
+		expect(cache.get("track:nodal|adios amor|ahora")).not.toBeNull()
+	})
+
+	it("removes every match in a single write to disk", () => {
+		const cache = new Cache(new FakeClock())
+		cache.setResolved("track:nodal|probablemente|me deje llevar", result("1"))
+		cache.setResolved("track:nodal|de los besos|me deje llevar", result("2"))
+		const writesAfterSet = disk.writes
+
+		cache.deleteWhere((key) => key.endsWith("|me deje llevar"))
+
+		expect(disk.writes).toBe(writesAfterSet + 1)
+	})
+
+	it("does not write to disk when the predicate accepts nothing", () => {
+		const cache = new Cache(new FakeClock())
+		cache.setResolved("track:Song|1", result("1"))
+		const writesAfterSet = disk.writes
+
+		cache.deleteWhere(() => false)
+
+		expect(disk.writes).toBe(writesAfterSet)
+		expect(cache.get("track:Song|1")).not.toBeNull()
+	})
 })

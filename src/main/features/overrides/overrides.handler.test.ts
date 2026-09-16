@@ -19,7 +19,7 @@ vi.mock("@main/core/ipc", () => ({
 	},
 }))
 
-import { Handler, type OverridesStore } from "./overrides.handler"
+import { Handler, type OverrideEvictor, type OverridesStore } from "./overrides.handler"
 
 async function invoke<C extends IpcChannel>(
 	channel: C,
@@ -88,12 +88,29 @@ function answer(overrides: {
 	}
 }
 
+/** Stands in for a resolver: the handler only ever hands it a key. */
+function fakeEvictor() {
+	const evicted: string[] = []
+	const evictor: OverrideEvictor = {
+		evictOverride: (key: string) => {
+			evicted.push(key)
+		},
+	}
+	return { evictor, evicted }
+}
+
 let store: FakeStore
+let catalogEvictions: string[]
+let musicEvictions: string[]
 
 beforeEach(() => {
 	ipc.handlers.clear()
 	store = new FakeStore()
-	new Handler(store)
+	const catalog = fakeEvictor()
+	const music = fakeEvictor()
+	catalogEvictions = catalog.evicted
+	musicEvictions = music.evicted
+	new Handler(store, [catalog.evictor, music.evictor])
 })
 
 afterEach(() => {
@@ -281,6 +298,37 @@ describe("overrides:save", () => {
 		expect(result).toEqual({ saved: false, reason: "store-refused" })
 		expect(store.entries.has("video:")).toBe(false)
 	})
+
+	it("evicts what was cached under the key, in every feature that caches", async () => {
+		// The key alone does not say which cache holds the answer being corrected,
+		// and only a resolver knows how its own keys relate to this one, so both are
+		// told and each answers for its own.
+		stubFetch(answer({ contentType: "image/jpeg" }))
+
+		await invoke("overrides:save", "tv:Red River|1", videoDraft())
+
+		expect(catalogEvictions).toEqual(["tv:Red River|1"])
+		expect(musicEvictions).toEqual(["tv:Red River|1"])
+	})
+
+	it("evicts nothing when the cover check rejected the save", async () => {
+		stubFetch(answer({ contentType: "text/html" }))
+
+		await invoke("overrides:save", "tv:Red River|1", videoDraft())
+
+		expect(catalogEvictions).toEqual([])
+		expect(musicEvictions).toEqual([])
+	})
+
+	it("evicts nothing when the store refused the key", async () => {
+		stubFetch(answer({ contentType: "image/jpeg" }))
+		store.refuseKey = "video:"
+
+		await invoke("overrides:save", "video:", videoDraft())
+
+		expect(catalogEvictions).toEqual([])
+		expect(musicEvictions).toEqual([])
+	})
 })
 
 describe("overrides:delete", () => {
@@ -300,5 +348,21 @@ describe("overrides:delete", () => {
 
 	it("reports success for a key nobody ever corrected", async () => {
 		expect(await invoke("overrides:delete", "tv:Nothing Here|1")).toBe(true)
+	})
+
+	it("evicts on the way out too, so the corrected answer is recomputed", async () => {
+		// The entry cached before the correction has no TTL. Left behind, it is
+		// exactly the answer the user rejected, served again the moment they drop
+		// the correction.
+		store.save("audio:christian nodal|me deje llevar", {
+			kind: "audio",
+			cover: COVER_URL,
+			sourceFilename: "01 Probablemente.mp3",
+		})
+
+		await invoke("overrides:delete", "audio:christian nodal|me deje llevar")
+
+		expect(catalogEvictions).toEqual(["audio:christian nodal|me deje llevar"])
+		expect(musicEvictions).toEqual(["audio:christian nodal|me deje llevar"])
 	})
 })
