@@ -10,6 +10,12 @@ import type { VlcStatus } from "@shared/vlc/vlc.types"
 import { ActivityType } from "discord-api-types/v10"
 import type { TimelineWindow } from "./presence.timeline"
 
+// A parse that found no title yields "", which `??` would happily pick over the
+// raw VLC title, so empty counts as absent here.
+function firstNonEmpty(...values: (string | undefined)[]): string | undefined {
+	return values.find((value) => value !== undefined && value !== "")
+}
+
 /**
  * Base class for media states
  */
@@ -77,8 +83,9 @@ class PlayingState extends MediaState {
 		)
 
 		const catalogResult = mediaType === "video" ? await this.catalog.resolve(mediaInfo) : null
-		const localParse =
-			mediaType === "video" && !catalogResult ? parseVideo(media.title || "") : null
+		// Parsed even on a catalog hit: the providers never report the year of the
+		// concrete file being played, and parsing is pure and local.
+		const localParse = mediaType === "video" ? parseVideo(media.title || "") : null
 
 		// Get the layout configuration
 		const layout =
@@ -109,12 +116,14 @@ class PlayingState extends MediaState {
 			if (isTvShow) {
 				if (season !== undefined && episode !== undefined) {
 					episodeInfo = `S${season}E${episode}`
+				} else if (season !== undefined) {
+					episodeInfo = `Season ${season}`
 				} else if (episode !== undefined) {
 					episodeInfo = `Episode ${episode}`
 				}
 			}
 
-			const title = catalogResult?.title ?? localParse?.title ?? media.title ?? "Unknown"
+			const title = firstNonEmpty(catalogResult?.title, localParse?.title, media.title) ?? "Unknown"
 			const year = localParse?.year
 
 			const variables = {
@@ -226,8 +235,9 @@ class PausedState extends MediaState {
 		)
 
 		const catalogResult = mediaType === "video" ? await this.catalog.resolve(mediaInfo) : null
-		const localParse =
-			mediaType === "video" && !catalogResult ? parseVideo(media.title || "") : null
+		// Parsed even on a catalog hit: the providers never report the year of the
+		// concrete file being played, and parsing is pure and local.
+		const localParse = mediaType === "video" ? parseVideo(media.title || "") : null
 
 		let details = ""
 		let state = ""
@@ -242,7 +252,7 @@ class PausedState extends MediaState {
 
 			const season = catalogResult?.season ?? localParse?.season
 			const episode = catalogResult?.episode ?? localParse?.episode
-			const title = catalogResult?.title ?? localParse?.title ?? media.title ?? "Unknown"
+			const title = firstNonEmpty(catalogResult?.title, localParse?.title, media.title) ?? "Unknown"
 
 			if (isTvShow) {
 				// TV Show: Show name as details, episode info as state
