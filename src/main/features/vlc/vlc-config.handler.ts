@@ -295,7 +295,13 @@ export class VlcConfigHandler {
 
 			configService.set("vlc", config)
 
-			logger.info("VLC configuration updated successfully", config)
+			// The password stays out of the log: config carries the VLC http
+			// password, and only whether one is set is worth knowing here.
+			logger.info("VLC configuration updated successfully", {
+				port: config.httpPort,
+				enabled: config.httpEnabled,
+				hasPassword: !!config.httpPassword,
+			})
 			return true
 		} catch (error) {
 			logger.error(`Error configuring VLC: ${error}`)

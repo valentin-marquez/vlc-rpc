@@ -1,5 +1,6 @@
 export { AniListProvider } from "./catalog.anilist"
 export { Cache } from "./catalog.cache"
+export { TmdbKeyHandler } from "./catalog.handler"
 export { parse } from "./catalog.parser"
 export { Resolver } from "./catalog.resolver"
 export { TmdbProvider } from "./catalog.tmdb"

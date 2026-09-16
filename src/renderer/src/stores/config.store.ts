@@ -28,14 +28,17 @@ export async function saveConfig<K extends keyof AppConfig>(
 ): Promise<void> {
 	try {
 		await window.api.config.set(key, value)
-		const currentConfig = configStore.get()
-		if (currentConfig) {
-			configStore.set({ ...currentConfig, [key]: value })
-		}
-		logger.info(`Configuration saved: ${key}`)
 	} catch (error) {
 		logger.error(`Failed to save configuration: ${key} - ${error}`)
+		// Swallowing this here would let the caller report a save that never happened.
+		throw error
 	}
+
+	const currentConfig = configStore.get()
+	if (currentConfig) {
+		configStore.set({ ...currentConfig, [key]: value })
+	}
+	logger.info(`Configuration saved: ${key}`)
 }
 
 export async function saveFullConfig(config: Partial<AppConfig>): Promise<void> {
