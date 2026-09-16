@@ -115,8 +115,9 @@ get<K extends keyof AppConfig>(key: K): AppConfig[K]
 ## Logging
 
 Never pass a configuration value, a configuration object, or a whole error object to the logger.
-The app config holds two secrets, the VLC HTTP password and the TMDB api key, and TMDB takes its
-key as a query parameter, so a failed request's error can carry it inside the URL.
+The app config holds the VLC HTTP password, and an error thrown by a failed request can carry the
+whole URL it was made against, which is how a credential passed as a query parameter ends up in a
+log file.
 
 Log the key that changed, not its value. Log whether a password is set, never the value and never
 its length. Log `error.name` rather than the error itself for any request whose URL may embed a
