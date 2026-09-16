@@ -46,8 +46,8 @@ export class Uploader {
 
 	// One honest identifier for every host, replacing the rotation this class used
 	// to do. Rotating fake clients reads as human only across spaced out requests.
-	// The six now leave together from one address, where six different clients in
-	// the same instant is a stranger pattern than one client that says who it is.
+	// The five now leave together from one address, where five different clients
+	// in the same instant is a stranger pattern than one client that says who it is.
 	private readonly userAgent = `${this.appName}/${this.appVersion}`
 
 	private readonly services: ImageUploadService[] = [
@@ -75,12 +75,10 @@ export class Uploader {
 			maxFileSize: 512 * 1024 * 1024,
 			supportsExpiry: true,
 		},
-		{
-			name: "tmpfiles.org",
-			upload: this.uploadToTmpFiles.bind(this),
-			maxFileSize: 100 * 1024 * 1024,
-			supportsExpiry: false,
-		},
+		// tmpfiles.org was removed, not left to lose honestly like 0x0.st sometimes
+		// does. Its upload answers with a url that looks fine but no longer serves
+		// the file, the /dl/ path redirects to an html page instead of the image,
+		// so it would win the race and hand Discord a link that renders nothing.
 		{
 			name: "tempfile.org",
 			upload: this.uploadToTempFile.bind(this),
@@ -278,37 +276,6 @@ export class Uploader {
 
 		const result = await response.text()
 		return result.trim().startsWith("http") ? result.trim() : null
-	}
-
-	private async uploadToTmpFiles({
-		imageBuffer,
-		filename,
-		signal,
-	}: UploadRequest): Promise<string | null> {
-		const formData = new FormData()
-		formData.append("file", this.toBlob(imageBuffer, filename), filename)
-
-		const response = await fetch("https://tmpfiles.org/api/v1/upload", {
-			method: "POST",
-			body: formData,
-			headers: {
-				"User-Agent": this.userAgent,
-			},
-			signal,
-		})
-
-		if (!response.ok) {
-			throw new Error(`HTTP ${response.status}`)
-		}
-
-		const result = await response.json()
-
-		if (result.status === "success" && result.data && result.data.url) {
-			const url = result.data.url
-			return url.replace("http://tmpfiles.org/", "https://tmpfiles.org/dl/")
-		}
-
-		return null
 	}
 
 	private async uploadToTempFile({

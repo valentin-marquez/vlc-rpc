@@ -10,6 +10,7 @@ Covers now reach Discord as fast as the quickest file host, not as slowly as the
   comes back.
 - As soon as one host answers, the uploads still in flight are cancelled, so the
   race costs bandwidth only until it is decided.
-- A sixth host, tempfile.org, joins the pool.
+- tempfile.org joins the pool, replacing tmpfiles.org, whose download link no
+  longer serves the file, it redirects to an html page instead.
 - A host that answers with an error or with something that is not a url no
   longer takes its turn away from the others, it simply loses the race.

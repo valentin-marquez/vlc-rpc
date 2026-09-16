@@ -17,7 +17,7 @@ vi.mock("@main/core/logger", () => ({
 
 import { Uploader } from "./cover.uploader"
 
-const EVERY_HOST = ["0x0.st", "catbox.moe", "tempfile.org", "tmpfiles.org", "uguu.se", "x0.at"]
+const EVERY_HOST = ["0x0.st", "catbox.moe", "tempfile.org", "uguu.se", "x0.at"]
 
 /** What each host answers when the upload succeeds, in that host's own shape. */
 const OK_BODY: Record<string, unknown> = {
@@ -25,7 +25,6 @@ const OK_BODY: Record<string, unknown> = {
 	"catbox.moe": "https://files.catbox.moe/raced.jpg",
 	"0x0.st": "https://0x0.st/raced.jpg",
 	"uguu.se": { success: true, files: [{ url: "https://uguu.se/raced.jpg" }] },
-	"tmpfiles.org": { status: "success", data: { url: "http://tmpfiles.org/9911/raced.jpg" } },
 	"tempfile.org": { success: true, files: [{ url: "https://tempfile.org/RaCeD1/" }] },
 }
 
@@ -35,7 +34,6 @@ const OK_URL: Record<string, string> = {
 	"catbox.moe": "https://files.catbox.moe/raced.jpg",
 	"0x0.st": "https://0x0.st/raced.jpg",
 	"uguu.se": "https://uguu.se/raced.jpg",
-	"tmpfiles.org": "https://tmpfiles.org/dl/9911/raced.jpg",
 	"tempfile.org": "https://tempfile.org/RaCeD1/download",
 }
 
@@ -170,7 +168,7 @@ describe("Uploader race", () => {
 		const losers = entrants.filter((entrant) => entrant.host !== "x0.at")
 
 		expect(winner?.signal.aborted).toBe(false)
-		expect(losers).toHaveLength(5)
+		expect(losers).toHaveLength(4)
 		expect(losers.every((loser) => loser.signal.aborted)).toBe(true)
 	})
 
@@ -184,7 +182,7 @@ describe("Uploader race", () => {
 		expect(url).not.toBeNull()
 		expect(entrants).toHaveLength(EVERY_HOST.length)
 		expect(entrants.at(-1)?.aborts).toBe(0)
-		expect(entrants.slice(0, -1).map((entrant) => entrant.aborts)).toEqual([1, 1, 1, 1, 1])
+		expect(entrants.slice(0, -1).map((entrant) => entrant.aborts)).toEqual([1, 1, 1, 1])
 	})
 
 	it("does not let a non-ok status win, and leaves the other services running", async () => {
