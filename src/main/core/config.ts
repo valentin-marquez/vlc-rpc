@@ -47,7 +47,9 @@ class ConfigService {
 
 		registerHandler("config:set", (key, value) => {
 			this.conf.set(key, value)
-			logger.info(`Config updated: ${key}`, { value })
+			// The value stays out of the log: config holds the TMDB api key and the
+			// VLC http password.
+			logger.info(`Config updated: ${key}`)
 			return true
 		})
 	}
