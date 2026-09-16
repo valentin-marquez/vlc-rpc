@@ -161,6 +161,21 @@ export class Resolver {
 	}
 
 	/**
+	 * The cover the user filed for this record, read from the store and nothing
+	 * else. `resolve` answers this too, but only after the file's own artwork has
+	 * already been preferred, and reaching it means a network round trip for every
+	 * track that carries artwork of its own.
+	 */
+	public overrideCoverFor(status: VlcStatus): string | null {
+		if (status.mediaType !== "audio") {
+			return null
+		}
+
+		const override = this.overrides.get(audioOverrideKey(buildQuery(status.media)))
+		return override?.kind === "audio" ? override.cover : null
+	}
+
+	/**
 	 * Where a correction for this file would be filed, without resolving it. It
 	 * has to come from here: the key is the record's, not the track's, and it is
 	 * built from `buildQuery`, which holds the credit splitting rules and stays

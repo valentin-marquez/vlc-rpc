@@ -35,6 +35,7 @@ import { Service } from "./presence.state"
 const LOCAL_ARTWORK = "file:///C:/music/track.jpg"
 const PUBLISHED_COVER = "https://uploads.example/local.jpg"
 const CATALOG_COVER = "https://catalog.example/cover.jpg"
+const OVERRIDE_COVER = "https://corrected.example/right.jpg"
 
 function status(state: "playing" | "paused", artworkUrl?: string): VlcStatus {
 	return {
@@ -56,7 +57,11 @@ function status(state: "playing" | "paused", artworkUrl?: string): VlcStatus {
 const catalogHit: MusicResult = { cover: CATALOG_COVER, provider: "itunes", id: "42" }
 const timeline = { start: 1000, end: 1180 }
 
-function build(outcome: CoverOutcome, result: MusicResult | null = catalogHit) {
+function build(
+	outcome: CoverOutcome,
+	result: MusicResult | null = catalogHit,
+	override: string | null = null,
+) {
 	const calls = { fetch: 0, resolve: 0 }
 	const artwork = new ArtworkResolver(
 		{
@@ -70,6 +75,7 @@ function build(outcome: CoverOutcome, result: MusicResult | null = catalogHit) {
 				calls.resolve++
 				return result
 			},
+			overrideCoverFor: () => override,
 		},
 	)
 	const catalog = {
@@ -100,6 +106,20 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 
 			expect(presence?.large_image).toBe(CATALOG_COVER)
 			expect(calls.resolve).toBe(1)
+		})
+
+		it("shows the correction the user typed over the artwork the file carries", async () => {
+			const { service, calls } = build(
+				{ kind: "published", url: PUBLISHED_COVER },
+				catalogHit,
+				OVERRIDE_COVER,
+			)
+
+			const presence = await service.getDiscordPresence(status(state, LOCAL_ARTWORK), timeline)
+
+			expect(presence?.large_image).toBe(OVERRIDE_COVER)
+			expect(calls.fetch).toBe(0)
+			expect(calls.resolve).toBe(0)
 		})
 
 		it("consults no catalog when the file has artwork that failed to publish", async () => {

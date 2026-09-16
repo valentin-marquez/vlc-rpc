@@ -57,6 +57,7 @@ function build(
 				calls.resolve++
 				return result
 			},
+			overrideCoverFor: () => null,
 		},
 	)
 	const refuse = (): never => {
@@ -140,10 +141,13 @@ function buildVideo(
 	result: CatalogResult | null,
 	target: OverrideTarget | null = null,
 ): MediaInfoHandler {
-	const refuse = async (): Promise<never> => {
+	const refuse = (): never => {
 		throw new Error("the audio path must not be consulted for video")
 	}
-	const artwork = new ArtworkResolver({ fetch: refuse }, { resolve: refuse })
+	const artwork = new ArtworkResolver(
+		{ fetch: refuse },
+		{ resolve: refuse, overrideCoverFor: refuse },
+	)
 	const catalog = {
 		resolve: async () => result,
 		overrideTargetFor: () => target,

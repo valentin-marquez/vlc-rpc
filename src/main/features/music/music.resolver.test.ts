@@ -820,3 +820,46 @@ describe("Resolver.overrideTargetFor", () => {
 		expect(resolver.overrideTargetFor(status(tagged, "video"))).toBeNull()
 	})
 })
+
+describe("Resolver.overrideCoverFor", () => {
+	function looking(entries: Record<string, Override> = {}) {
+		const { cache, calls } = fakeCache()
+		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides, asked } = fakeOverrides(entries)
+		return {
+			resolver: new Resolver(cache, itunes, musicbrainz, source, overrides),
+			calls,
+			itunesCalls,
+			asked,
+		}
+	}
+
+	it("answers with the saved cover without asking a provider or reading the cache", () => {
+		const { resolver, calls, itunesCalls, asked } = looking({
+			"audio:christian nodal|me deje llevar": handPicked,
+		})
+
+		expect(resolver.overrideCoverFor(status(tagged))).toBe("https://example.com/by-hand.jpg")
+		expect(asked).toEqual(["audio:christian nodal|me deje llevar"])
+		expect(itunesCalls.search).toBe(0)
+		expect(calls.get).toBe(0)
+	})
+
+	it("answers nothing when the record was never corrected", () => {
+		const { resolver, itunesCalls } = looking()
+
+		expect(resolver.overrideCoverFor(status(tagged))).toBeNull()
+		expect(itunesCalls.search).toBe(0)
+	})
+
+	it("answers nothing for video, whose corrections the catalog reads", () => {
+		const { resolver, asked } = looking({
+			"audio:christian nodal|me deje llevar": handPicked,
+		})
+
+		expect(resolver.overrideCoverFor(status(tagged, "video"))).toBeNull()
+		expect(asked).toEqual([])
+	})
+})

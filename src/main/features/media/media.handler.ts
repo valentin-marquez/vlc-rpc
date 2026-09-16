@@ -38,8 +38,8 @@ function toContentType(mediaKind: CatalogResult["mediaKind"]): ContentType {
 /**
  * A resolver asked where a correction for this file would be filed, which is a
  * question it can answer without resolving. Declared here so the audio side
- * arrives as the music catalog itself: `artwork` decides between the file's own
- * artwork and a catalog cover, and knows nothing about how a record is keyed.
+ * arrives as the music catalog itself: `artwork` picks which cover to show, and
+ * knows nothing about how a record is keyed.
  */
 export interface OverrideTargets {
 	overrideTargetFor(status: VlcStatus): OverrideTarget | null
