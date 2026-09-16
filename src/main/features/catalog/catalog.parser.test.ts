@@ -17,11 +17,12 @@ describe("parse, fansub naming", () => {
 		expect(result.signal).toBe("fansub")
 	})
 
-	it("handles a hyphenated title with a Part suffix", () => {
+	it("reads a Part suffix on a hyphenated title as the season", () => {
 		const result = parse(
 			"[Erai-raws] Yoroi-Shinden Samurai Troopers Part 2 - 11 [1080p CR WEBRip HEVC AAC][MultiSub][12E44D90]",
 		)
-		expect(result.title).toBe("Yoroi-Shinden Samurai Troopers Part 2")
+		expect(result.title).toBe("Yoroi-Shinden Samurai Troopers")
+		expect(result.season).toBe(2)
 		expect(result.episode).toBe(11)
 		expect(result.signal).toBe("fansub")
 	})
@@ -39,6 +40,52 @@ describe("parse, fansub naming", () => {
 		expect(result.season).toBe(2)
 		expect(result.episode).toBeUndefined()
 		expect(result.signal).toBe("fansub")
+	})
+})
+
+describe("parse, bare season markers the library does not read", () => {
+	it("reads a bare S2 suffix as the season", () => {
+		const result = parse(
+			"[ASW] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 11 [1080p HEVC x265 10Bit][AAC]",
+		)
+		expect(result.title).toBe("Otome Game Sekai wa Mob ni Kibishii Sekai desu")
+		expect(result.season).toBe(2)
+		expect(result.episode).toBe(11)
+		expect(result.signal).toBe("fansub")
+	})
+
+	it("reads a spelled out Season suffix as the season", () => {
+		const result = parse(
+			"[Doomdos] - Skeleton Knight in Another World Season 2 - 11 [2160p IQ WEB-DL]",
+		)
+		expect(result.title).toBe("Skeleton Knight in Another World")
+		expect(result.season).toBe(2)
+		expect(result.episode).toBe(11)
+		expect(result.signal).toBe("fansub")
+	})
+
+	it("reads an ordinal 2nd Season suffix as the season", () => {
+		const result = parse(
+			"[SubsPlease] Re:Zero kara Hajimeru Isekai Seikatsu 2nd Season - 05 (1080p) [ABCD1234].mkv",
+		)
+		expect(result.title).toBe("ReZero kara Hajimeru Isekai Seikatsu")
+		expect(result.season).toBe(2)
+		expect(result.episode).toBe(5)
+		expect(result.signal).toBe("fansub")
+	})
+
+	it("never eats a trailing number that belongs to the title", () => {
+		const result = parse("[SubsPlease] Mob Psycho 100 - 11 (1080p) [ABCD1234].mkv")
+		expect(result.title).toBe("Mob Psycho 100")
+		expect(result.season).toBeUndefined()
+		expect(result.episode).toBe(11)
+	})
+
+	it("leaves a season word that sits in the middle of the title alone", () => {
+		const result = parse("[Erai-raws] Made in Abyss Season 2 The Golden City - 11 [1080p]")
+		expect(result.title).toBe("Made in Abyss Season 2 The Golden City")
+		expect(result.season).toBeUndefined()
+		expect(result.episode).toBe(11)
 	})
 })
 
@@ -89,6 +136,15 @@ describe("parse, ambiguous naming, group tag plus season/episode", () => {
 		expect(result.season).toBe(1)
 		expect(result.episode).toBe(11)
 		expect(result.signal).toBe("ambiguous")
+	})
+
+	it("keeps the season the library found, even next to a trailing season word", () => {
+		const result = parse(
+			"[AnoZu] Yoroi-Shinden Samurai Troopers S01E23 1080p CR WEB-DL AAC 2.0 H.264 | Yoroi Shin Den Samurai Troopers Part 2",
+		)
+		expect(result.title).toBe("Yoroi-Shinden Samurai Troopers")
+		expect(result.season).toBe(1)
+		expect(result.episode).toBe(23)
 	})
 })
 

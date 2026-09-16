@@ -94,3 +94,179 @@ describe("pickBest, weighted signals among gate survivors", () => {
 		expect(pickBest(input, [tmdbCandidate, anilistCandidate])?.id).toBe("t")
 	})
 })
+
+describe("pickBest, season as a signal between candidates", () => {
+	// Real AniList entries for the query "Yoroi-Shinden Samurai Troopers".
+	// AniList models each season as a separate entry with the season in the
+	// title, so searching the title the parser stripped returns the whole
+	// franchise at once.
+	const samuraiTroopers = candidate({
+		id: "194318",
+		title: "Yoroi Shinden Samurai Troopers",
+		aliases: ["Yoroi-Shinden Samurai Troopers"],
+		year: 2026,
+	})
+	const samuraiTroopersPart2 = candidate({
+		id: "209800",
+		title: "Yoroi Shinden Samurai Troopers Part 2",
+		aliases: ["Yoroi-Shinden Samurai Troopers Cour 2"],
+		year: 2026,
+	})
+
+	it("picks the Part 2 entry when the file says season 2", () => {
+		const file = parsed({ title: "Yoroi-Shinden Samurai Troopers", season: 2, episode: 3 })
+		const result = pickBest(file, [samuraiTroopers, samuraiTroopersPart2])
+		expect(result?.id).toBe("209800")
+	})
+
+	it("picks the first entry when the file says season 1", () => {
+		const file = parsed({ title: "Yoroi-Shinden Samurai Troopers", season: 1, episode: 3 })
+		const result = pickBest(file, [samuraiTroopers, samuraiTroopersPart2])
+		expect(result?.id).toBe("194318")
+	})
+
+	it("picks the first entry when the file names no season", () => {
+		const file = parsed({ title: "Yoroi-Shinden Samurai Troopers", episode: 3 })
+		const result = pickBest(file, [samuraiTroopers, samuraiTroopersPart2])
+		expect(result?.id).toBe("194318")
+	})
+
+	// The other real pair, for the query "Otome Game Sekai wa Mob ni Kibishii
+	// Sekai desu" (non latin synonyms left out). On raw titles the season 1
+	// entry matches the query exactly and the season 2 entry only at 0.978, so
+	// title similarity alone always handed this one to the wrong season.
+	const otomege = candidate({
+		id: "142074",
+		title: "Otomege Sekai wa Mob ni Kibishii Sekai desu",
+		aliases: [
+			"Trapped in a Dating Sim: The World of Otome Games Is Tough for Mobs",
+			"Otome Game Sekai wa Mob ni Kibishii Sekai desu",
+		],
+		year: 2022,
+	})
+	const otomege2 = candidate({
+		id: "159309",
+		title: "Otomege Sekai wa Mob ni Kibishii Sekai desu 2",
+		aliases: [
+			"Trapped in a Dating Sim: The World of Otome Games is Tough for Mobs Season 2",
+			"Otome Game Sekai wa Mob ni Kibishii Sekai desu 2",
+			"Otomege 2",
+		],
+		year: 2026,
+	})
+
+	it("prefers the season the file names over a higher raw title similarity", () => {
+		const file = parsed({
+			title: "Otome Game Sekai wa Mob ni Kibishii Sekai desu",
+			season: 2,
+			episode: 1,
+		})
+		const result = pickBest(file, [otomege, otomege2])
+		expect(result?.id).toBe("159309")
+	})
+
+	it("leaves the exact title match winning when the file says season 1", () => {
+		const file = parsed({
+			title: "Otome Game Sekai wa Mob ni Kibishii Sekai desu",
+			season: 1,
+			episode: 1,
+		})
+		const result = pickBest(file, [otomege, otomege2])
+		expect(result?.id).toBe("142074")
+	})
+
+	it("outranks the widest title gap the gate can admit", () => {
+		// 1.0 against 0.926 is close to the widest gap two survivors can have,
+		// and the season still decides: 0.08 of similarity is worth 0.032 of
+		// score, a season that agrees is worth 0.105.
+		const exact = candidate({ id: "exact", title: "Sword Art Online Alicization", aliases: [] })
+		const sequel = candidate({
+			id: "sequel",
+			title: "Sword Art Online Alicisation II",
+			aliases: [],
+		})
+		const file = parsed({ title: "Sword Art Online Alicization", season: 2, episode: 6 })
+
+		expect(pickBest(file, [exact, sequel])?.id).toBe("sequel")
+	})
+
+	it("resolves a franchise with a single candidate exactly as before", () => {
+		const file = parsed({ title: "Sora wa Akai Kawa no Hotori", season: 2, episode: 7 })
+		const result = pickBest(file, [candidate()])
+		expect(result?.id).toBe("1")
+	})
+
+	it("does not let the season reject the only survivor there is", () => {
+		// The second entry alone, for a file that names no season: it passes the
+		// gate on its own synonym, its year is off by six, nothing parsed says tv
+		// or movie, and its marker contradicts the file. 1.0*0.4 + 0.2*0.25 +
+		// 0.5*0.2 + 0.3*0.15 = 0.595, over the threshold, same invariant the year
+		// already had.
+		const file = parsed({ title: "Otome Game Sekai wa Mob ni Kibishii Sekai desu", year: 2020 })
+		expect(pickBest(file, [otomege2])?.id).toBe("159309")
+	})
+
+	it("keeps rejecting a sequel entry of a season the file does not name", () => {
+		// Only its marker free form reaches the gate, and that marker disagrees,
+		// so this resolves to nothing, exactly as it did before seasons ranked.
+		const overlordIII = candidate({ id: "ol3", title: "Overlord III", aliases: [] })
+		expect(pickBest(parsed({ title: "Overlord", season: 2, episode: 4 }), [overlordIII])).toBeNull()
+		expect(pickBest(parsed({ title: "Overlord", episode: 4 }), [overlordIII])).toBeNull()
+	})
+})
+
+describe("pickBest, season markers in candidate titles", () => {
+	const first = candidate({ id: "first", title: "Kaguya-sama wa Kokurasetai", aliases: [] })
+
+	it.each([
+		["Season N", "Kaguya-sama wa Kokurasetai Season 2"],
+		["Part N", "Kaguya-sama wa Kokurasetai Part 2"],
+		["Nth Season", "Kaguya-sama wa Kokurasetai 2nd Season"],
+		["a bare trailing number", "Kaguya-sama wa Kokurasetai 2"],
+		["a roman numeral", "Kaguya-sama wa Kokurasetai II"],
+	])("reads %s as the season of a candidate", (_form, sequelTitle) => {
+		const sequel = candidate({ id: "sequel", title: sequelTitle, aliases: [] })
+		const secondSeason = parsed({ title: "Kaguya-sama wa Kokurasetai", season: 2, episode: 4 })
+		const firstSeason = parsed({ title: "Kaguya-sama wa Kokurasetai", season: 1, episode: 4 })
+
+		expect(pickBest(secondSeason, [first, sequel])?.id).toBe("sequel")
+		expect(pickBest(firstSeason, [first, sequel])?.id).toBe("first")
+	})
+
+	it("reads the season out of an alias too", () => {
+		const sequel = candidate({
+			id: "sequel",
+			title: "Kaguya-sama: Love is War",
+			aliases: ["Kaguya-sama wa Kokurasetai Season 2"],
+		})
+		const file = parsed({ title: "Kaguya-sama wa Kokurasetai", season: 2, episode: 4 })
+		expect(pickBest(file, [first, sequel])?.id).toBe("sequel")
+	})
+
+	it("tells apart the entries of a franchise numbered with roman numerals", () => {
+		const overlord = candidate({ id: "ol", title: "Overlord", aliases: [], year: 2015 })
+		const overlordII = candidate({ id: "ol2", title: "Overlord II", aliases: [], year: 2018 })
+		const overlordIII = candidate({ id: "ol3", title: "Overlord III", aliases: [], year: 2018 })
+		const lineup = [overlord, overlordII, overlordIII]
+
+		expect(pickBest(parsed({ title: "Overlord", season: 3, episode: 2 }), lineup)?.id).toBe("ol3")
+		expect(pickBest(parsed({ title: "Overlord", season: 2, episode: 2 }), lineup)?.id).toBe("ol2")
+		expect(pickBest(parsed({ title: "Overlord", season: 1, episode: 2 }), lineup)?.id).toBe("ol")
+	})
+
+	it("does not read a number that belongs to the title as a season", () => {
+		// Reading "100" as a marker would leave "Mob Psycho" as the candidate's
+		// identity and let it through the gate against a different show.
+		const result = pickBest(parsed({ title: "Mob Psycho", season: 2, episode: 4 }), [
+			candidate({ title: "Mob Psycho 100", aliases: [] }),
+		])
+		expect(result).toBeNull()
+	})
+
+	it("does not let a matching season marker admit a title the gate rejects", () => {
+		const result = pickBest(parsed({ title: "The Last of Us", season: 2, episode: 4 }), [
+			candidate({ title: "The Last Airbender Season 2", aliases: [] }),
+		])
+		expect(result).toBeNull()
+	})
+})
