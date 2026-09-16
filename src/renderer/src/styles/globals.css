@@ -239,11 +239,16 @@
 		--spring-bounce-duration: 0ms;
 	}
 
+	/* Tailwind v4 compiles scale-*, translate-* and rotate-* to the standalone
+	   scale, translate and rotate properties, which transform: none does not reach. */
 	.toast,
 	.onboarding-step,
 	.rail-tile,
 	.button {
 		transform: none !important;
+		scale: none !important;
+		translate: none !important;
+		rotate: none !important;
 	}
 
 	.connecting-dot,

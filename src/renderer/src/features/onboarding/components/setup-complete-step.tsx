@@ -35,7 +35,7 @@ export function SetupCompleteStep({
 			</div>
 
 			<div className="pt-4 flex justify-between">
-				<Button variant="outline" onClick={onBack} disabled={isLoading}>
+				<Button variant="secondary" onClick={onBack} disabled={isLoading}>
 					Back
 				</Button>
 				<Button

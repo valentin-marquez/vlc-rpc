@@ -110,7 +110,7 @@ export function AppSettingsPanel({ config }: AppSettingsPanelProps): JSX.Element
 						</p>
 					</div>
 					<Button
-						variant="outline"
+						variant="secondary"
 						size="sm"
 						onClick={handleClearMetadataCache}
 						disabled={isLoading}
