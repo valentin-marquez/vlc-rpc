@@ -1,3 +1,4 @@
+import { diceSimilarity, normalize } from "@main/core/similarity"
 import type { Candidate, ParsedVideo } from "./catalog.types"
 
 const IDENTITY_GATE_THRESHOLD = 0.92
@@ -49,44 +50,6 @@ interface Identity {
 	season: number
 	names: string[]
 	baseNames: string[]
-}
-
-function normalize(text: string): string {
-	return text
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, " ")
-		.trim()
-}
-
-function bigrams(text: string): string[] {
-	if (text.length < 2) return [text]
-	const grams: string[] = []
-	for (let i = 0; i < text.length - 1; i++) {
-		grams.push(text.slice(i, i + 2))
-	}
-	return grams
-}
-
-function diceSimilarity(a: string, b: string): number {
-	const gramsA = bigrams(a)
-	const gramsB = bigrams(b)
-	if (gramsA.length === 0 || gramsB.length === 0) return 0
-
-	const counts = new Map<string, number>()
-	for (const gram of gramsA) {
-		counts.set(gram, (counts.get(gram) ?? 0) + 1)
-	}
-
-	let matches = 0
-	for (const gram of gramsB) {
-		const remaining = counts.get(gram) ?? 0
-		if (remaining > 0) {
-			matches++
-			counts.set(gram, remaining - 1)
-		}
-	}
-
-	return (2 * matches) / (gramsA.length + gramsB.length)
 }
 
 function readSeasonMarker(normalized: string): SeasonMarker | undefined {
