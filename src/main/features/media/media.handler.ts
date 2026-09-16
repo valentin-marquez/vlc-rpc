@@ -60,9 +60,9 @@ export class MediaInfoHandler {
 
 			// For audio content, try to get cover art
 			if (vlcStatus.mediaType === "audio") {
-				const coverUrl = await this.cover.fetch(vlcStatus)
-				if (coverUrl) {
-					mediaInfo.content_image_url = coverUrl
+				const cover = await this.cover.fetch(vlcStatus)
+				if (cover.kind === "published") {
+					mediaInfo.content_image_url = cover.url
 				}
 			}
 

@@ -1,6 +1,10 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { pathToFileURL } from "node:url"
 import type { Client as VlcClient } from "@main/features/vlc"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Store } from "./cover.store"
 import type { Uploader } from "./cover.uploader"
 
@@ -30,7 +34,7 @@ function fakeStore(): Store {
 	} as unknown as Store
 }
 
-function fakeUploader(): Uploader {
+function fakeUploader(uploadImage: Uploader["uploadImage"] = async () => null): Uploader {
 	return {
 		parseMetadataTags: () => ({
 			imageUrl: null,
@@ -39,8 +43,15 @@ function fakeUploader(): Uploader {
 			processedBy: null,
 		}),
 		generateMetadataTags: () => ({}),
-		uploadImage: async () => null,
+		uploadImage,
 	} as unknown as Uploader
+}
+
+/** A playing file whose URI VLC can report, which publishing an upload requires. */
+function fakeVlc(): VlcClient {
+	return {
+		getCurrentFileUri: async () => "file:///music/song.mp3",
+	} as unknown as VlcClient
 }
 
 describe("Resolver caching", () => {
@@ -90,10 +101,94 @@ describe("Resolver caching", () => {
 		} as unknown as VlcClient
 		const resolver = new Resolver(vlc, fakeStore(), fakeUploader())
 
-		expect(await resolver.fetch(null)).toBeNull()
+		expect(await resolver.fetch(null)).toEqual({ kind: "no-artwork" })
 		expect(calls).toBe(0)
 
 		await resolver.fetch(status({ artist: "Christian Nodal", album: "Ahora" }))
 		expect(calls).toBe(1)
+	})
+})
+
+describe("Resolver outcomes", () => {
+	let root: string
+	let artworkUrl: string
+
+	beforeEach(() => {
+		root = mkdtempSync(join(tmpdir(), "cover-"))
+		const artworkPath = join(root, "cover.jpg")
+		writeFileSync(artworkPath, Buffer.from([0xff, 0xd8, 0xff, 0xdb]))
+		artworkUrl = pathToFileURL(artworkPath).href
+	})
+
+	afterEach(() => {
+		rmSync(root, { recursive: true, force: true })
+	})
+
+	it("publishes the artwork embedded in the file and reports its url", async () => {
+		const uploader = fakeUploader(async () => "https://0x0.st/cover.jpg")
+		const resolver = new Resolver(fakeVlc(), fakeStore(), uploader)
+
+		const outcome = await resolver.fetch(
+			status({ artist: "Christian Nodal", album: "Ahora", artworkUrl }),
+		)
+
+		expect(outcome).toEqual({ kind: "published", url: "https://0x0.st/cover.jpg" })
+	})
+
+	it("reports no artwork when the file has none embedded", async () => {
+		const resolver = new Resolver(fakeVlc(), fakeStore(), fakeUploader())
+
+		const outcome = await resolver.fetch(status({ artist: "Christian Nodal", album: "Ahora" }))
+
+		expect(outcome).toEqual({ kind: "no-artwork" })
+	})
+
+	it("reports a failed publish, not a file without artwork, when the upload fails", async () => {
+		const resolver = new Resolver(
+			fakeVlc(),
+			fakeStore(),
+			fakeUploader(async () => null),
+		)
+
+		const outcome = await resolver.fetch(
+			status({ artist: "Christian Nodal", album: "Ahora", artworkUrl }),
+		)
+
+		expect(outcome).toEqual({ kind: "publish-failed" })
+	})
+
+	it("reports a failed publish when the artwork file cannot be read", async () => {
+		const resolver = new Resolver(
+			fakeVlc(),
+			fakeStore(),
+			fakeUploader(async () => "https://0x0.st/cover.jpg"),
+		)
+
+		const outcome = await resolver.fetch(
+			status({
+				artist: "Christian Nodal",
+				album: "Ahora",
+				artworkUrl: pathToFileURL(join(root, "missing.jpg")).href,
+			}),
+		)
+
+		expect(outcome).toEqual({ kind: "publish-failed" })
+	})
+
+	it("does not cache a failed publish, so the next call retries the upload", async () => {
+		let uploads = 0
+		const uploader = fakeUploader(async () => {
+			uploads++
+			return uploads === 1 ? null : "https://0x0.st/cover.jpg"
+		})
+		const resolver = new Resolver(fakeVlc(), fakeStore(), uploader)
+		const media = { artist: "Christian Nodal", album: "Ahora", artworkUrl }
+
+		const first = await resolver.fetch(status(media))
+		const second = await resolver.fetch(status(media))
+
+		expect(first).toEqual({ kind: "publish-failed" })
+		expect(second).toEqual({ kind: "published", url: "https://0x0.st/cover.jpg" })
+		expect(uploads).toBe(2)
 	})
 })

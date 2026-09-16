@@ -4,12 +4,13 @@ import type { Client as VlcClient } from "@main/features/vlc"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import { coverKey } from "./cover.key"
 import type { Store as CoverStore } from "./cover.store"
+import type { CoverOutcome } from "./cover.types"
 import type { Uploader as CoverUploader } from "./cover.uploader"
 
 /** Service to fetch album cover art for audio files */
 export class Resolver {
 	private lastKey: string | null = null
-	private lastResult: string | null = null
+	private lastOutcome: CoverOutcome | null = null
 
 	constructor(
 		private readonly vlc: VlcClient,
@@ -20,28 +21,35 @@ export class Resolver {
 	}
 
 	/**
-	 * Fetch cover art URL using all available media information. Cached by
-	 * coverKey: advancing to the next track on the same album returns the
-	 * cached result instead of repeating the network round trip.
+	 * Fetch the cover art outcome using all available media information. Cached
+	 * by coverKey: advancing to the next track on the same album returns the
+	 * cached outcome instead of repeating the network round trip.
 	 */
-	public async fetch(mediaInfo: VlcStatus | null): Promise<string | null> {
+	public async fetch(mediaInfo: VlcStatus | null): Promise<CoverOutcome> {
 		const media = this.extractMediaData(mediaInfo)
 		if (!media || !mediaInfo) {
-			return null
+			return { kind: "no-artwork" }
 		}
 
 		const key = coverKey({ media })
-		if (key === this.lastKey) {
-			return this.lastResult
+		if (key === this.lastKey && this.lastOutcome) {
+			return this.lastOutcome
 		}
 
-		const result = await this.resolve(media)
+		const outcome = await this.resolve(media)
+		// A failed publish says nothing about the album, only about this attempt,
+		// so it is not remembered: the next poll retries instead of reporting a
+		// cached failure until the track changes.
+		if (outcome.kind === "publish-failed") {
+			return outcome
+		}
+
 		this.lastKey = key
-		this.lastResult = result
-		return result
+		this.lastOutcome = outcome
+		return outcome
 	}
 
-	private async resolve(media: VlcStatus["media"]): Promise<string | null> {
+	private async resolve(media: VlcStatus["media"]): Promise<CoverOutcome> {
 		// Step 1: Check if media already has an uploaded image URL in its metadata
 		const fileUri = await this.vlc.getCurrentFileUri()
 		if (fileUri && media.artworkUrl) {
@@ -52,7 +60,7 @@ export class Resolver {
 					const parsed = this.uploader.parseMetadataTags(customMetadata)
 					if (parsed.imageUrl && !parsed.isExpired) {
 						logger.info(`Using existing uploaded cover image: ${parsed.imageUrl}`)
-						return parsed.imageUrl
+						return { kind: "published", url: parsed.imageUrl }
 					}
 
 					if (parsed.isExpired) {
@@ -64,47 +72,52 @@ export class Resolver {
 
 		// Step 2: Prioritize local artwork from the file
 		if (media.artworkUrl?.startsWith("file://")) {
-			try {
-				// Upload the local artwork to 0x0.st for Discord compatibility
-				const localPath = media.artworkUrl.replace("file://", "")
-				const decodedPath = decodeURIComponent(localPath)
-
-				// Handle Windows paths
-				const fixedPath =
-					process.platform === "win32" && decodedPath.startsWith("/")
-						? decodedPath.substring(1)
-						: decodedPath
-
-				try {
-					const imageBuffer = await fs.readFile(fixedPath)
-					const filename = `cover_${Date.now()}.jpg`
-					const uploadedUrl = await this.uploader.uploadImage(imageBuffer, filename, 24 * 7) // 7 days
-
-					if (uploadedUrl && fileUri) {
-						// Store the uploaded URL in metadata for future use
-						const filePath = this.store.vlcUriToFilePath(fileUri)
-						if (filePath) {
-							const expiryDate = new Date()
-							expiryDate.setDate(expiryDate.getDate() + 7) // 7 days from now
-
-							const tags = this.uploader.generateMetadataTags(uploadedUrl, expiryDate)
-							await this.store.writeMetadataTags(filePath, tags)
-
-							logger.info(`Uploaded local artwork and saved metadata: ${uploadedUrl}`)
-						}
-						return uploadedUrl
-					}
-				} catch (error) {
-					logger.warn(`Could not upload local artwork: ${error}`)
-				}
-			} catch (error) {
-				logger.warn(`Error processing local artwork: ${error}`)
-			}
+			return await this.publishLocalArtwork(media.artworkUrl, fileUri)
 		}
 
 		// No cover art available - no more online search
 		logger.info("No local artwork available and online search disabled")
-		return null
+		return { kind: "no-artwork" }
+	}
+
+	/** Upload the artwork VLC extracted from the file so Discord can display it. */
+	private async publishLocalArtwork(
+		artworkUrl: string,
+		fileUri: string | null,
+	): Promise<CoverOutcome> {
+		try {
+			const localPath = artworkUrl.replace("file://", "")
+			const decodedPath = decodeURIComponent(localPath)
+
+			// Handle Windows paths
+			const fixedPath =
+				process.platform === "win32" && decodedPath.startsWith("/")
+					? decodedPath.substring(1)
+					: decodedPath
+
+			const imageBuffer = await fs.readFile(fixedPath)
+			const filename = `cover_${Date.now()}.jpg`
+			const uploadedUrl = await this.uploader.uploadImage(imageBuffer, filename, 24 * 7) // 7 days
+
+			if (uploadedUrl && fileUri) {
+				// Store the uploaded URL in metadata for future use
+				const filePath = this.store.vlcUriToFilePath(fileUri)
+				if (filePath) {
+					const expiryDate = new Date()
+					expiryDate.setDate(expiryDate.getDate() + 7) // 7 days from now
+
+					const tags = this.uploader.generateMetadataTags(uploadedUrl, expiryDate)
+					await this.store.writeMetadataTags(filePath, tags)
+
+					logger.info(`Uploaded local artwork and saved metadata: ${uploadedUrl}`)
+				}
+				return { kind: "published", url: uploadedUrl }
+			}
+		} catch (error) {
+			logger.warn(`Could not publish local artwork: ${error}`)
+		}
+
+		return { kind: "publish-failed" }
 	}
 
 	/** Extract media data from the input */

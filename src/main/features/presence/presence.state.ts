@@ -171,9 +171,9 @@ class PlayingState extends MediaState {
 		}
 
 		if (mediaType === "audio" && media) {
-			const coverArtUrl = await this.cover.fetch(mediaInfo)
-			if (coverArtUrl) {
-				largeImage = coverArtUrl
+			const cover = await this.cover.fetch(mediaInfo)
+			if (cover.kind === "published") {
+				largeImage = cover.url
 			}
 		}
 
@@ -306,9 +306,9 @@ class PausedState extends MediaState {
 		}
 
 		if (mediaType === "audio" && media) {
-			const coverArtUrl = await this.cover.fetch(mediaInfo)
-			if (coverArtUrl) {
-				largeImage = coverArtUrl
+			const cover = await this.cover.fetch(mediaInfo)
+			if (cover.kind === "published") {
+				largeImage = cover.url
 			}
 		}
 
