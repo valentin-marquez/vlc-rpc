@@ -3,6 +3,7 @@ import type { Candidate, CatalogProvider } from "./catalog.types"
 
 const ENDPOINT = "https://graphql.anilist.co"
 const MIN_INTERVAL_MS = 250
+const REQUEST_TIMEOUT_MS = 5000
 
 const QUERY = `
 	query ($search: String) {
@@ -31,21 +32,32 @@ interface AniListMedia {
 export class AniListProvider implements CatalogProvider {
 	private lastRequestAt = 0
 
+	// Throws on failure: the resolver reads that as "could not search" (short cache TTL),
+	// which is not the same answer as "searched fine, found nothing".
 	public async search(query: string): Promise<Candidate[]> {
+		await this.throttle()
+
+		const controller = new AbortController()
+		const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
 		try {
-			await this.throttle()
 			const response = await fetch(ENDPOINT, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ query: QUERY, variables: { search: query } }),
+				signal: controller.signal,
 			})
-			if (!response.ok) return []
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`)
+			}
 
 			const body = (await response.json()) as { data: { Page: { media: AniListMedia[] } } }
 			return body.data.Page.media.map((media) => this.normalize(media))
 		} catch (error) {
 			logger.warn(`AniList search failed: ${error}`)
-			return []
+			throw error
+		} finally {
+			clearTimeout(timeoutId)
 		}
 	}
 

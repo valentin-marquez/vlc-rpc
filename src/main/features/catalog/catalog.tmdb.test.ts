@@ -88,15 +88,31 @@ describe("TmdbProvider", () => {
 		expect(moneyHeist?.aliases).toEqual(["La Casa de Papel"])
 	})
 
-	it("returns an empty list when a search fails", async () => {
+	it("returns the half that succeeded when only one of the two searches fails", async () => {
 		vi.stubGlobal(
 			"fetch",
-			vi.fn(async () => ({ ok: false })),
+			vi.fn(async (url: string) =>
+				url.includes("/search/tv")
+					? { ok: false, status: 500 }
+					: { ok: true, json: async () => JSON.parse(fixture("tmdb-search-movie-response")) },
+			),
 		)
 
 		const provider = new TmdbProvider()
-		const results = await provider.search("anything")
+		const results = await provider.search("The Matrix")
 
-		expect(results).toEqual([])
+		expect(results.every((r) => r.mediaKind === "movie")).toBe(true)
+		expect(results.find((r) => r.id === "603")?.title).toBe("The Matrix")
+	})
+
+	it("rejects when both searches fail", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => ({ ok: false, status: 500 })),
+		)
+
+		const provider = new TmdbProvider()
+
+		await expect(provider.search("anything")).rejects.toThrow("TMDB search failed")
 	})
 })

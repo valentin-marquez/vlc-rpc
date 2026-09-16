@@ -54,14 +54,26 @@ describe("AniListProvider", () => {
 		expect(results).toEqual([])
 	})
 
-	it("returns an empty list when the request fails", async () => {
+	it("rejects when the response is not ok, so the caller can tell it apart from zero results", async () => {
 		vi.stubGlobal(
 			"fetch",
-			vi.fn(async () => ({ ok: false })),
+			vi.fn(async () => ({ ok: false, status: 503 })),
 		)
 
 		const provider = new AniListProvider()
-		expect(await provider.search("anything")).toEqual([])
+		await expect(provider.search("anything")).rejects.toThrow("HTTP 503")
+	})
+
+	it("rejects when the request itself fails", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => {
+				throw new Error("network down")
+			}),
+		)
+
+		const provider = new AniListProvider()
+		await expect(provider.search("anything")).rejects.toThrow("network down")
 	})
 
 	it("waits at least 250ms between consecutive requests", async () => {
