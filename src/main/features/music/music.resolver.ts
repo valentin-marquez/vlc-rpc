@@ -1,9 +1,8 @@
 import { logger } from "@main/core/logger"
-import { normalize } from "@main/core/similarity"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import type { Cache } from "./music.cache"
 import { musicKey } from "./music.key"
-import { pickBest } from "./music.scorer"
+import { albumMatches, pickBest } from "./music.scorer"
 import type {
 	CandidateRelease,
 	CoverArtSource,
@@ -67,9 +66,8 @@ function isSearchable(query: TrackQuery): boolean {
 	return !AUDIO_EXTENSION.test(query.title)
 }
 
-function albumRank(release: CandidateRelease, wantedAlbum: string): number {
-	if (wantedAlbum.length === 0) return 0
-	return normalize(release.title) === wantedAlbum ? 1 : 0
+function albumRank(release: CandidateRelease, album: string | undefined): number {
+	return albumMatches(album ?? "", release.title) ? 1 : 0
 }
 
 /**
@@ -92,11 +90,10 @@ function orderReleases(
 	releases: CandidateRelease[],
 	album: string | undefined,
 ): CandidateRelease[] {
-	const wantedAlbum = album === undefined ? "" : normalize(album)
 	return releases
 		.map((release, index) => ({ release, index }))
 		.sort((a, b) => {
-			const byAlbum = albumRank(b.release, wantedAlbum) - albumRank(a.release, wantedAlbum)
+			const byAlbum = albumRank(b.release, album) - albumRank(a.release, album)
 			if (byAlbum !== 0) return byAlbum
 
 			const timeA = releaseTime(a.release.date)

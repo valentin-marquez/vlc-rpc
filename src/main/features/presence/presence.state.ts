@@ -1,8 +1,8 @@
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
+import type { Resolver as ArtworkResolver } from "@main/features/artwork"
 import type { Resolver as CatalogResolver } from "@main/features/catalog"
 import { parse as parseVideo } from "@main/features/catalog"
-import type { Resolver as CoverResolver } from "@main/features/cover"
 import { applyTemplate, getDefaultLayout, getLayoutByPreset } from "@shared/presence/layout"
 import type { DiscordPresenceData } from "@shared/presence/presence.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
@@ -56,7 +56,7 @@ class NoStatusState extends MediaState {
 
 class PlayingState extends MediaState {
 	constructor(
-		private readonly cover: CoverResolver,
+		private readonly artwork: ArtworkResolver,
 		private readonly catalog: CatalogResolver,
 	) {
 		super()
@@ -171,9 +171,9 @@ class PlayingState extends MediaState {
 		}
 
 		if (mediaType === "audio" && media) {
-			const cover = await this.cover.fetch(mediaInfo)
-			if (cover.kind === "published") {
-				largeImage = cover.url
+			const cover = await this.artwork.resolve(mediaInfo)
+			if (cover) {
+				largeImage = cover
 			}
 		}
 
@@ -208,7 +208,7 @@ class PlayingState extends MediaState {
 
 class PausedState extends MediaState {
 	constructor(
-		private readonly cover: CoverResolver,
+		private readonly artwork: ArtworkResolver,
 		private readonly catalog: CatalogResolver,
 	) {
 		super()
@@ -306,9 +306,9 @@ class PausedState extends MediaState {
 		}
 
 		if (mediaType === "audio" && media) {
-			const cover = await this.cover.fetch(mediaInfo)
-			if (cover.kind === "published") {
-				largeImage = cover.url
+			const cover = await this.artwork.resolve(mediaInfo)
+			if (cover) {
+				largeImage = cover
 			}
 		}
 
@@ -342,12 +342,12 @@ interface MediaStates {
 export class Service {
 	private states: MediaStates
 
-	constructor(cover: CoverResolver, catalog: CatalogResolver) {
+	constructor(artwork: ArtworkResolver, catalog: CatalogResolver) {
 		this.states = {
 			stopped: new StoppedState(),
 			noStatus: new NoStatusState(),
-			playing: new PlayingState(cover, catalog),
-			paused: new PausedState(cover, catalog),
+			playing: new PlayingState(artwork, catalog),
+			paused: new PausedState(artwork, catalog),
 		}
 
 		logger.info("Media state service initialized")

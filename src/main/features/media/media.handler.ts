@@ -1,7 +1,7 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
+import type { Resolver as ArtworkResolver } from "@main/features/artwork"
 import type { Resolver as CatalogResolver } from "@main/features/catalog"
-import type { Resolver as CoverResolver } from "@main/features/cover"
 import type { Client as VlcClient } from "@main/features/vlc"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
@@ -16,7 +16,7 @@ export class MediaInfoHandler {
 	private lastMediaInfo: (VlcStatus & DetectedMediaInfo) | null = null
 
 	constructor(
-		private readonly cover: CoverResolver,
+		private readonly artwork: ArtworkResolver,
 		private readonly catalog: CatalogResolver,
 		private readonly vlc: VlcClient,
 		private readonly imageProxy: ImageProxy,
@@ -60,9 +60,9 @@ export class MediaInfoHandler {
 
 			// For audio content, try to get cover art
 			if (vlcStatus.mediaType === "audio") {
-				const cover = await this.cover.fetch(vlcStatus)
-				if (cover.kind === "published") {
-					mediaInfo.content_image_url = cover.url
+				const cover = await this.artwork.resolve(vlcStatus)
+				if (cover) {
+					mediaInfo.content_image_url = cover
 				}
 			}
 

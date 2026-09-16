@@ -378,4 +378,42 @@ describe("Resolver.resolve", () => {
 		expect(result?.cover).toBe("https://example.com/album.jpg")
 		expect(asked).toEqual(["r2"])
 	})
+
+	it("prefers the release that fuzzily matches the album tag, the same rule the scorer used to pick this candidate", async () => {
+		// The tag adds a "(Deluxe)" suffix a release title does not carry, the
+		// exact shape that used to win the candidate in the scorer and then lose
+		// the release pick in the resolver's stricter equality check.
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([
+			candidate({
+				provider: "musicbrainz",
+				id: "mb-1",
+				releases: [
+					{ id: "r1", title: "Grandes Éxitos", date: "2010-01-01" },
+					{
+						id: "r2",
+						title: "Me Dejé Llevar (En Vivo Desde el Auditorio Nacional)",
+						date: "2017-05-05",
+					},
+				],
+			}),
+		])
+		const { source, asked } = fakeCoverSource({
+			r1: "https://example.com/compilation.jpg",
+			r2: "https://example.com/deluxe.jpg",
+		})
+		const resolver = new Resolver(cache, itunes, musicbrainz, source)
+
+		const result = await resolver.resolve(
+			status({
+				title: "Probablemente",
+				artist: "Christian Nodal",
+				album: "Me Dejé Llevar (En Vivo Desde el Auditorio Nacional) (Deluxe)",
+			}),
+		)
+
+		expect(result?.cover).toBe("https://example.com/deluxe.jpg")
+		expect(asked).toEqual(["r2"])
+	})
 })

@@ -42,6 +42,19 @@ function matches(a: string, b: string): boolean {
 	return a === b || diceSimilarity(a, b) >= IDENTITY_GATE_THRESHOLD
 }
 
+/**
+ * Whether a release names the same edition as the file's album tag. Fuzzy,
+ * not exact, and on purpose: user tags carry "(Deluxe)" and "(Remaster)"
+ * suffixes constantly, and this is the one answer both the scorer and the
+ * resolver use, so a candidate cannot win a match here and then have the
+ * resolver refuse to prefer that same release for artwork.
+ */
+export function albumMatches(album: string, releaseTitle: string): boolean {
+	const wanted = normalize(album)
+	if (wanted.length === 0) return false
+	return matches(wanted, normalize(releaseTitle))
+}
+
 function normalizedNames(names: string[]): string[] {
 	const unique = new Set<string>()
 	for (const name of names) {
@@ -69,10 +82,7 @@ function creditScore(wanted: string[], credited: string[]): number {
 }
 
 function albumScore(album: string | undefined, candidate: RecordingCandidate): number {
-	const wanted = album === undefined ? "" : normalize(album)
-	if (wanted.length === 0) return NEUTRAL_ALBUM_SCORE
-
-	const matched = candidate.releases.some((release) => matches(wanted, normalize(release.title)))
+	const matched = candidate.releases.some((release) => albumMatches(album ?? "", release.title))
 	return matched ? 1 : NEUTRAL_ALBUM_SCORE
 }
 
