@@ -3,8 +3,10 @@ import type { Candidate, ParsedVideo } from "./catalog.types"
 const IDENTITY_GATE_THRESHOLD = 0.92
 
 /**
- * Below the worst score a gate survivor with a strong title can reach, so a
- * year mismatch alone never rejects a candidate the identity gate accepted.
+ * The worst a gate survivor can score is 0.92 * 0.45 + 0.2 * 0.30 + 0.5 * 0.25 =
+ * 0.599: a title right at the gate, a year off by two or more, and nothing
+ * parsed to check the media kind against. Staying under that is what keeps the
+ * year from rejecting, on its own, a candidate the identity gate accepted.
  */
 const SCORE_THRESHOLD = 0.55
 
@@ -66,7 +68,9 @@ function yearScore(parsed: ParsedVideo, candidate: Candidate): number {
 	const diff = Math.abs(parsed.year - candidate.year)
 	if (diff === 0) return 1
 	if (diff === 1) return 0.8
-	return 0
+	// Small rather than zero: a distant year must be able to lose a ranking
+	// without being able to reject the only candidate there is.
+	return 0.2
 }
 
 function mediaKindScore(parsed: ParsedVideo, candidate: Candidate): number {

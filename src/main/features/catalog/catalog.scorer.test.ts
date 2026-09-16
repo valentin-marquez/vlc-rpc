@@ -73,13 +73,24 @@ describe("pickBest, weighted signals among gate survivors", () => {
 		expect(result?.id).toBe("1")
 	})
 
+	it("does not reject a year mismatch at the identity gate boundary either", () => {
+		// These two spellings sit at a Dice similarity of 0.926, barely over the
+		// gate. An exact title carries enough weight on its own to survive a year
+		// mismatch, so only a boundary case can catch the year rejecting alone.
+		const result = pickBest(parsed({ title: "Sword Art Online Alicisation", year: 2026 }), [
+			candidate({ title: "Sword Art Online Alicization", aliases: [], year: 2019 }),
+		])
+		expect(result?.id).toBe("1")
+	})
+
 	it("does not let the provider of origin affect the outcome", () => {
 		const anilistCandidate = candidate({ id: "a", provider: "anilist" })
-		const tmdbCandidate = candidate({ id: "t", provider: "tmdb", year: 2026 })
-		const result = pickBest(parsed({ title: "Sora wa Akai Kawa no Hotori", year: 2026 }), [
-			anilistCandidate,
-			tmdbCandidate,
-		])
-		expect(result?.id).toBe("t")
+		const tmdbCandidate = candidate({ id: "t", provider: "tmdb" })
+		const input = parsed({ title: "Sora wa Akai Kawa no Hotori" })
+
+		// Identical but for the provider, so the order of the list is the only
+		// thing left that can decide the winner.
+		expect(pickBest(input, [anilistCandidate, tmdbCandidate])?.id).toBe("a")
+		expect(pickBest(input, [tmdbCandidate, anilistCandidate])?.id).toBe("t")
 	})
 })
