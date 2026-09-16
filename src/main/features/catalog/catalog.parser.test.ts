@@ -32,6 +32,14 @@ describe("parse, fansub naming", () => {
 		expect(result.episode).toBe(215)
 		expect(result.signal).toBe("fansub")
 	})
+
+	it("keeps the clean TV-mode title and season when a filename has season but no episode", () => {
+		const result = parse("[Group] Show S02 [1080p].mkv")
+		expect(result.title).toBe("Show")
+		expect(result.season).toBe(2)
+		expect(result.episode).toBeUndefined()
+		expect(result.signal).toBe("fansub")
+	})
 })
 
 describe("parse, fansub naming of movies", () => {

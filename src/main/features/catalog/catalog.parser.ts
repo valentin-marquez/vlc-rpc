@@ -52,8 +52,8 @@ export function parse(filename: string): ParsedVideo {
 	}
 
 	// A TV mode parse of a movie filename yields an empty title, so fall back to
-	// movie mode whenever the TV attempt found no episode.
-	if (episode === undefined && treatAsTv) {
+	// movie mode whenever the TV attempt found neither a season nor an episode.
+	if (episode === undefined && season === undefined && treatAsTv) {
 		parsed = filenameParse(filename, false)
 	}
 
