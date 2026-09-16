@@ -38,8 +38,6 @@ export interface AppConfig {
 	// RPC enable/disable state, including a temporary disable window
 	rpcEnabled: boolean
 	rpcDisabledUntil?: number
-	// BYOK for video posters. Absent or empty routes everything to AniList.
-	tmdbApiKey?: string
 	// Discord Rich Presence layout configuration
 	presenceLayout?: PresenceLayout
 	layoutPreset?: LayoutPreset

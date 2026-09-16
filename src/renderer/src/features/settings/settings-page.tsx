@@ -1,7 +1,6 @@
 import { useStore } from "@nanostores/react"
 import { configStore } from "@renderer/stores/config.store"
 import { AppSettingsPanel } from "./components/app-settings-panel"
-import { TmdbKeyForm } from "./components/tmdb-key-form"
 import { VlcConfigForm } from "./components/vlc-config-form"
 
 export function SettingsPage(): JSX.Element {
@@ -18,9 +17,10 @@ export function SettingsPage(): JSX.Element {
 				<p className="text-muted-foreground">Configure VLC Discord Rich Presence</p>
 			</div>
 
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+			{/* items-start so each card keeps its own height instead of the
+			    shorter one stretching to match its neighbour. */}
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 				<VlcConfigForm initialConfig={config.vlc} />
-				<TmdbKeyForm savedApiKey={config.tmdbApiKey ?? ""} />
 				<AppSettingsPanel config={config} />
 			</div>
 		</div>

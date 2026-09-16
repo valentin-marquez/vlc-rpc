@@ -7,7 +7,7 @@ export interface ParsedVideo {
 }
 
 export interface Candidate {
-	provider: "tmdb" | "anilist"
+	provider: "anilist"
 	id: string
 	title: string
 	aliases: string[]

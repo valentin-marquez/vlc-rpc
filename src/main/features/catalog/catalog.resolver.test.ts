@@ -1,25 +1,13 @@
 import type { VlcStatus } from "@shared/vlc/vlc.types"
-import { afterEach, describe, expect, it, vi } from "vitest"
-
-const { mockTmdbApiKey } = vi.hoisted(() => ({ mockTmdbApiKey: { value: "" } }))
+import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@main/core/logger", () => ({
 	logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
 }))
 
-vi.mock("@main/core/config", () => ({
-	configService: {
-		get: (key?: string) => (key === "tmdbApiKey" ? mockTmdbApiKey.value : undefined),
-	},
-}))
-
 import type { Cache } from "./catalog.cache"
 import { Resolver } from "./catalog.resolver"
 import type { CacheEntry, Candidate, CatalogProvider } from "./catalog.types"
-
-afterEach(() => {
-	mockTmdbApiKey.value = ""
-})
 
 function status(title: string): VlcStatus {
 	return {
@@ -90,21 +78,19 @@ function candidate(overrides: Partial<Candidate> = {}): Candidate {
 describe("Resolver.resolve", () => {
 	it("returns null for non video media", async () => {
 		const { cache } = fakeCache()
-		const { provider: tmdb } = fakeProvider([])
 		const { provider: anilist } = fakeProvider([])
-		const resolver = new Resolver(cache, tmdb, anilist)
+		const resolver = new Resolver(cache, anilist)
 
 		const audioStatus: VlcStatus = { ...status("x"), mediaType: "audio" }
 		expect(await resolver.resolve(audioStatus)).toBeNull()
 	})
 
-	it("routes fansub naming to AniList only", async () => {
+	it("routes fansub naming to AniList", async () => {
 		const { cache } = fakeCache()
-		const { provider: tmdb, calls: tmdbCalls } = fakeProvider([])
 		const { provider: anilist, calls: anilistCalls } = fakeProvider([
 			candidate({ title: "Sora wa Akai Kawa no Hotori" }),
 		])
-		const resolver = new Resolver(cache, tmdb, anilist)
+		const resolver = new Resolver(cache, anilist)
 
 		const result = await resolver.resolve(
 			status("[SubsPlease] Sora wa Akai Kawa no Hotori - 11 (1080p) [ABCDEF12].mkv"),
@@ -113,7 +99,36 @@ describe("Resolver.resolve", () => {
 		expect(result?.title).toBe("Sora wa Akai Kawa no Hotori")
 		expect(result?.episode).toBe(11)
 		expect(anilistCalls.search).toBe(1)
-		expect(tmdbCalls.search).toBe(0)
+	})
+
+	it("routes ambiguous naming to AniList, since anime is often named the western way", async () => {
+		const { cache } = fakeCache()
+		const { provider: anilist, calls: anilistCalls } = fakeProvider([
+			candidate({ title: "Some Show" }),
+		])
+		const resolver = new Resolver(cache, anilist)
+
+		const result = await resolver.resolve(status("[SubsPlease] Some Show S01E07 1080p.mkv"))
+
+		expect(result?.title).toBe("Some Show")
+		expect(anilistCalls.search).toBe(1)
+	})
+
+	it("routes western naming to no provider at all, and caches the miss as stable", async () => {
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: anilist, calls: anilistCalls } = fakeProvider([
+			candidate({ title: "Some Show" }),
+		])
+		const resolver = new Resolver(cache, anilist)
+
+		const result = await resolver.resolve(status("Some.Show.S01E07.1080p.WEB-DL.mp4"))
+
+		// AniList does not hold western film or television, so the request is
+		// never spent. "no-results" and not "provider-error": nothing was asked,
+		// so nothing failed, and a short retry TTL would re-run this on every poll.
+		expect(result).toBeNull()
+		expect(anilistCalls.search).toBe(0)
+		expect(unresolvedReasons).toEqual(["no-results"])
 	})
 
 	it("returns a cache hit without calling any provider, overlaying the fresh episode", async () => {
@@ -124,9 +139,8 @@ describe("Resolver.resolve", () => {
 			work: { title: "Some Show", poster: "https://example.com/p.jpg", mediaKind: "tv" },
 			lastAccessedAt: 0,
 		})
-		const { provider: tmdb, calls: tmdbCalls } = fakeProvider([])
 		const { provider: anilist, calls: anilistCalls } = fakeProvider([])
-		const resolver = new Resolver(cache, tmdb, anilist)
+		const resolver = new Resolver(cache, anilist)
 
 		const result = await resolver.resolve(status("Some.Show.S01E07.1080p.WEB-DL.mp4"))
 
@@ -137,7 +151,6 @@ describe("Resolver.resolve", () => {
 			season: 1,
 			episode: 7,
 		})
-		expect(tmdbCalls.search).toBe(0)
 		expect(anilistCalls.search).toBe(0)
 	})
 
@@ -154,8 +167,7 @@ describe("Resolver.resolve", () => {
 			calls.search++
 			return pending
 		}
-		const { provider: tmdb } = fakeProvider([])
-		const resolver = new Resolver(cache, tmdb, anilist)
+		const resolver = new Resolver(cache, anilist)
 
 		const filename = "[SubsPlease] Some Show - 07 (1080p) [ABCDEF12].mkv"
 		const first = resolver.resolve(status(filename))
@@ -169,25 +181,10 @@ describe("Resolver.resolve", () => {
 		expect(secondResult?.title).toBe("Some Show")
 	})
 
-	it("keeps candidates from a provider that succeeded when the other times out, in the ambiguous case", async () => {
-		mockTmdbApiKey.value = "test-key"
-		const { cache } = fakeCache()
-		const { provider: anilist } = fakeProvider([candidate({ title: "KAMUI Hes Behind You" })])
-		const { provider: tmdb } = fakeProvider([], true)
-		const resolver = new Resolver(cache, tmdb, anilist)
-
-		const result = await resolver.resolve(
-			status("[ToonsHub] KAMUI Hes Behind You S00E11 1080p AMZN WEB-DL DDP2.0 H.264 (Multi-Subs)"),
-		)
-
-		expect(result?.title).toBe("KAMUI Hes Behind You")
-	})
-
 	it("caches as unresolved and returns null when nothing passes the scorer", async () => {
 		const { cache, calls } = fakeCache()
 		const { provider: anilist } = fakeProvider([candidate({ title: "Totally Different Title" })])
-		const { provider: tmdb } = fakeProvider([])
-		const resolver = new Resolver(cache, tmdb, anilist)
+		const resolver = new Resolver(cache, anilist)
 
 		const result = await resolver.resolve(
 			status("[SubsPlease] Some Show - 07 (1080p) [ABCDEF12].mkv"),
@@ -197,44 +194,14 @@ describe("Resolver.resolve", () => {
 		expect(calls.setUnresolved).toBe(1)
 	})
 
-	it("skips TMDB on the ambiguous route when no key is configured", async () => {
-		const { cache } = fakeCache()
-		const { provider: tmdb, calls: tmdbCalls } = fakeProvider([])
-		const { provider: anilist, calls: anilistCalls } = fakeProvider([
-			candidate({ title: "Some Show" }),
-		])
-		const resolver = new Resolver(cache, tmdb, anilist)
-
-		await resolver.resolve(status("[SubsPlease] Some Show S01E07 1080p.mkv"))
-
-		expect(tmdbCalls.search).toBe(0)
-		expect(anilistCalls.search).toBe(1)
-	})
-
-	it("caches an ambiguous route miss as a transient provider failure, not no results, when AniList fails and TMDB has no key", async () => {
+	it("caches a miss as a transient provider failure, not no results, when AniList fails", async () => {
 		const { cache, unresolvedReasons } = fakeCache()
-		const { provider: tmdb } = fakeProvider([])
 		const { provider: anilist } = fakeProvider([], true)
-		const resolver = new Resolver(cache, tmdb, anilist)
+		const resolver = new Resolver(cache, anilist)
 
 		const result = await resolver.resolve(status("[SubsPlease] Some Show S01E07 1080p.mkv"))
 
 		expect(result).toBeNull()
 		expect(unresolvedReasons).toEqual(["provider-error"])
-	})
-
-	it("queries both providers on the ambiguous route when a TMDB key is present", async () => {
-		mockTmdbApiKey.value = "a-key"
-		const { cache } = fakeCache()
-		const { provider: tmdb, calls: tmdbCalls } = fakeProvider([])
-		const { provider: anilist, calls: anilistCalls } = fakeProvider([
-			candidate({ title: "Some Show" }),
-		])
-		const resolver = new Resolver(cache, tmdb, anilist)
-
-		await resolver.resolve(status("[SubsPlease] Some Show S01E07 1080p.mkv"))
-
-		expect(tmdbCalls.search).toBe(1)
-		expect(anilistCalls.search).toBe(1)
 	})
 })

@@ -34,9 +34,6 @@ const api = {
 		stopUpdateLoop: typedInvoke("discord:stop-loop"),
 		reconnect: typedInvoke("discord:reconnect"),
 	},
-	catalog: {
-		verifyTmdbKey: typedInvoke("catalog:tmdb:verify"),
-	},
 	media: {
 		getMediaInfo: typedInvoke("media:get-info"),
 	},

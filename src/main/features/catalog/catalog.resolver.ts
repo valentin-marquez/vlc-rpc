@@ -1,4 +1,3 @@
-import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import type { Cache } from "./catalog.cache"
@@ -18,7 +17,6 @@ export class Resolver {
 
 	constructor(
 		private readonly cache: Cache,
-		private readonly tmdb: CatalogProvider,
 		private readonly anilist: CatalogProvider,
 	) {}
 
@@ -59,7 +57,16 @@ export class Resolver {
 			return null
 		}
 
-		const { candidates, allFailed } = await this.searchProviders(parsed)
+		const providers = this.providersFor(parsed.signal)
+		if (providers.length === 0) {
+			// Nothing was asked, so nothing failed. This is a stable "no source for
+			// this yet", not an outage to retry on the next poll, so it takes the
+			// same long TTL as a search that ran and came back empty.
+			this.cache.setUnresolved(key, "no-results")
+			return null
+		}
+
+		const { candidates, allFailed } = await this.searchProviders(providers, parsed)
 
 		if (candidates.length === 0) {
 			this.cache.setUnresolved(key, allFailed ? "provider-error" : "no-results")
@@ -82,9 +89,9 @@ export class Resolver {
 	}
 
 	private async searchProviders(
+		providers: CatalogProvider[],
 		parsed: ParsedVideo,
 	): Promise<{ candidates: Candidate[]; allFailed: boolean }> {
-		const providers = this.providersFor(parsed.signal)
 		const results = await Promise.allSettled(
 			providers.map((provider) => provider.search(parsed.title)),
 		)
@@ -103,10 +110,15 @@ export class Resolver {
 		return { candidates, allFailed: failures === providers.length }
 	}
 
+	// The signal says which naming convention produced the filename, not what
+	// kind of content it holds. "ambiguous" goes to AniList along with "fansub"
+	// because anime is often named in the western style.
 	private providersFor(signal: ParsedVideo["signal"]): CatalogProvider[] {
-		if (signal === "fansub") return [this.anilist]
-		const hasTmdbKey = Boolean(configService.get("tmdbApiKey"))
-		if (signal === "ambiguous") return hasTmdbKey ? [this.anilist, this.tmdb] : [this.anilist]
-		return hasTmdbKey ? [this.tmdb] : [this.anilist]
+		// Western naming has no source today. AniList does not hold western film
+		// or television, so asking it would spend a request that cannot succeed
+		// and cache the miss. A keyless television provider is meant to fill this
+		// route, which is why it is empty rather than pointed at AniList.
+		if (signal === "western") return []
+		return [this.anilist]
 	}
 }
