@@ -1,4 +1,6 @@
 import { logger } from "@main/core/logger"
+import { normalize } from "@main/core/similarity"
+import type { Override } from "@main/features/overrides"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import type { Cache } from "./music.cache"
 import { splitCollaboration } from "./music.credit"
@@ -106,6 +108,33 @@ function orderReleases(
 		.map((entry) => entry.release)
 }
 
+/** The corrections the user typed by hand. A resolver only ever reads them. */
+export interface OverrideLookup {
+	get(key: string): Override | null
+}
+
+/**
+ * Where an audio override is filed, which is deliberately not `musicKey` a few
+ * lines below. `musicKey` carries the normalized album because it identifies a
+ * recording, which is what a cache entry is about. An override is about a
+ * record's artwork: filed per track, correcting one album cover would mean
+ * typing the same correction once per song, twenty times for a twenty track
+ * release.
+ *
+ * So the key is the credit plus the album, falling back to the title when the
+ * file carries no album tag. The credit is the artist tag alone, without the
+ * collaborators the title's suffix contributed, since those change from track
+ * to track and would split one album back into one key per song. It leads the
+ * key because the store refuses to save under a key whose first component is
+ * empty, which is what keeps a file with no artist tag from claiming the cover
+ * of every other file with no artist tag.
+ */
+function overrideKey(query: TrackQuery): string {
+	const artist = normalize(query.artists[0] ?? "")
+	const album = normalize(query.album ?? "")
+	return `audio:${artist}|${album.length > 0 ? album : normalize(query.title)}`
+}
+
 export class Resolver {
 	private readonly inflight = new Map<string, Promise<MusicResult | null>>()
 
@@ -114,6 +143,9 @@ export class Resolver {
 		private readonly itunes: MusicProvider,
 		private readonly musicbrainz: MusicProvider,
 		private readonly coverArt: CoverArtSource,
+		// Optional until the composition root builds one: with no store, this
+		// resolves exactly what it resolved before.
+		private readonly overrides?: OverrideLookup,
 	) {}
 
 	public async resolve(status: VlcStatus): Promise<MusicResult | null> {
@@ -122,6 +154,18 @@ export class Resolver {
 		}
 
 		const query = buildQuery(status.media)
+
+		const overrideAt = overrideKey(query)
+		const override = this.overrides?.get(overrideAt)
+		if (override?.kind === "audio") {
+			// `MusicResult` has no branch for a cover the user typed: `provider` and
+			// `id` are there to say which catalog answered, and nothing outside this
+			// feature reads either, only `cover`. Naming the user there means
+			// widening the union in `music.types.ts`, so until that happens the id
+			// carries the key and the provider is a placeholder.
+			return { cover: override.cover, provider: "itunes", id: overrideAt }
+		}
+
 		const key = musicKey(query)
 
 		const cached = this.cache.get(key)

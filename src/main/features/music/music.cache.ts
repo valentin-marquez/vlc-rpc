@@ -74,6 +74,19 @@ export class Cache {
 		this.conf.set("entries", entries)
 	}
 
+	/**
+	 * Removes one entry. Saving an override needs it: a resolved entry has no TTL
+	 * and only the cap above it, so a correction laid on top of an already cached
+	 * answer would let the old cover come back the day the user removes the
+	 * correction, and stay.
+	 */
+	public delete(key: string): void {
+		const entries = this.conf.get("entries")
+		if (!(key in entries)) return
+		delete entries[key]
+		this.conf.set("entries", entries)
+	}
+
 	// Unresolved entries do not count against the resolved cap, so without this
 	// every track this feature ever failed to identify would leave a permanent row.
 	private dropExpired(entries: Record<string, CacheEntry>): void {

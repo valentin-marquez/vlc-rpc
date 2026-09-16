@@ -140,6 +140,36 @@ describe("Cache", () => {
 		expect(disk.writes).toBe(writesAfterSet + 1)
 	})
 
+	it("removes an entry by key", () => {
+		const cache = new Cache(new FakeClock())
+		cache.setResolved("tv:Show|1", { title: "Show", poster: null, mediaKind: "tv" })
+
+		cache.delete("tv:Show|1")
+
+		expect(cache.get("tv:Show|1")).toBeNull()
+		expect(disk.entries["tv:Show|1"]).toBeUndefined()
+	})
+
+	it("removes an unresolved entry by key too", () => {
+		const cache = new Cache(new FakeClock())
+		cache.setUnresolved("tv:Show|1", "no-match")
+
+		cache.delete("tv:Show|1")
+
+		expect(cache.get("tv:Show|1")).toBeNull()
+	})
+
+	it("does nothing, and writes nothing, when the key to delete is not there", () => {
+		const cache = new Cache(new FakeClock())
+		cache.setResolved("tv:Show|1", { title: "Show", poster: null, mediaKind: "tv" })
+		const writesAfterSet = disk.writes
+
+		expect(() => cache.delete("tv:Never Played|1")).not.toThrow()
+
+		expect(disk.writes).toBe(writesAfterSet)
+		expect(cache.get("tv:Show|1")).not.toBeNull()
+	})
+
 	it("evicts an untouched resolved entry and keeps one a read touched", () => {
 		const clock = new FakeClock()
 		const cache = new Cache(clock)

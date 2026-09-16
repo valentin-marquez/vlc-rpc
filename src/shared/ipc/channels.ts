@@ -2,6 +2,46 @@ import type { AppConfig, VlcConfig } from "@shared/config/app-config"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 
+// ─── Overrides ──────────────────────────────────────────────────────────────
+
+/**
+ * The store's own types live in `@main/features/overrides` and cannot be
+ * imported here: `shared` is compiled for the renderer too, which has no
+ * `@main` path. The shapes are restated instead, and `overrides.handler.ts`
+ * hands the store's types straight to `registerHandler`, so a divergence
+ * between the two breaks the build there rather than at runtime.
+ */
+export type OverrideDraft =
+	| {
+			kind: "video"
+			title?: string | undefined
+			cover?: string | undefined
+			mediaKind?: "movie" | "tv" | undefined
+			sourceFilename: string
+	  }
+	| { kind: "audio"; cover: string; sourceFilename: string }
+
+export type SavedOverride = OverrideDraft & { savedAt: number }
+
+export interface OverrideListEntry {
+	key: string
+	override: SavedOverride
+}
+
+/**
+ * Three cover failures kept apart rather than collapsed into "invalid URL",
+ * because each asks the user for a different move: retype what they pasted,
+ * check a link that is dead or a host that is down, or copy the image address
+ * instead of the page the image sits on. `store-refused` is the store's own
+ * guard against a key that carries no title.
+ */
+export type OverrideSaveResult =
+	| { saved: true }
+	| { saved: false; reason: "cover-not-a-url" }
+	| { saved: false; reason: "cover-unreachable"; status: number | null }
+	| { saved: false; reason: "cover-not-an-image"; contentType: string | null }
+	| { saved: false; reason: "store-refused" }
+
 // ─── Invoke Channels (Renderer → Main, request/response) ────────────────────
 
 /**
@@ -67,6 +107,14 @@ export interface IpcInvokeChannelMap {
 		request: []
 		response: { success: boolean; message: string; filesRemoved: number }
 	}
+
+	// ── Overrides ───────────────────────────────────────────────────────────
+	"overrides:list": { request: []; response: OverrideListEntry[] }
+	"overrides:save": {
+		request: [key: string, override: OverrideDraft]
+		response: OverrideSaveResult
+	}
+	"overrides:delete": { request: [key: string]; response: boolean }
 
 	// ── Update ──────────────────────────────────────────────────────────────
 	"update:check": { request: [silent?: boolean]; response: boolean }

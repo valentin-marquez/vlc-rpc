@@ -1,5 +1,6 @@
 import type { ElectronAPI } from "@electron-toolkit/preload"
 import type { AppConfig, VlcConfig } from "@shared/config/app-config"
+import type { OverrideDraft, OverrideListEntry, OverrideSaveResult } from "@shared/ipc/channels"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 
@@ -38,6 +39,11 @@ declare global {
 			}
 			image: {
 				getAsDataUrl: (url: string) => Promise<string | null>
+			}
+			overrides: {
+				list: () => Promise<OverrideListEntry[]>
+				save: (key: string, override: OverrideDraft) => Promise<OverrideSaveResult>
+				remove: (key: string) => Promise<boolean>
 			}
 			app: {
 				minimize: () => Promise<void>

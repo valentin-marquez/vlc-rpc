@@ -5,8 +5,9 @@ vi.mock("@main/core/logger", () => ({
 	logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
 }))
 
+import type { VideoOverride } from "@main/features/overrides"
 import type { Cache } from "./catalog.cache"
-import { Resolver } from "./catalog.resolver"
+import { type OverrideSource, Resolver } from "./catalog.resolver"
 import type { CacheEntry, Candidate, CatalogProvider } from "./catalog.types"
 
 function status(title: string): VlcStatus {
@@ -61,6 +62,27 @@ function fakeProvider(results: Candidate[] | (() => Candidate[]), fails = false)
 		},
 	}
 	return { provider, calls }
+}
+
+function fakeOverrides(entries: Record<string, VideoOverride> = {}) {
+	const calls = { get: 0 }
+	const overrides: OverrideSource = {
+		get: (key: string) => {
+			calls.get++
+			return entries[key] ?? null
+		},
+	}
+	return { overrides, calls }
+}
+
+function videoOverride(fields: Partial<Pick<VideoOverride, "title" | "cover" | "mediaKind">>) {
+	const override: VideoOverride = {
+		kind: "video",
+		sourceFilename: "whatever.mkv",
+		savedAt: 0,
+		...fields,
+	}
+	return override
 }
 
 function candidate(overrides: Partial<Candidate> = {}): Candidate {
@@ -203,5 +225,112 @@ describe("Resolver.resolve", () => {
 
 		expect(result).toBeNull()
 		expect(unresolvedReasons).toEqual(["provider-error"])
+	})
+
+	it("returns an override without asking a provider and without reading the cache", async () => {
+		const { cache, calls: cacheCalls } = fakeCache()
+		const { provider: anilist, calls: anilistCalls } = fakeProvider([
+			candidate({ title: "Some Show" }),
+		])
+		const { overrides } = fakeOverrides({
+			"tv:Some Show|1": videoOverride({ title: "The Show It Really Is" }),
+		})
+		const resolver = new Resolver(cache, anilist, overrides)
+
+		const result = await resolver.resolve(status("Some.Show.S01E07.1080p.WEB-DL.mp4"))
+
+		expect(result?.title).toBe("The Show It Really Is")
+		expect(anilistCalls.search).toBe(0)
+		expect(cacheCalls.get).toBe(0)
+		expect(cacheCalls.setResolved).toBe(0)
+		expect(cacheCalls.setUnresolved).toBe(0)
+	})
+
+	it("carries the title, the cover and the media kind of an override into the result", async () => {
+		const { cache } = fakeCache()
+		const { provider: anilist } = fakeProvider([candidate({ title: "Some Show" })])
+		const { overrides } = fakeOverrides({
+			"tv:Some Show|1": videoOverride({
+				title: "The Show It Really Is",
+				cover: "https://example.com/by-hand.jpg",
+				mediaKind: "movie",
+			}),
+		})
+		const resolver = new Resolver(cache, anilist, overrides)
+
+		const result = await resolver.resolve(status("Some.Show.S01E07.1080p.WEB-DL.mp4"))
+
+		// The kind is the override's even though the filename says S01E07, which
+		// is the whole point: the parse is what the user was correcting. Season
+		// and episode still come from the filename, they are not overridable.
+		expect(result).toEqual({
+			title: "The Show It Really Is",
+			poster: "https://example.com/by-hand.jpg",
+			mediaKind: "movie",
+			season: 1,
+			episode: 7,
+		})
+	})
+
+	it("fills the fields an override leaves out from the local parse, not from a provider", async () => {
+		const { cache, calls: cacheCalls } = fakeCache()
+		const { provider: anilist, calls: anilistCalls } = fakeProvider([
+			candidate({ title: "Some Show", posterUrl: "https://example.com/anilist.jpg" }),
+		])
+		const { overrides } = fakeOverrides({
+			"tv:Some Show|1": videoOverride({ cover: "https://example.com/by-hand.jpg" }),
+		})
+		const resolver = new Resolver(cache, anilist, overrides)
+
+		const result = await resolver.resolve(status("Some.Show.S01E07.1080p.WEB-DL.mp4"))
+
+		expect(result).toEqual({
+			title: "Some Show",
+			poster: "https://example.com/by-hand.jpg",
+			mediaKind: "tv",
+			season: 1,
+			episode: 7,
+		})
+		expect(anilistCalls.search).toBe(0)
+		expect(cacheCalls.get).toBe(0)
+	})
+
+	it("leaves the poster empty when an override carries no cover, rather than resolving one", async () => {
+		const { cache } = fakeCache()
+		const { provider: anilist, calls: anilistCalls } = fakeProvider([
+			candidate({ title: "Some Movie", mediaKind: "movie" }),
+		])
+		const { overrides } = fakeOverrides({
+			"movie:Some Movie|2019": videoOverride({ title: "The Movie It Really Is" }),
+		})
+		const resolver = new Resolver(cache, anilist, overrides)
+
+		const result = await resolver.resolve(status("Some.Movie.2019.1080p.BluRay.x264.mp4"))
+
+		expect(result).toEqual({
+			title: "The Movie It Really Is",
+			poster: null,
+			mediaKind: "movie",
+			season: undefined,
+			episode: undefined,
+		})
+		expect(anilistCalls.search).toBe(0)
+	})
+
+	it("resolves as usual when the store holds no override for the key", async () => {
+		const { cache } = fakeCache()
+		const { provider: anilist, calls: anilistCalls } = fakeProvider([
+			candidate({ title: "Some Show" }),
+		])
+		const { overrides, calls: overrideCalls } = fakeOverrides({
+			"tv:Another Show|1": videoOverride({ title: "Not This One" }),
+		})
+		const resolver = new Resolver(cache, anilist, overrides)
+
+		const result = await resolver.resolve(status("[SubsPlease] Some Show S01E07 1080p.mkv"))
+
+		expect(result?.title).toBe("Some Show")
+		expect(overrideCalls.get).toBe(1)
+		expect(anilistCalls.search).toBe(1)
 	})
 })

@@ -40,6 +40,11 @@ const api = {
 	image: {
 		getAsDataUrl: typedInvoke("image:proxy"),
 	},
+	overrides: {
+		list: typedInvoke("overrides:list"),
+		save: typedInvoke("overrides:save"),
+		remove: typedInvoke("overrides:delete"),
+	},
 	app: {
 		minimize: typedInvoke("window:minimize"),
 		maximize: typedInvoke("window:maximize"),

@@ -1,3 +1,4 @@
+import type { Override } from "@main/features/overrides"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import { describe, expect, it, vi } from "vitest"
 
@@ -88,6 +89,17 @@ function fakeCoverSource(covers: Record<string, string> = {}, fails = false) {
 	return { source, asked }
 }
 
+function fakeOverrides(entries: Record<string, Override> = {}) {
+	const asked: string[] = []
+	const overrides = {
+		get: (key: string) => {
+			asked.push(key)
+			return entries[key] ?? null
+		},
+	}
+	return { overrides, asked }
+}
+
 function candidate(overrides: Partial<RecordingCandidate> = {}): RecordingCandidate {
 	return {
 		provider: "itunes",
@@ -106,6 +118,12 @@ const tagged: VlcStatus["media"] = {
 	album: "Me Dejé Llevar",
 }
 
+const handPicked: Override = {
+	kind: "audio",
+	cover: "https://example.com/by-hand.jpg",
+	sourceFilename: "01 Probablemente.mp3",
+	savedAt: 0,
+}
 describe("Resolver.resolve", () => {
 	it("returns null for non audio media without touching the cache or the providers", async () => {
 		const { cache, calls: cacheCalls } = fakeCache()
@@ -539,5 +557,86 @@ describe("Resolver.resolve", () => {
 
 		expect(result).toBeNull()
 		expect(unresolvedReasons).toEqual(["provider-error"])
+	})
+
+	it("serves a stored override without reading the cache or asking a provider", async () => {
+		const { cache, calls: cacheCalls } = fakeCache()
+		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
+		const { provider: musicbrainz, calls: mbCalls } = fakeProvider([])
+		const { source, asked: coversAsked } = fakeCoverSource()
+		const { overrides, asked } = fakeOverrides({
+			"audio:christian nodal|me deje llevar": handPicked,
+		})
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides)
+
+		const result = await resolver.resolve(status(tagged))
+
+		expect(result?.cover).toBe("https://example.com/by-hand.jpg")
+		expect(asked).toEqual(["audio:christian nodal|me deje llevar"])
+		expect(cacheCalls.get).toBe(0)
+		expect(cacheCalls.setResolved).toBe(0)
+		expect(cacheCalls.setUnresolved).toBe(0)
+		expect(itunesCalls.search).toBe(0)
+		expect(mbCalls.search).toBe(0)
+		expect(coversAsked).toEqual([])
+	})
+
+	it("applies one override to every track of the same album", async () => {
+		// The whole reason this key is not `musicKey`, which carries the title:
+		// under that one, correcting a twenty track record takes twenty
+		// corrections.
+		const { cache } = fakeCache()
+		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides } = fakeOverrides({
+			"audio:christian nodal|me deje llevar": handPicked,
+		})
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides)
+
+		const first = await resolver.resolve(status(tagged))
+		const second = await resolver.resolve(
+			status({
+				title: "De Los Besos Que Te Di",
+				artist: "Christian Nodal",
+				album: "Me Dejé Llevar",
+			}),
+		)
+
+		expect(first?.cover).toBe("https://example.com/by-hand.jpg")
+		expect(second?.cover).toBe("https://example.com/by-hand.jpg")
+		expect(itunesCalls.search).toBe(0)
+	})
+
+	it("keys a file with no album tag by artist and title, so it can still be corrected", async () => {
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([candidate()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides, asked } = fakeOverrides({
+			"audio:christian nodal|probablemente": handPicked,
+		})
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides)
+
+		const result = await resolver.resolve(
+			status({ title: "Probablemente", artist: "Christian Nodal", album: "" }),
+		)
+
+		expect(asked).toEqual(["audio:christian nodal|probablemente"])
+		expect(result?.cover).toBe("https://example.com/by-hand.jpg")
+	})
+
+	it("resolves as usual when the store holds no override for the track", async () => {
+		const { cache } = fakeCache()
+		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides } = fakeOverrides({ "audio:someone else|another record": handPicked })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides)
+
+		const result = await resolver.resolve(status(tagged))
+
+		expect(result?.cover).toBe("https://example.com/itunes.jpg")
+		expect(itunesCalls.search).toBe(1)
 	})
 })

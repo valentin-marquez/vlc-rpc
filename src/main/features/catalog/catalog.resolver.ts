@@ -1,4 +1,5 @@
 import { logger } from "@main/core/logger"
+import type { Override, VideoOverride } from "@main/features/overrides"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import type { Cache } from "./catalog.cache"
 import { catalogKey } from "./catalog.key"
@@ -12,12 +13,41 @@ import type {
 	ParsedVideo,
 } from "./catalog.types"
 
+/** The corrections the user typed by hand, keyed the way this feature keys. */
+export interface OverrideSource {
+	get(key: string): Override | null
+}
+
+/**
+ * A partial override composes with the local parse, never with a resolution.
+ * Falling back to the providers for the fields it leaves out would spend the
+ * request the override exists to avoid, and would make the same override answer
+ * differently depending on what the cache happened to hold. The form is
+ * prefilled with what the app deduced, so keeping a deduced cover is a matter of
+ * saving it, not of leaving the field empty.
+ */
+function applyOverride(override: VideoOverride, parsed: ParsedVideo): CachedWork {
+	// The same test `presence.state.ts` applies when there is no catalog result
+	// at all, so an override that omits the kind formats exactly as the filename
+	// alone would have.
+	const parsedKind = parsed.season !== undefined || parsed.episode !== undefined ? "tv" : "movie"
+
+	return {
+		title: override.title || parsed.title,
+		poster: override.cover ?? null,
+		mediaKind: override.mediaKind ?? parsedKind,
+	}
+}
+
 export class Resolver {
 	private readonly inflight = new Map<string, Promise<CatalogResult | null>>()
 
 	constructor(
 		private readonly cache: Cache,
 		private readonly anilist: CatalogProvider,
+		// Optional only so this can land before the composition root passes the
+		// store in. Without that wiring the overrides never reach the presence.
+		private readonly overrides?: OverrideSource,
 	) {}
 
 	public async resolve(status: VlcStatus): Promise<CatalogResult | null> {
@@ -27,6 +57,14 @@ export class Resolver {
 
 		const parsed = parse(status.media.title)
 		const key = catalogKey(parsed)
+
+		// Ahead of the cache on purpose: the user already answered this question,
+		// so there is nothing to look up and no provider worth asking.
+		const override = this.overrides?.get(key)
+		if (override?.kind === "video") {
+			const work = applyOverride(override, parsed)
+			return { ...work, season: parsed.season, episode: parsed.episode }
+		}
 
 		const cached = this.cache.get(key)
 		if (cached) {

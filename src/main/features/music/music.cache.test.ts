@@ -195,4 +195,35 @@ describe("Cache", () => {
 		expect(cache.get("track:Song1|1")).toBeNull()
 		expect(cache.get("track:Song200|1")).not.toBeNull()
 	})
+
+	it("removes an entry so the next read is a miss", () => {
+		const cache = new Cache(new FakeClock())
+		cache.setResolved("track:Song|1", result("1"))
+
+		cache.delete("track:Song|1")
+
+		expect(cache.get("track:Song|1")).toBeNull()
+		expect(disk.entries["track:Song|1"]).toBeUndefined()
+	})
+
+	it("leaves every other entry alone when one is deleted", () => {
+		const cache = new Cache(new FakeClock())
+		cache.setResolved("track:Song|1", result("1"))
+		cache.setResolved("track:Other|1", result("2"))
+
+		cache.delete("track:Song|1")
+
+		expect(cache.get("track:Other|1")).not.toBeNull()
+	})
+
+	it("does nothing, and does not write to disk, when the key was never cached", () => {
+		const cache = new Cache(new FakeClock())
+		cache.setResolved("track:Song|1", result("1"))
+		const writesAfterSet = disk.writes
+
+		cache.delete("track:Missing|1")
+
+		expect(disk.writes).toBe(writesAfterSet)
+		expect(cache.get("track:Song|1")).not.toBeNull()
+	})
 })
