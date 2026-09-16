@@ -83,15 +83,17 @@ describe("pickBest, weighted signals among gate survivors", () => {
 		expect(result?.id).toBe("1")
 	})
 
-	it("does not let the provider of origin affect the outcome", () => {
-		const anilistCandidate = candidate({ id: "a", provider: "anilist" })
-		const tmdbCandidate = candidate({ id: "t", provider: "tmdb" })
+	it("lets nothing but the order of the list decide between equal candidates", () => {
+		const first = candidate({ id: "a" })
+		const second = candidate({ id: "b" })
 		const input = parsed({ title: "Sora wa Akai Kawa no Hotori" })
 
-		// Identical but for the provider, so the order of the list is the only
-		// thing left that can decide the winner.
-		expect(pickBest(input, [anilistCandidate, tmdbCandidate])?.id).toBe("a")
-		expect(pickBest(input, [tmdbCandidate, anilistCandidate])?.id).toBe("t")
+		// Identical in every scored field, so the order of the list is the only
+		// thing left that can decide the winner. Nothing about where a candidate
+		// came from may tip it, which is what keeps a second provider from
+		// needing a weight of its own.
+		expect(pickBest(input, [first, second])?.id).toBe("a")
+		expect(pickBest(input, [second, first])?.id).toBe("b")
 	})
 })
 

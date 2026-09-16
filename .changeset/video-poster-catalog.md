@@ -4,9 +4,10 @@
 
 Show a real poster and title for video files instead of a raw filename.
 
-- Video files are matched against AniList and TMDB, so Discord shows the
-  artwork and the canonical title of what you are watching
-- Series episodes and movies are recognized from the filename, including the
-  season and episode when they are in it
-- When nothing matches with confidence, no poster is shown rather than a wrong
-  one
+- Los archivos de video se identifican contra AniList, asi que Discord muestra
+  la caratula y el titulo canonico de lo que estas viendo
+- Se reconocen episodios de serie y peliculas desde el nombre del archivo,
+  incluidas temporada y episodio cuando estan
+- Cuando nada coincide con confianza no se muestra ninguna caratula, en vez de
+  arriesgar una equivocada. Hoy ese es el caso del cine y la television
+  occidental, que muestran titulo sin imagen

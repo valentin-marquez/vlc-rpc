@@ -1,4 +1,3 @@
-import type { TmdbKeyCheck } from "@shared/catalog/catalog.types"
 import type { AppConfig, VlcConfig } from "@shared/config/app-config"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
@@ -40,10 +39,6 @@ export interface IpcInvokeChannelMap {
 	"discord:rpc:disable": { request: []; response: boolean }
 	"discord:rpc:disable:temporary": { request: [minutes: number]; response: boolean }
 	"discord:rpc:status": { request: []; response: boolean }
-
-	// ── Catalog ─────────────────────────────────────────────────────────────
-	// The key travels as an argument so it can be checked before being saved.
-	"catalog:tmdb:verify": { request: [apiKey: string]; response: TmdbKeyCheck }
 
 	// ── Media ───────────────────────────────────────────────────────────────
 	"media:get-info": { request: []; response: (VlcStatus & DetectedMediaInfo) | null }

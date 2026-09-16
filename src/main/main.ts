@@ -90,11 +90,7 @@ if (!gotTheLock) {
 		// Services that depend on the above
 		const cover = new Cover.Resolver(vlc, coverStore, coverUploader)
 		const catalogCache = new Catalog.Cache(systemClock)
-		const catalogResolver = new Catalog.Resolver(
-			catalogCache,
-			new Catalog.TmdbProvider(),
-			new Catalog.AniListProvider(),
-		)
+		const catalogResolver = new Catalog.Resolver(catalogCache, new Catalog.AniListProvider())
 		const musicCache = new Music.Cache(systemClock)
 		const musicResolver = new Music.Resolver(
 			musicCache,
@@ -112,7 +108,6 @@ if (!gotTheLock) {
 
 		// Handlers, one per feature
 		new App.AppInfoHandler(startup)
-		new Catalog.TmdbKeyHandler()
 		new Cover.MetadataHandler(coverStore)
 		new Media.MediaInfoHandler(artwork, catalogResolver, vlc, imageProxy)
 		new Updates.UpdateHandler(updater)
