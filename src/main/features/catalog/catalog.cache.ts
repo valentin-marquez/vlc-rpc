@@ -8,6 +8,10 @@ const CACHE_VERSION = 1
 const MAX_RESOLVED_ENTRIES = 200
 const TRANSIENT_TTL_MS = 5_000
 const STABLE_TTL_MS = 24 * 60 * 60_000
+// The presence loop resolves every tick, and every `conf.set` is a synchronous
+// full file write, so a read hit only persists its access once the recorded
+// time is this stale. LRU ordering does not need millisecond resolution.
+const ACCESS_GRANULARITY_MS = 60_000
 
 interface CatalogCacheSchema {
 	entries: Record<string, CacheEntry>
@@ -30,13 +34,18 @@ export class Cache {
 			return null
 		}
 
-		if (entry.status === "unresolved" && entry.expiresAt <= this.clock.now()) {
+		const now = this.clock.now()
+		if (entry.status === "unresolved" && entry.expiresAt <= now) {
+			delete entries[key]
+			this.conf.set("entries", entries)
 			return null
 		}
 
-		entries[key] = { ...entry, lastAccessedAt: this.clock.now() }
-		this.conf.set("entries", entries)
-		return entries[key] ?? null
+		if (now - entry.lastAccessedAt >= ACCESS_GRANULARITY_MS) {
+			entries[key] = { ...entry, lastAccessedAt: now }
+			this.conf.set("entries", entries)
+		}
+		return entry
 	}
 
 	public setResolved(key: string, work: CachedWork): void {
@@ -53,6 +62,7 @@ export class Cache {
 
 	public setUnresolved(key: string, reason: UnresolvedReason): void {
 		const entries = this.conf.get("entries")
+		this.dropExpired(entries)
 		const ttl = reason === "provider-error" ? TRANSIENT_TTL_MS : STABLE_TTL_MS
 		entries[key] = {
 			status: "unresolved",
@@ -61,6 +71,17 @@ export class Cache {
 			lastAccessedAt: this.clock.now(),
 		}
 		this.conf.set("entries", entries)
+	}
+
+	// Unresolved entries do not count against the resolved cap, so without this
+	// every unmatched video a user ever played would leave a permanent row.
+	private dropExpired(entries: Record<string, CacheEntry>): void {
+		const now = this.clock.now()
+		for (const [key, entry] of Object.entries(entries)) {
+			if (entry.status === "unresolved" && entry.expiresAt <= now) {
+				delete entries[key]
+			}
+		}
 	}
 
 	private evictIfNeeded(entries: Record<string, CacheEntry>): void {
