@@ -3,6 +3,7 @@ import { SystemClock } from "@main/core/clock"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import * as App from "@main/features/app"
+import * as Catalog from "@main/features/catalog"
 import * as Cover from "@main/features/cover"
 import * as Discord from "@main/features/discord"
 import * as Media from "@main/features/media"
@@ -77,16 +78,22 @@ if (!gotTheLock) {
 		// Services with no dependency on another feature
 		const vlc = new Vlc.Client()
 		const discord = new Discord.Client()
-		const analyzer = new Media.Analyzer()
 		const imageProxy = new Media.ImageProxy()
 		const coverStore = new Cover.Store()
 		const coverUploader = new Cover.Uploader()
 		const updater = new Updates.Updater()
 		const startup = new App.Startup()
+		const systemClock = new SystemClock()
 
 		// Services that depend on the above
 		const cover = new Cover.Resolver(vlc, coverStore, coverUploader)
-		const presence = new Presence.Service(cover, analyzer)
+		const catalogCache = new Catalog.Cache(systemClock)
+		const catalogResolver = new Catalog.Resolver(
+			catalogCache,
+			new Catalog.TmdbProvider(),
+			new Catalog.AniListProvider(),
+		)
+		const presence = new Presence.Service(cover, catalogResolver)
 
 		// The tray/window cycle, resolved in fixed order
 		const tray = new App.Tray(startup)
@@ -96,16 +103,11 @@ if (!gotTheLock) {
 		// Handlers, one per feature
 		new App.AppInfoHandler(startup)
 		new Cover.MetadataHandler(coverStore)
-		new Media.MediaInfoHandler(cover, vlc, imageProxy)
+		new Media.MediaInfoHandler(cover, catalogResolver, vlc, imageProxy)
 		new Updates.UpdateHandler(updater)
 		new Vlc.VlcConfigHandler(vlc)
 		new Vlc.VlcStatusHandler(vlc)
-		const discordRpcHandler = new Discord.DiscordRpcHandler(
-			discord,
-			vlc,
-			presence,
-			new SystemClock(),
-		)
+		const discordRpcHandler = new Discord.DiscordRpcHandler(discord, vlc, presence, systemClock)
 
 		const mainWindowPromise = window.createWindow()
 

@@ -1,5 +1,6 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
+import type { Resolver as CatalogResolver } from "@main/features/catalog"
 import type { Resolver as CoverResolver } from "@main/features/cover"
 import type { Client as VlcClient } from "@main/features/vlc"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
@@ -16,6 +17,7 @@ export class MediaInfoHandler {
 
 	constructor(
 		private readonly cover: CoverResolver,
+		private readonly catalog: CatalogResolver,
 		private readonly vlc: VlcClient,
 		private readonly imageProxy: ImageProxy,
 	) {
@@ -61,6 +63,13 @@ export class MediaInfoHandler {
 				const coverUrl = await this.cover.fetch(vlcStatus)
 				if (coverUrl) {
 					mediaInfo.content_image_url = coverUrl
+				}
+			}
+
+			if (vlcStatus.mediaType === "video") {
+				const catalogResult = await this.catalog.resolve(vlcStatus)
+				if (catalogResult?.poster) {
+					mediaInfo.content_image_url = catalogResult.poster
 				}
 			}
 

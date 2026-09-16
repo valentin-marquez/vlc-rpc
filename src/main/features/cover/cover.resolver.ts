@@ -30,7 +30,7 @@ export class Resolver {
 			return null
 		}
 
-		const key = coverKey({ mediaType: mediaInfo.mediaType, media })
+		const key = coverKey({ media })
 		if (key === this.lastKey) {
 			return this.lastResult
 		}
