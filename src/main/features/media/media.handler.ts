@@ -1,7 +1,7 @@
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
 import type { Resolver as ArtworkResolver } from "@main/features/artwork"
-import type { CatalogResult, Resolver as CatalogResolver } from "@main/features/catalog"
+import type { Resolver as CatalogResolver, CatalogResult } from "@main/features/catalog"
 import type { Client as VlcClient } from "@main/features/vlc"
 import type { ContentMetadata, ContentType, DetectedMediaInfo } from "@shared/media/media.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"

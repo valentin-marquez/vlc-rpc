@@ -1,4 +1,4 @@
-import type { CatalogResult, Resolver as CatalogResolver } from "@main/features/catalog"
+import type { Resolver as CatalogResolver, CatalogResult } from "@main/features/catalog"
 import type { CoverOutcome } from "@main/features/cover"
 import type { MusicResult } from "@main/features/music"
 import type { Client as VlcClient } from "@main/features/vlc"
