@@ -1,3 +1,4 @@
+import type { Clock } from "@main/core/clock"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import type { DiscordPresenceData } from "@shared/presence/presence.types"
@@ -16,28 +17,32 @@ export class Client {
 	private reconnectAttempts = 0
 	private maxReconnectAttempts = 10
 	private reconnectDelay = 5000 // 5 seconds
-	private rpcCheckTimer: NodeJS.Timeout | null = null
 
-	constructor() {
+	constructor(private readonly clock: Clock) {
 		logger.info("Discord RPC service initialized")
-		this.startRpcCheckTimer()
 	}
 
 	/**
-	 * Check if RPC is currently enabled (always true after cleanup)
+	 * Single source of truth for whether the presence may be published. A
+	 * temporary window wins over the permanent flag while it runs, and is
+	 * deleted the moment it elapses so a stale timestamp cannot keep answering
+	 * for a user who never asked for it.
 	 */
 	public isRpcEnabled(): boolean {
-		return true
+		const disabledUntil = configService.get("rpcDisabledUntil")
+
+		if (disabledUntil !== undefined) {
+			if (this.clock.now() < disabledUntil) {
+				return false
+			}
+
+			configService.delete("rpcDisabledUntil")
+		}
+
+		return configService.get("rpcEnabled")
 	}
 
 	/**
-	 * Start a timer to periodically check RPC enable/disable status
-	 * (Disabled after cleanup - RPC is always enabled now)
-	 */
-	private startRpcCheckTimer(): void {
-		// No longer needed since RPC is always enabled
-		logger.info("RPC check timer disabled after cleanup")
-	} /**
 	 * Enable RPC permanently
 	 */
 	public enableRpc(): void {
@@ -66,7 +71,7 @@ export class Client {
 	 */
 	public disableRpcTemporary(minutes: number): void {
 		configService.set("rpcEnabled", true) // Keep global state as enabled
-		configService.set("rpcDisabledUntil", Date.now() + minutes * 60 * 1000)
+		configService.set("rpcDisabledUntil", this.clock.now() + minutes * 60 * 1000)
 
 		// Clear any active presence
 		this.clear().catch((error) => {
@@ -310,7 +315,6 @@ export class Client {
 	 */
 	public async close(): Promise<void> {
 		this.stopReconnectTimer()
-		this.stopRpcCheckTimer()
 
 		if (this.connected && this.rpc) {
 			try {
@@ -325,16 +329,6 @@ export class Client {
 			} finally {
 				this.rpc = null
 			}
-		}
-	}
-
-	/**
-	 * Stop the RPC check timer
-	 */
-	private stopRpcCheckTimer(): void {
-		if (this.rpcCheckTimer) {
-			clearInterval(this.rpcCheckTimer)
-			this.rpcCheckTimer = null
 		}
 	}
 }

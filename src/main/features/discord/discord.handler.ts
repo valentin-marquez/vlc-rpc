@@ -15,6 +15,7 @@ export class DiscordRpcHandler {
 	private readonly timeline: Timeline
 	private lastSentKey: string | null = null
 	private wasConnected = false
+	private presenceCleared = false
 
 	constructor(
 		private readonly discord: DiscordClient,
@@ -122,6 +123,7 @@ export class DiscordRpcHandler {
 
 		this.lastSentKey = null
 		this.wasConnected = false
+		this.presenceCleared = false
 
 		this.discord.clear().catch((error) => {
 			logger.error(`Error clearing Discord presence: ${error}`)
@@ -135,6 +137,12 @@ export class DiscordRpcHandler {
 	 */
 	private async updatePresence(force: boolean): Promise<boolean> {
 		try {
+			if (!this.discord.isRpcEnabled()) {
+				// Skipping the update is not enough: the last activity would stay
+				// pinned on Discord while the user believes they are hidden.
+				return await this.pushClear()
+			}
+
 			const isConnected = this.discord.isConnected()
 			const justReconnected = isConnected && !this.wasConnected
 			this.wasConnected = isConnected
@@ -159,6 +167,7 @@ export class DiscordRpcHandler {
 			const sent = await this.discord.update(presenceData)
 			if (sent) {
 				this.lastSentKey = key
+				this.presenceCleared = false
 			}
 			return sent
 		} catch (error) {
@@ -167,8 +176,19 @@ export class DiscordRpcHandler {
 		}
 	}
 
+	/**
+	 * A disable can last half an hour at a poll every second and a half, so the
+	 * clear is sent once and repeated only if it failed, for example because
+	 * Discord was not connected at the time.
+	 */
 	private async pushClear(): Promise<boolean> {
 		this.lastSentKey = null
-		return await this.discord.clear()
+
+		if (this.presenceCleared) {
+			return true
+		}
+
+		this.presenceCleared = await this.discord.clear()
+		return this.presenceCleared
 	}
 }

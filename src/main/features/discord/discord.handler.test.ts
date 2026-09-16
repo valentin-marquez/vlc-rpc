@@ -70,7 +70,9 @@ function status(overrides: Partial<VlcStatus> = {}): VlcStatus {
 function fakeDiscord(connected = true) {
 	const calls = { update: 0, clear: 0, connect: 0 }
 	let isConnected = connected
+	let rpcEnabled = true
 	const client = {
+		isRpcEnabled: () => rpcEnabled,
 		isConnected: () => isConnected,
 		connect: async () => {
 			calls.connect++
@@ -91,6 +93,9 @@ function fakeDiscord(connected = true) {
 		calls,
 		setConnected: (value: boolean) => {
 			isConnected = value
+		},
+		setRpcEnabled: (value: boolean) => {
+			rpcEnabled = value
 		},
 	}
 }
@@ -164,6 +169,55 @@ describe("DiscordRpcHandler update loop", () => {
 
 		expect(discord.calls.clear).toBe(1)
 		expect(discord.calls.update).toBe(0)
+	})
+
+	it("clears the presence and sends no update while the RPC is disabled", async () => {
+		vi.useFakeTimers()
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => status())
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), new FakeClock())
+
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+		expect(discord.calls.update).toBe(1)
+
+		discord.setRpcEnabled(false)
+		await vi.advanceTimersByTimeAsync(1500)
+
+		expect(discord.calls.clear).toBe(1)
+		expect(discord.calls.update).toBe(1)
+	})
+
+	it("clears once while disabled instead of on every poll", async () => {
+		vi.useFakeTimers()
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => status())
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), new FakeClock())
+
+		discord.setRpcEnabled(false)
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+		await vi.advanceTimersByTimeAsync(1500 * 5)
+
+		expect(discord.calls.clear).toBe(1)
+	})
+
+	it("resends the presence once the RPC is enabled again", async () => {
+		vi.useFakeTimers()
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => status())
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), new FakeClock())
+
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+
+		discord.setRpcEnabled(false)
+		await vi.advanceTimersByTimeAsync(1500)
+
+		discord.setRpcEnabled(true)
+		await vi.advanceTimersByTimeAsync(1500)
+
+		expect(discord.calls.update).toBe(2)
 	})
 
 	it("clamps a stale, pre-existing presenceUpdateInterval of 1ms up to the 500ms floor", async () => {

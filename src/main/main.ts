@@ -78,14 +78,14 @@ if (!gotTheLock) {
 		logger.info(`Set app version in config: ${app.getVersion()}`)
 
 		// Services with no dependency on another feature
+		const systemClock = new SystemClock()
 		const vlc = new Vlc.Client()
-		const discord = new Discord.Client()
+		const discord = new Discord.Client(systemClock)
 		const imageProxy = new Media.ImageProxy()
 		const coverStore = new Cover.Store()
 		const coverUploader = new Cover.Uploader()
 		const updater = new Updates.Updater()
 		const startup = new App.Startup()
-		const systemClock = new SystemClock()
 
 		// Services that depend on the above
 		const cover = new Cover.Resolver(vlc, coverStore, coverUploader)
@@ -102,7 +102,7 @@ if (!gotTheLock) {
 		const presence = new Presence.Service(artwork, catalogResolver)
 
 		// The tray/window cycle, resolved in fixed order
-		const tray = new App.Tray(startup)
+		const tray = new App.Tray(startup, discord)
 		window = new App.Window(discord, tray)
 		tray.setWindow(window)
 
