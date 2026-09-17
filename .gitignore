@@ -3,7 +3,10 @@ dist
 out
 .DS_Store
 .eslintcache
-*.log*
+# Narrow on purpose: *.log* also swallowed source files whose name contains
+# ".log", and an ignored file is added by git add -A in silence.
+*.log
+*.log.[0-9]*
 .tsbuildinfo-web
 .tsbuildinfo-node
 
