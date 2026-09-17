@@ -1,8 +1,10 @@
 ---
-"vlc-rpc": minor
+"vlc-rpc": major
 ---
 
 La interfaz se rehizo entera para parecerse a Discord.
+
+Es un cambio mayor porque lo que se opera es otra cosa: quien vuelva a abrir la app no la reconoce.
 
 - La navegacion pasa a una barra vertical negra a toda la altura de la ventana, y el estado de conexion de VLC y de Discord ahora se ve desde cualquier pantalla, no solo desde la principal.
 - Se recupero alto util: desaparecio el pie de ventana y la barra de navegacion horizontal.
