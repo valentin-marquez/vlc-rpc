@@ -44,7 +44,8 @@
 		"changeset": "changeset",
 		"changeset:version": "changeset version",
 		"changeset:publish": "changeset publish",
-		"fetch:fpcalc": "node scripts/fetch-fpcalc.mjs"
+		"fetch:fpcalc": "node scripts/fetch-fpcalc.mjs",
+		"generate:installer-art": "electron scripts/generate-installer-art.mjs"
 	},
 	"dependencies": {
 		"@ctrl/video-filename-parser": "5.11.4",
