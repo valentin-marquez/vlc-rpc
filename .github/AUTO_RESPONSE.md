@@ -2,13 +2,13 @@
 
 ## Platform SupportThis repository includes automated responses for platform-related issues.
 
-As of version 4.0.0, VLC-RPC is Windows-only.## Issue Labels and Auto-Responses
+As of version 4.0.0, VLC Discord RP is Windows-only.## Issue Labels and Auto-Responses
 
 ### Auto-response Template### `platform-support` Label
 
 ````markdownIssues asking about macOS or Linux support will automatically receive a response pointing to:
 
-VLC-RPC is Windows-only as of v4.0.0.
+VLC Discord RP is Windows-only as of v4.0.0.
 
 - The Platform Migration Guide
 

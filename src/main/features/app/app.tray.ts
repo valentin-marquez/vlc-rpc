@@ -157,7 +157,7 @@ export class Tray {
 
 			this.tray = new ElectronTray(trayIcon)
 			this.tray.setIgnoreDoubleClickEvents(true)
-			this.tray.setToolTip("VLC Discord Rich Presence")
+			this.tray.setToolTip("VLC Discord RP")
 			this.updateContextMenu()
 
 			this.tray.on("click", () => {
@@ -222,7 +222,7 @@ export class Tray {
 			const nativeImg = nativeImage.createFromBuffer(svgBuffer)
 			this.tray = new ElectronTray(nativeImg)
 
-			this.tray.setToolTip("VLC Discord Rich Presence")
+			this.tray.setToolTip("VLC Discord RP")
 			this.updateContextMenu()
 
 			this.tray.on("click", () => {

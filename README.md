@@ -1,4 +1,4 @@
-# VLC Discord Rich Presence
+# VLC Discord RP
 
 [![Windows](https://img.shields.io/badge/Windows-0078d4?style=flat&logo=windows&logoColor=white)](https://github.com/valentin-marquez/vlc-rpc/releases)
 [![Release](https://img.shields.io/github/v/release/valentin-marquez/vlc-rpc?style=flat)](https://github.com/valentin-marquez/vlc-rpc/releases)

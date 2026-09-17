@@ -211,6 +211,15 @@
 		@apply bg-background text-foreground font-sans antialiased;
 		font-size: 14px;
 		font-optical-sizing: auto;
+		/* A native window does not let you drag a selection across its chrome.
+		   Values worth copying opt back in with `select-text`. */
+		user-select: none;
+	}
+
+	/* A field is text the user owns, so caret, drag and double click keep working. */
+	input,
+	textarea {
+		user-select: text;
 	}
 }
 

@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug or issue with VLC-RPC
+about: Report a bug or issue with VLC Discord RP
 title: ""
 labels: "bug"
 assignees: ""
@@ -26,7 +26,7 @@ assignees: ""
 
 ## Environment
 
-- VLC-RPC Version:
+- VLC Discord RP Version:
 - Windows Version:
 - VLC Media Player Version:
 - Discord Version:

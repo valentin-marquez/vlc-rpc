@@ -63,7 +63,8 @@ export function Row(props: RowProps): JSX.Element {
 		return (
 			<div className={cn("flex min-h-8 items-center gap-4 px-4 py-1", className)}>
 				<span className="type-caption w-24 shrink-0 text-muted-foreground">{label}</span>
-				<span className="type-body min-w-0 flex-1 truncate text-body">{value}</span>
+				{/* A value row exists to show a datum: the version, a filename, what VLC reports. Copying it is the point. */}
+				<span className="type-body min-w-0 flex-1 select-text truncate text-body">{value}</span>
 				{trailing && <span className="flex shrink-0 items-center">{trailing}</span>}
 			</div>
 		)
