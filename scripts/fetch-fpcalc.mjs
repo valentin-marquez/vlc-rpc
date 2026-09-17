@@ -8,7 +8,7 @@
  */
 import { execFileSync } from "node:child_process"
 import { createWriteStream } from "node:fs"
-import { chmod, mkdir, mkdtemp, readdir, rename, rm, stat } from "node:fs/promises"
+import { chmod, copyFile, mkdir, mkdtemp, readdir, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { pipeline } from "node:stream/promises"
@@ -96,7 +96,11 @@ async function main() {
 		}
 
 		await mkdir(destDir, { recursive: true })
-		await rename(found, dest)
+		// Copy rather than rename: the extraction lands in the OS temp directory,
+		// and a CI runner commonly puts that on a different volume from the
+		// workspace, where a rename fails with EXDEV. The temp tree is removed
+		// below either way.
+		await copyFile(found, dest)
 		if (process.platform !== "win32") {
 			await chmod(dest, 0o755)
 		}
