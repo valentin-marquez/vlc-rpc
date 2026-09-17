@@ -23,8 +23,11 @@ export function UpdateNotification(): JSX.Element | null {
 		progressInfo,
 		error,
 		visible,
+		installationType,
 		checkForUpdates,
 		downloadUpdate,
+		installUpdate,
+		openReleasePage,
 		closeNotification,
 	} = useUpdateListener()
 
@@ -54,6 +57,9 @@ export function UpdateNotification(): JSX.Element | null {
 
 	const isError = status === "error"
 	const open = phase === "open"
+	// A portable build cannot install over itself, so it is never offered a
+	// download it could not apply or a restart that would change nothing.
+	const isPortable = installationType === "portable"
 
 	return (
 		<div
@@ -110,15 +116,21 @@ export function UpdateNotification(): JSX.Element | null {
 				{status === "update-available" && updateInfo && (
 					<div>
 						<p className="type-body mb-3 text-body">
-							Version {updateInfo.version} is available to download.
+							{isPortable
+								? `Version ${updateInfo.version} is available. The release page has the new portable executable to replace this one.`
+								: `Version ${updateInfo.version} is available to download.`}
 						</p>
 						{updateInfo.releaseDate && (
 							<p className="type-caption mb-3 text-muted-foreground">
 								Released: {formatDate(updateInfo.releaseDate)}
 							</p>
 						)}
-						<Button variant="primary" className="w-full" onClick={downloadUpdate}>
-							Download update
+						<Button
+							variant="primary"
+							className="w-full"
+							onClick={isPortable ? openReleasePage : downloadUpdate}
+						>
+							{isPortable ? "Open release page" : "Download update"}
 						</Button>
 					</div>
 				)}
@@ -145,14 +157,16 @@ export function UpdateNotification(): JSX.Element | null {
 				{status === "update-downloaded" && updateInfo && (
 					<div>
 						<p className="type-body mb-3 text-body">
-							Version {updateInfo.version} has been downloaded and is ready to install.
+							{isPortable
+								? `Version ${updateInfo.version} is ready on the release page.`
+								: `Version ${updateInfo.version} has been downloaded and is ready to install.`}
 						</p>
 						<div className="flex justify-end gap-2">
 							<Button variant="secondary" onClick={closeNotification}>
 								Later
 							</Button>
-							<Button variant="primary" onClick={() => window.api.app.close()}>
-								Install and restart
+							<Button variant="primary" onClick={isPortable ? openReleasePage : installUpdate}>
+								{isPortable ? "Open release page" : "Install and restart"}
 							</Button>
 						</div>
 					</div>

@@ -39,9 +39,15 @@ export class UpdateHandler {
 			return this.updater.getInstallationType()
 		})
 
-		registerHandler("update:open-cache-folder", async () => {
-			logger.info("Requested to open update cache folder")
-			await this.updater.openCacheFolder()
+		registerHandler("update:install", async () => {
+			logger.info("Requested to install the downloaded update")
+			this.updater.installNow()
+			return true
+		})
+
+		registerHandler("update:open-release-page", async () => {
+			logger.info("Requested the release page")
+			await this.updater.openReleasePage()
 			return undefined
 		})
 	}

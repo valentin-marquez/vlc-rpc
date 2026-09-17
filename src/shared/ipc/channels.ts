@@ -132,7 +132,8 @@ export interface IpcInvokeChannelMap {
 		}
 	}
 	"update:installation-type": { request: []; response: "portable" | "setup" }
-	"update:open-cache-folder": { request: []; response: undefined }
+	"update:install": { request: []; response: boolean }
+	"update:open-release-page": { request: []; response: undefined }
 
 	// ── Window ──────────────────────────────────────────────────────────────
 	"window:minimize": { request: []; response: undefined }

@@ -32,6 +32,8 @@ export interface UpdateState {
 	installationType: "portable" | "setup" | null
 	checkForUpdates: () => void
 	downloadUpdate: () => void
+	installUpdate: () => void
+	openReleasePage: () => void
 	closeNotification: () => void
 }
 
@@ -55,7 +57,9 @@ export function useUpdateListener(): UpdateState {
 			})
 
 		const cleanup = window.api.update.onUpdateStatus((event, data) => {
-			logger.info(`Update event: ${event} - ${JSON.stringify(data)}`)
+			// The payload carries release urls and file names, which do not belong
+			// in the log file the user sends us.
+			logger.info(`Update event: ${event}`)
 
 			setStatus(event)
 
@@ -99,6 +103,18 @@ export function useUpdateListener(): UpdateState {
 		})
 	}
 
+	const installUpdate = (): void => {
+		window.api.update.install().catch((err) => {
+			logger.error(`Error installing update: ${err}`)
+		})
+	}
+
+	const openReleasePage = (): void => {
+		window.api.update.openReleasePage().catch((err) => {
+			logger.error(`Error opening the release page: ${err}`)
+		})
+	}
+
 	const closeNotification = (): void => {
 		setVisible(false)
 	}
@@ -113,6 +129,8 @@ export function useUpdateListener(): UpdateState {
 		installationType,
 		checkForUpdates,
 		downloadUpdate,
+		installUpdate,
+		openReleasePage,
 		closeNotification,
 	}
 }

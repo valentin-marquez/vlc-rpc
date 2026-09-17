@@ -85,7 +85,7 @@ if (!gotTheLock) {
 		const imageProxy = new Media.ImageProxy()
 		const coverStore = new Cover.Store()
 		const coverUploader = new Cover.Uploader()
-		const updater = new Updates.Updater()
+		const updater = new Updates.Updater(systemClock)
 		const startup = new App.Startup()
 
 		// Services that depend on the above
@@ -159,9 +159,7 @@ if (!gotTheLock) {
 
 		discordRpcHandler.startUpdateLoop()
 
-		setTimeout(() => {
-			updater.checkForUpdates(true)
-		}, 3000)
+		updater.start()
 
 		app.on("activate", () => {
 			window?.showWindow()
@@ -169,6 +167,7 @@ if (!gotTheLock) {
 
 		app.on("before-quit", () => {
 			app.isQuitting = true
+			updater.stop()
 		})
 	})
 }

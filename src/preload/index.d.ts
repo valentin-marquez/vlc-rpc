@@ -67,7 +67,8 @@ declare global {
 					currentVersion: string
 				}>
 				getInstallationType: () => Promise<"portable" | "setup">
-				openCacheFolder: () => Promise<void>
+				install: () => Promise<boolean>
+				openReleasePage: () => Promise<void>
 				onUpdateStatus: (callback: (event: string, data: unknown) => void) => () => void
 			}
 		}

@@ -63,7 +63,8 @@ const api = {
 		forceCheck: typedInvoke("update:force-check"),
 		getStatus: typedInvoke("update:status"),
 		getInstallationType: typedInvoke("update:installation-type"),
-		openCacheFolder: typedInvoke("update:open-cache-folder"),
+		install: typedInvoke("update:install"),
+		openReleasePage: typedInvoke("update:open-release-page"),
 		onUpdateStatus: (callback: (event: string, data: unknown) => void) => {
 			const unsubs = [
 				onEvent("update:checking-for-update", (data) => callback("checking-for-update", data)),
