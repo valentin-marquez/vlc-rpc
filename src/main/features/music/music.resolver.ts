@@ -1,15 +1,28 @@
 import { logger } from "@main/core/logger"
-import type { Override, OverrideTarget } from "@main/features/overrides"
+import type {
+	AudioOverride,
+	CorrectedTags,
+	Override,
+	OverrideTarget,
+	UntaggedAudioOverride,
+} from "@main/features/overrides"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import type { Cache } from "./music.cache"
 import { splitCollaboration } from "./music.credit"
-import { audioOverrideKey, fingerprintKey, musicKey, overrideCoversTrack } from "./music.key"
+import {
+	audioOverrideKey,
+	fileOverrideKey,
+	fingerprintKey,
+	musicKey,
+	overrideCoversTrack,
+} from "./music.key"
 import { albumMatches, pickBest } from "./music.scorer"
 import type {
 	AudioFileIdentity,
 	AudioIdentifier,
 	CandidateRelease,
 	CoverArtSource,
+	FileLocator,
 	IdentifyOutcome,
 	MusicProvider,
 	MusicResult,
@@ -143,6 +156,44 @@ function orderReleases(
 		.map((entry) => entry.release)
 }
 
+/**
+ * The audio half of a correction, or `null` for a video one, which reaches this
+ * feature only when a key from the other side is handed to it by mistake.
+ */
+function audioCorrection(override: Override | null): AudioOverride | UntaggedAudioOverride | null {
+	if (override === null || override.kind === "video") {
+		return null
+	}
+	return override
+}
+
+/** Absent rather than empty, so "no cover typed" is one answer and not two. */
+function coverOf(correction: AudioOverride | UntaggedAudioOverride): string | undefined {
+	const cover = correction.kind === "audio" ? correction.cover : (correction.cover ?? "")
+	return cover.length > 0 ? cover : undefined
+}
+
+/**
+ * The query the catalogs are searched with once a correction has said what the
+ * file is. Field by field rather than wholesale: a correction that names only
+ * the artist still wants the file's own title, and the album tag is left alone
+ * because it is the one thing such a file sometimes does carry.
+ *
+ * The corrected title goes through the same collaboration split the tag does,
+ * so a user typing "Song (feat. X)" is measured the way a tag saying it would
+ * be.
+ */
+function correctedQuery(query: TrackQuery, correction: UntaggedAudioOverride): TrackQuery {
+	const artist = correction.artist?.trim() ?? ""
+	const { title, collaborators } = splitCollaboration(correction.title?.trim() ?? "")
+
+	return {
+		artists: artist.length === 0 ? query.artists : [artist, ...collaborators],
+		title: title.length === 0 ? query.title : title,
+		album: query.album,
+	}
+}
+
 /** The corrections the user typed by hand. A resolver only ever reads them. */
 export interface OverrideLookup {
 	get(key: string): Override | null
@@ -160,6 +211,11 @@ export class Resolver {
 		private readonly coverArt: CoverArtSource,
 		private readonly overrides: OverrideLookup,
 		/**
+		 * Required, unlike the identifier below, because a correction must not
+		 * depend on a binary this build may not carry.
+		 */
+		private readonly locator: FileLocator,
+		/**
 		 * Absent when no AcoustID key was configured, which is the normal case for
 		 * a contributor who cloned the repository. Everything above this line then
 		 * behaves exactly as it did before.
@@ -172,13 +228,21 @@ export class Resolver {
 			return null
 		}
 
-		const query = buildQuery(status.media)
+		const rawQuery = buildQuery(status.media)
 
-		const overrideAt = audioOverrideKey(query)
-		const override = this.overrides.get(overrideAt)
-		if (override?.kind === "audio") {
-			return { cover: override.cover, provider: "override", id: overrideAt }
+		const target = await this.overrideKeyFor(status, rawQuery)
+		const correction = target === null ? null : audioCorrection(this.overrides.get(target.key))
+		const cover = correction === null ? undefined : coverOf(correction)
+		if (target !== null && cover !== undefined) {
+			return { cover, provider: "override", id: target.key }
 		}
+
+		// A correction that named the file rather than picking an image for it does
+		// not end the chain, it feeds it: the catalogs can be searched with what
+		// the user typed, and an answer from them is better artwork than an address
+		// they would have had to go and find.
+		const query =
+			correction?.kind === "untagged-audio" ? correctedQuery(rawQuery, correction) : rawQuery
 
 		const byTags = await this.resolveByTags(query)
 		if (byTags.kind === "resolved") {
@@ -197,18 +261,51 @@ export class Resolver {
 	}
 
 	/**
-	 * The cover the user filed for this record, read from the store and nothing
+	 * The cover the user filed for this file, read from the store and nothing
 	 * else. `resolve` answers this too, but only after the file's own artwork has
 	 * already been preferred, and reaching it means a network round trip for every
 	 * track that carries artwork of its own.
+	 *
+	 * A local read for anything the tags name, which is the common case. Audio
+	 * that names nothing pays one playlist read per item to find out which file
+	 * it is, memoized by the locator.
 	 */
-	public overrideCoverFor(status: VlcStatus): string | null {
+	public async overrideCoverFor(status: VlcStatus): Promise<string | null> {
 		if (status.mediaType !== "audio") {
 			return null
 		}
 
-		const override = this.overrides.get(audioOverrideKey(buildQuery(status.media)))
-		return override?.kind === "audio" ? override.cover : null
+		const target = await this.overrideKeyFor(status, buildQuery(status.media))
+		const correction = target === null ? null : audioCorrection(this.overrides.get(target.key))
+		return correction === null ? null : (coverOf(correction) ?? null)
+	}
+
+	/**
+	 * What the user typed this file is, for audio that carries no tags of its own.
+	 *
+	 * The presence text is built from tags and there are none, so without this a
+	 * corrected file still reads as its own file name on Discord. `null` for
+	 * everything else, tagged audio included: the file already says what it is,
+	 * and a correction there carries only a cover by design.
+	 */
+	public async correctedTagsFor(status: VlcStatus): Promise<CorrectedTags | null> {
+		if (status.mediaType !== "audio") {
+			return null
+		}
+
+		const target = await this.overrideKeyFor(status, buildQuery(status.media))
+		const correction = target === null ? null : audioCorrection(this.overrides.get(target.key))
+		if (correction?.kind !== "untagged-audio") {
+			return null
+		}
+
+		const tags: CorrectedTags = {}
+		const title = correction.title?.trim() ?? ""
+		const artist = correction.artist?.trim() ?? ""
+		if (title.length > 0) tags.title = title
+		if (artist.length > 0) tags.artist = artist
+
+		return tags.title === undefined && tags.artist === undefined ? null : tags
 	}
 
 	/**
@@ -217,20 +314,56 @@ export class Resolver {
 	 * built from `buildQuery`, which holds the credit splitting rules and stays
 	 * private to this file so there is only ever one derivation of it.
 	 *
-	 * `null` when the store would turn the key down, which for audio means a file
-	 * with no artist tag: its cover would otherwise become every untagged file's.
+	 * `null` only when neither identity exists, which is a stream: nothing on
+	 * disk to name and no tag naming it either.
 	 */
-	public overrideTargetFor(status: VlcStatus): OverrideTarget | null {
+	public async overrideTargetFor(status: VlcStatus): Promise<OverrideTarget | null> {
 		if (status.mediaType !== "audio") {
 			return null
 		}
 
-		const key = audioOverrideKey(buildQuery(status.media))
-		if (!this.overrides.accepts(key)) {
+		const target = await this.overrideKeyFor(status, buildQuery(status.media))
+		if (target === null) {
 			return null
 		}
 
-		return { key, active: this.overrides.get(key)?.kind === "audio" }
+		return { ...target, active: this.overrides.get(target.key)?.kind === "audio" }
+	}
+
+	/**
+	 * The one key this file's correction lives under, chosen rather than merged:
+	 * a file is looked up under exactly the key it would be saved under, so a
+	 * correction is never filed where nothing will look for it.
+	 *
+	 * The record key first, because it is the one worth having: it is shared by
+	 * every track of a release, so one correction fixes the whole album and
+	 * survives the file being moved, renamed or re-encoded. The store turns it
+	 * down when the credit that leads it is empty, which is audio with no artist
+	 * tag, and that is where the file itself takes over. It cannot collide, since
+	 * two files are never one path, and it is the only identity such a file has:
+	 * its title is usually a filename, and one correction under a filename would
+	 * claim every rip that reused it.
+	 *
+	 * Adding an artist tag later therefore retires the file correction rather
+	 * than moving it. That is the honest outcome: the file now says what it is,
+	 * and a correction filed when it said nothing was never about the record.
+	 */
+	private async overrideKeyFor(
+		status: VlcStatus,
+		query: TrackQuery,
+	): Promise<{ kind: OverrideTarget["kind"]; key: string } | null> {
+		const byRecord = audioOverrideKey(query)
+		if (this.overrides.accepts(byRecord)) {
+			return { kind: "metadata", key: byRecord }
+		}
+
+		const file = await this.locator.fileFor(status)
+		if (file === null) {
+			return null
+		}
+
+		const byFile = fileOverrideKey(file.path)
+		return this.overrides.accepts(byFile) ? { kind: "file", key: byFile } : null
 	}
 
 	/**
@@ -243,6 +376,14 @@ export class Resolver {
 	 * album last, after a credit of unknown length: the track keys of an album
 	 * cannot be derived from the override key, and no prefix of one is a prefix of
 	 * the others. Every cached key has to be tested instead.
+	 *
+	 * A correction filed against a file matches nothing here, deliberately. What
+	 * it replaces is the fingerprint entry, and that entry is a function of the
+	 * bytes: dropping it would spend a request against the one budget every user
+	 * of this app shares to be told the same thing again. Removing such a
+	 * correction therefore shows what the app deduces, which is what the entry
+	 * already holds, and a file that is re-encoded retires it on its own since the
+	 * fingerprint key carries the size and the modification time.
 	 */
 	public evictOverride(key: string): void {
 		this.cache.deleteWhere((cached) => overrideCoversTrack(cached, key))

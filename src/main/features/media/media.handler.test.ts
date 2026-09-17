@@ -12,7 +12,7 @@ vi.mock("@main/core/logger", () => ({
 vi.mock("@main/core/ipc", () => ({ registerHandler: () => {} }))
 
 import { Resolver as ArtworkResolver } from "@main/features/artwork"
-import type { OverrideTarget } from "@main/features/overrides"
+import type { CorrectedTags, OverrideTarget } from "@main/features/overrides"
 import { MediaInfoHandler, type OverrideTargets } from "./media.handler"
 import type { ImageProxy } from "./media.image-proxy"
 
@@ -44,6 +44,7 @@ function build(
 	result: MusicResult | null = catalogHit,
 	target: OverrideTarget | null = null,
 	proxied: string | null = null,
+	corrected: CorrectedTags | null = null,
 ) {
 	const calls = { fetch: 0, resolve: 0 }
 	const artwork = new ArtworkResolver(
@@ -58,14 +59,17 @@ function build(
 				calls.resolve++
 				return result
 			},
-			overrideCoverFor: () => null,
+			overrideCoverFor: async () => null,
 		},
 	)
 	const refuse = (): never => {
 		throw new Error("the video catalog must not be consulted for audio")
 	}
 	const catalog = { resolve: refuse, overrideTargetFor: refuse } as unknown as CatalogResolver
-	const music: OverrideTargets = { overrideTargetFor: () => target }
+	const music: OverrideTargets = {
+		overrideTargetFor: async () => target,
+		correctedTagsFor: async () => corrected,
+	}
 	const vlc = { readStatus: async () => null } as unknown as VlcClient
 	// Null by default, which keeps every URL as it was resolved, so the
 	// assertions read the decision under test rather than a data URL.
@@ -154,10 +158,12 @@ function buildVideo(
 		resolve: async () => result,
 		overrideTargetFor: () => target,
 	} as unknown as CatalogResolver
+	const refuseAudio = (): never => {
+		throw new Error("the audio path must not be consulted for video")
+	}
 	const music: OverrideTargets = {
-		overrideTargetFor: () => {
-			throw new Error("the audio path must not be consulted for video")
-		},
+		overrideTargetFor: refuseAudio,
+		correctedTagsFor: refuseAudio,
 	}
 	const vlc = { readStatus: async () => null } as unknown as VlcClient
 	const imageProxy = { getImageAsDataUrl: async () => proxied } as unknown as ImageProxy
@@ -222,7 +228,11 @@ describe("MediaInfoHandler override key", () => {
 	it("reports the key of a video the catalog identified as nothing", async () => {
 		// Western film and television have no provider, so this is the permanent
 		// state of that half of the library and the case the correction exists for.
-		const handler = buildVideo(null, { key: "movie:Some Movie|2019", active: false })
+		const handler = buildVideo(null, {
+			kind: "metadata",
+			key: "movie:Some Movie|2019",
+			active: false,
+		})
 
 		const info = await handler.getMediaInfo(videoStatus("Some.Movie.2019.1080p.BluRay.mkv"))
 
@@ -234,7 +244,7 @@ describe("MediaInfoHandler override key", () => {
 	it("reports the key alongside a work the catalog did identify", async () => {
 		const handler = buildVideo(
 			{ title: "Monster", poster: CATALOG_POSTER, mediaKind: "tv", season: 2 },
-			{ key: "tv:Monster|2", active: false },
+			{ kind: "metadata", key: "tv:Monster|2", active: false },
 		)
 
 		const info = await handler.getMediaInfo(videoStatus("Monster S02E04.mkv"))
@@ -247,7 +257,7 @@ describe("MediaInfoHandler override key", () => {
 	it("says when the key already carries an override, so the form can offer to drop it", async () => {
 		const handler = buildVideo(
 			{ title: "The Show It Really Is", poster: CATALOG_POSTER, mediaKind: "tv", season: 1 },
-			{ key: "tv:Some Show|1", active: true },
+			{ kind: "metadata", key: "tv:Some Show|1", active: true },
 		)
 
 		const info = await handler.getMediaInfo(videoStatus("Some.Show.S01E07.mkv"))
@@ -267,6 +277,7 @@ describe("MediaInfoHandler override key", () => {
 
 	it("reports the audio key of the record, not of the track", async () => {
 		const { handler } = build({ kind: "no-artwork" }, catalogHit, {
+			kind: "metadata",
 			key: "audio:christina aguilera|mi reflejo",
 			active: false,
 		})
@@ -278,8 +289,49 @@ describe("MediaInfoHandler override key", () => {
 		expect(info?.override_active).toBe(false)
 	})
 
+	it("reports the tags a correction supplied, so the form edits them and not the file name", async () => {
+		const { handler } = build(
+			{ kind: "no-artwork" },
+			catalogHit,
+			{ kind: "file", key: "file:C:\\Music\\Ripped\\track01.mp3", active: true },
+			null,
+			{ title: "José Arnero", artist: "El Baucha" },
+		)
+
+		const info = await handler.getMediaInfo(status())
+
+		expect(info?.content_metadata?.clean_title).toBe("José Arnero")
+		expect(info?.content_metadata?.artist).toBe("El Baucha")
+	})
+
+	it("reports no metadata for audio nobody has corrected", async () => {
+		const { handler } = build({ kind: "no-artwork" }, catalogHit, {
+			kind: "metadata",
+			key: "audio:christina aguilera|mi reflejo",
+			active: false,
+		})
+
+		const info = await handler.getMediaInfo(status())
+
+		expect(info?.content_metadata).toBeUndefined()
+	})
+
+	it("says a correction is bound to the file, which is why it can stop applying", async () => {
+		const { handler } = build({ kind: "no-artwork" }, catalogHit, {
+			kind: "file",
+			key: "file:C:\\Music\\Ripped\\track01.mp3",
+			active: false,
+		})
+
+		const info = await handler.getMediaInfo(status())
+
+		expect(info?.override_key).toBe("file:C:\\Music\\Ripped\\track01.mp3")
+		expect(info?.override_binding).toBe("file")
+	})
+
 	it("reports the audio key even when the file's own artwork won", async () => {
 		const { handler, calls } = build({ kind: "published", url: PUBLISHED_COVER }, catalogHit, {
+			kind: "metadata",
 			key: "audio:christina aguilera|mi reflejo",
 			active: true,
 		})

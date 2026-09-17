@@ -109,7 +109,11 @@ export class Resolver {
 			return null
 		}
 
-		return { key, active: this.overrides.get(key)?.kind === "video" }
+		// Always `metadata`: the key is what the parser read out of the file name,
+		// and video has no second identity to fall back to. A file whose name
+		// carries no title is still refused, which is what keeps one correction
+		// from becoming the title of every unparseable file.
+		return { kind: "metadata", key, active: this.overrides.get(key)?.kind === "video" }
 	}
 
 	/**

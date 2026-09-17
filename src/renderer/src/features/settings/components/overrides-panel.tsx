@@ -6,7 +6,7 @@ import type { OverrideListEntry, SavedOverride } from "@shared/ipc/channels"
 import { useCallback, useEffect, useState } from "react"
 import { Link } from "wouter"
 import type { OverrideMatch } from "../overrides.key"
-import { describeOverrideMatch, matchHeadline, readOverrideKey } from "../overrides.key"
+import { describeOverrideScope, matchHeadline, readOverrideKey } from "../overrides.key"
 
 type ListState =
 	| { kind: "loading" }
@@ -98,8 +98,9 @@ export function OverridesPanel(): JSX.Element {
 
 			{list.kind === "ready" && list.entries.length > 0 && (
 				<p className="type-caption text-pretty px-4 py-3 text-muted-foreground">
-					A correction is matched on what the app reads from the file name. Another release of the
-					same title can read differently, and then it needs a correction of its own.
+					Most corrections are matched on what the app reads from the file, so another release of
+					the same title reads differently and needs one of its own. Music that carries no tags is
+					held against the file itself, and ends if that file moves.
 				</p>
 			)}
 		</Panel>
@@ -127,11 +128,10 @@ function OverrideRow({ entry, isRemoving, onRemove }: OverrideRowProps): JSX.Ele
 			description={
 				<>
 					<span className="block" title={entry.key}>
-						{describeChanges(entry.override)} Applies when the app reads a file as{" "}
-						{describeOverrideMatch(match)}.
+						{describeChanges(entry.override)} {describeOverrideScope(match)}
 					</span>
 					<span className="block truncate" title={entry.override.sourceFilename}>
-						Saved from {entry.override.sourceFilename}
+						Saved from <span className="select-text">{entry.override.sourceFilename}</span>
 					</span>
 				</>
 			}
@@ -171,7 +171,7 @@ function EmptyCorrections(): JSX.Element {
 
 /** What the row leads with: what the user typed, or failing that the key's own name for the thing. */
 function headlineFor(entry: OverrideListEntry, match: OverrideMatch): string {
-	const title = entry.override.kind === "video" ? entry.override.title : undefined
+	const title = entry.override.kind === "audio" ? undefined : entry.override.title
 	if (title !== undefined && title.length > 0) {
 		return title
 	}
@@ -183,17 +183,29 @@ function describeChanges(override: SavedOverride): string {
 		return "Sets the cover art."
 	}
 
-	const fields: string[] = []
-	if (override.title !== undefined && override.title.length > 0) {
-		fields.push("the title")
-	}
-	if (override.cover !== undefined && override.cover.length > 0) {
-		fields.push("the cover art")
+	if (override.kind === "untagged-audio") {
+		const named = listFields([
+			[override.title, "the song title"],
+			[override.artist, "the artist"],
+			[override.cover, "the cover art"],
+		])
+		// The search reaching the artwork is the reason for typing two words
+		// rather than going to find an image, so the row says when it did.
+		const rest =
+			override.cover === undefined || override.cover.length === 0
+				? " The cover comes from searching those."
+				: ""
+		return named === "" ? "" : `Sets ${named}.${rest}`
 	}
 
+	const named = listFields([
+		[override.title, "the title"],
+		[override.cover, "the cover art"],
+	])
+
 	const sentences: string[] = []
-	if (fields.length > 0) {
-		sentences.push(`Sets ${fields.join(" and ")}.`)
+	if (named !== "") {
+		sentences.push(`Sets ${named}.`)
 	}
 	if (override.mediaKind === "movie") {
 		sentences.push("Shows it as a movie.")
@@ -203,4 +215,13 @@ function describeChanges(override: SavedOverride): string {
 	}
 
 	return sentences.join(" ")
+}
+
+function listFields(fields: [string | undefined, string][]): string {
+	const named = fields
+		.filter(([value]) => value !== undefined && value.length > 0)
+		.map(([, label]) => label)
+	if (named.length === 0) return ""
+	if (named.length === 1) return named[0] ?? ""
+	return `${named.slice(0, -1).join(", ")} and ${named.at(-1)}`
 }

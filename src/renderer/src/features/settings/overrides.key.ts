@@ -12,6 +12,8 @@ export type OverrideMatch =
 	| { kind: "movie"; title: string; year: string }
 	| { kind: "video"; title: string }
 	| { kind: "audio"; artist: string; record: string }
+	/** Audio whose tags name nothing, so the file itself is the identity. */
+	| { kind: "file"; path: string }
 	| { kind: "unreadable"; key: string }
 
 export function readOverrideKey(key: string): OverrideMatch {
@@ -40,6 +42,12 @@ export function readOverrideKey(key: string): OverrideMatch {
 		return rest.length > 0 ? { kind: "video", title: rest } : { kind: "unreadable", key }
 	}
 
+	// Not split any further: a path can hold anything a file name can, the pipe
+	// the other shapes separate on included.
+	if (prefix === "file") {
+		return rest.length > 0 ? { kind: "file", path: rest } : { kind: "unreadable", key }
+	}
+
 	if (prefix === "audio") {
 		const pipe = rest.indexOf("|")
 		const artist = rest.slice(0, pipe)
@@ -62,17 +70,36 @@ export function matchHeadline(match: OverrideMatch): string {
 			return match.title
 		case "audio":
 			return match.record
+		case "file":
+			return fileName(match.path)
 		case "unreadable":
 			return match.key
 	}
 }
 
 /**
- * The key spelled out, because two releases of one title produce two keys and a
- * user who cannot see which one an override is filed under reads a correction
- * that stopped applying as a broken feature.
+ * What the correction reaches, spelled out. Two releases of one title produce
+ * two keys, and a user who cannot see which one a correction is filed under
+ * reads one that stopped applying as a broken feature.
+ *
+ * A file binding gets its own sentence rather than being squeezed into the
+ * others: it does not match on anything the app read, it is one file, and what
+ * ends it is not a different release but a move or a rename.
  */
-export function describeOverrideMatch(match: OverrideMatch): string {
+export function describeOverrideScope(match: OverrideMatch): string {
+	switch (match.kind) {
+		case "file":
+			return `Applies to this one file, at ${match.path}. Moving or renaming it ends the correction.`
+		case "unreadable":
+			return `Applies to ${match.key}.`
+		default:
+			return `Applies when the app reads a file as ${describeMatch(match)}.`
+	}
+}
+
+function describeMatch(
+	match: Exclude<OverrideMatch, { kind: "file" } | { kind: "unreadable" }>,
+): string {
 	switch (match.kind) {
 		case "tv":
 			return `the series ${match.title}, season ${match.season}`
@@ -82,7 +109,11 @@ export function describeOverrideMatch(match: OverrideMatch): string {
 			return `a video named ${match.title}`
 		case "audio":
 			return `music by ${match.artist}, from ${match.record}`
-		case "unreadable":
-			return match.key
 	}
+}
+
+/** Both separators, because the keys are written on whichever machine saved them. */
+function fileName(path: string): string {
+	const cut = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"))
+	return cut === -1 ? path : path.slice(cut + 1)
 }

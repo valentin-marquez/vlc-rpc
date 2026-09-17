@@ -12,10 +12,11 @@ export interface MusicCatalog {
 	resolve(status: VlcStatus): Promise<MusicResult | null>
 	/**
 	 * The cover the user typed for this file, or `null`. A narrow question on
-	 * purpose: how a record is keyed stays inside `music`, and the answer is a
-	 * local read, so asking it of every track costs nothing.
+	 * purpose: how a record is keyed stays inside `music`. Anything the tags name
+	 * answers from a local read, and audio that names nothing has to go and find
+	 * out which file it is, which `music` does once per playlist item.
 	 */
-	overrideCoverFor(status: VlcStatus): string | null
+	overrideCoverFor(status: VlcStatus): Promise<string | null>
 }
 
 /**
@@ -36,7 +37,7 @@ export class Resolver {
 		// First, and without reading the file: the user already said what this
 		// record looks like, so the embedded artwork has nothing left to win and
 		// uploading it would be work done to be discarded.
-		const corrected = this.music.overrideCoverFor(status)
+		const corrected = await this.music.overrideCoverFor(status)
 		if (corrected !== null) {
 			return corrected
 		}

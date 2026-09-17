@@ -113,20 +113,30 @@ if (!gotTheLock) {
 		if (acoustIdKey.length === 0) {
 			logger.info("Audio identification is off: this build carries no AcoustID key")
 		}
+		// One locator for both readers, so the playlist is read once per item and
+		// not once per question. The resolver holds it unconditionally: a file
+		// with no tags can only be corrected under the file itself, and gating
+		// that on the key above would drop the correction from every build that
+		// does not carry one.
+		const musicLocator = new Music.Locator(vlc)
 		const identifier =
 			acoustIdKey.length === 0
 				? undefined
-				: new Music.Identifier(vlc, new Music.Fpcalc(), new Music.AcoustId(acoustIdKey))
+				: new Music.Identifier(musicLocator, new Music.Fpcalc(), new Music.AcoustId(acoustIdKey))
 		const musicResolver = new Music.Resolver(
 			musicCache,
 			new Music.ITunesProvider(),
 			new Music.MusicBrainzProvider(),
 			new Music.CoverArtArchive(),
 			overridesStore,
+			musicLocator,
 			identifier,
 		)
 		const artwork = new Artwork.Resolver(cover, musicResolver)
-		const presence = new Presence.Service(artwork, catalogResolver)
+		// The music resolver a third time, under its narrowest question yet: audio
+		// text is built from tags, and a file that carries none has only what the
+		// user typed to build it from.
+		const presence = new Presence.Service(artwork, catalogResolver, musicResolver)
 
 		// The tray/window cycle, resolved in fixed order
 		const tray = new App.Tray(startup, discord)

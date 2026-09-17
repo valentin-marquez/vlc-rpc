@@ -7,6 +7,7 @@ import type {
 	ParsedVideo,
 } from "@main/features/catalog"
 import { parse as parseVideo } from "@main/features/catalog"
+import type { CorrectedTags } from "@main/features/overrides"
 import type { AppConfig } from "@shared/config/app-config"
 import type { ResolvedLayout, VideoFacts } from "@shared/presence/layout"
 import { renderLine, resolveLayout, videoVariables } from "@shared/presence/layout"
@@ -47,6 +48,15 @@ function videoFacts(
 	}
 }
 
+/**
+ * What the user typed a file is, for audio whose own tags say nothing. Asked of
+ * the music feature, which owns how a correction is keyed, because every music
+ * template below reads tags and a file with none has nothing else to read.
+ */
+export interface AudioCorrections {
+	correctedTagsFor(status: VlcStatus): Promise<CorrectedTags | null>
+}
+
 // Both states build the same lines from the same layout, so a preset reads the same
 // whether playback is running or paused.
 function buildLines(
@@ -54,6 +64,7 @@ function buildLines(
 	mediaInfo: VlcStatus,
 	catalogResult: CatalogResult | null,
 	localParse: ParsedVideo | null,
+	corrected: CorrectedTags | null,
 ): PresenceLines {
 	const media = mediaInfo.media
 
@@ -66,9 +77,12 @@ function buildLines(
 		}
 	}
 
+	// Field by field: a correction that names only the artist leaves the title
+	// the file reported, which for this case is usually its own name and is
+	// still the best thing there is to show.
 	const variables = {
-		title: media.title ?? "",
-		artist: media.artist ?? "",
+		title: firstNonEmpty(corrected?.title, media.title) ?? "",
+		artist: firstNonEmpty(corrected?.artist, media.artist) ?? "",
 		album: media.album ?? "",
 	}
 
@@ -127,6 +141,7 @@ class PlayingState extends MediaState {
 	constructor(
 		private readonly artwork: ArtworkResolver,
 		private readonly catalog: CatalogResolver,
+		private readonly corrections: AudioCorrections,
 	) {
 		super()
 	}
@@ -156,7 +171,10 @@ class PlayingState extends MediaState {
 		// concrete file being played, and parsing is pure and local.
 		const localParse = mediaType === "video" ? parseVideo(media.title || "") : null
 
-		const lines = buildLines(layoutFrom(config), mediaInfo, catalogResult, localParse)
+		const corrected =
+			mediaType === "audio" ? await this.corrections.correctedTagsFor(mediaInfo) : null
+
+		const lines = buildLines(layoutFrom(config), mediaInfo, catalogResult, localParse, corrected)
 
 		const details = this.formatText(lines.details)
 		const state = this.formatText(lines.state)
@@ -226,6 +244,7 @@ class PausedState extends MediaState {
 	constructor(
 		private readonly artwork: ArtworkResolver,
 		private readonly catalog: CatalogResolver,
+		private readonly corrections: AudioCorrections,
 	) {
 		super()
 	}
@@ -255,7 +274,10 @@ class PausedState extends MediaState {
 		// concrete file being played, and parsing is pure and local.
 		const localParse = mediaType === "video" ? parseVideo(media.title || "") : null
 
-		const lines = buildLines(layoutFrom(config), mediaInfo, catalogResult, localParse)
+		const corrected =
+			mediaType === "audio" ? await this.corrections.correctedTagsFor(mediaInfo) : null
+
+		const lines = buildLines(layoutFrom(config), mediaInfo, catalogResult, localParse, corrected)
 
 		const details = this.formatText(lines.details)
 		const state = this.formatText(lines.state)
@@ -328,12 +350,12 @@ interface MediaStates {
 export class Service {
 	private states: MediaStates
 
-	constructor(artwork: ArtworkResolver, catalog: CatalogResolver) {
+	constructor(artwork: ArtworkResolver, catalog: CatalogResolver, corrections: AudioCorrections) {
 		this.states = {
 			stopped: new StoppedState(),
 			noStatus: new NoStatusState(),
-			playing: new PlayingState(artwork, catalog),
-			paused: new PausedState(artwork, catalog),
+			playing: new PlayingState(artwork, catalog, corrections),
+			paused: new PausedState(artwork, catalog, corrections),
 		}
 
 		logger.info("Media state service initialized")

@@ -2,7 +2,7 @@ import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
 import type { Resolver as ArtworkResolver } from "@main/features/artwork"
 import type { Resolver as CatalogResolver, CatalogResult } from "@main/features/catalog"
-import type { OverrideTarget } from "@main/features/overrides"
+import type { CorrectedTags, OverrideTarget } from "@main/features/overrides"
 import type { Client as VlcClient } from "@main/features/vlc"
 import type { ContentMetadata, ContentType, DetectedMediaInfo } from "@shared/media/media.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
@@ -42,13 +42,41 @@ function toContentType(mediaKind: CatalogResult["mediaKind"]): ContentType {
  * knows nothing about how a record is keyed.
  */
 export interface OverrideTargets {
-	overrideTargetFor(status: VlcStatus): OverrideTarget | null
+	overrideTargetFor(status: VlcStatus): Promise<OverrideTarget | null>
+	/**
+	 * What a correction says a file is, for audio that carries no tags. Reported
+	 * so the form opens on what the user last typed rather than on the file name,
+	 * which is the same reason the cover's own address is reported beside it.
+	 */
+	correctedTagsFor(status: VlcStatus): Promise<CorrectedTags | null>
+}
+
+/**
+ * The corrected tags in the shape the renderer already reads resolved values
+ * in. It is the same channel the video branch uses for a catalog title: what
+ * the app is going to show, beside the raw name the file carries.
+ */
+function toAudioMetadata(tags: CorrectedTags): ContentMetadata {
+	const metadata: ContentMetadata = {}
+
+	if (tags.title !== undefined) {
+		metadata.clean_title = tags.title
+	}
+	if (tags.artist !== undefined) {
+		metadata.artist = tags.artist
+	}
+
+	return metadata
 }
 
 function reportOverrideTarget(info: DetectedMediaInfo, target: OverrideTarget | null): void {
 	if (!target) return
 	info.override_key = target.key
 	info.override_active = target.active
+	// What the key is bound to travels with it rather than being read back off
+	// the key: the shapes are built in `main`, and a renderer that re-derived
+	// them would be a second grammar to keep in step.
+	info.override_binding = target.kind
 }
 
 /**
@@ -109,11 +137,17 @@ export class MediaInfoHandler {
 					mediaInfo.content_image_url = cover
 				}
 
-				// The audio path resolves a cover and nothing else: the text comes
-				// from the file's own tags, which the renderer already has, so there
-				// is no resolved title or metadata to report alongside the kind.
+				// The audio text normally comes from the file's own tags, which the
+				// renderer already has, so there is nothing to report beside the kind.
+				// A file with no tags is the exception: what the app shows for it is
+				// what the user typed, and it has to travel like any resolved title.
 				mediaInfo.content_type = "audio"
-				reportOverrideTarget(mediaInfo, this.music.overrideTargetFor(vlcStatus))
+				reportOverrideTarget(mediaInfo, await this.music.overrideTargetFor(vlcStatus))
+
+				const corrected = await this.music.correctedTagsFor(vlcStatus)
+				if (corrected) {
+					mediaInfo.content_metadata = toAudioMetadata(corrected)
+				}
 			}
 
 			if (vlcStatus.mediaType === "video") {

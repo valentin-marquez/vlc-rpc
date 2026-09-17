@@ -171,6 +171,59 @@ describe("Store", () => {
 		expect(store.accepts("")).toBe(false)
 	})
 
+	it("takes a key that names one file, which is what audio with no artist tag has left", () => {
+		// The guard is unchanged: a path is a non empty first component, so the
+		// shape that closes the untagged hole is the shape the rule always allowed.
+		const store = new Store(new FakeClock())
+		const key = "file:C:\\Music\\Ripped\\track01.mp3"
+
+		expect(store.accepts(key)).toBe(true)
+		store.save(key, {
+			kind: "audio",
+			cover: "https://example.com/cover.jpg",
+			sourceFilename: "track01.mp3",
+		})
+
+		expect(store.get(key)?.kind).toBe("audio")
+		// Two files under one correction is the failure the rule exists to stop,
+		// and it is the one thing a path cannot do.
+		expect(store.get("file:C:\\Music\\Other\\track01.mp3")).toBeNull()
+	})
+
+	it("round trips a correction that supplies the tags a file does not carry", () => {
+		const store = new Store(new FakeClock())
+		const key = "file:C:\\Music\\Ripped\\Jose Arnero.mp3"
+
+		store.save(key, {
+			kind: "untagged-audio",
+			title: "José Arnero",
+			artist: "El Baucha",
+			sourceFilename: "Jose Arnero.mp3",
+		})
+
+		expect(store.get(key)).toEqual({
+			kind: "untagged-audio",
+			title: "José Arnero",
+			artist: "El Baucha",
+			sourceFilename: "Jose Arnero.mp3",
+			savedAt: 0,
+		})
+	})
+
+	it("still refuses a file key with no path, which would name every file at once", () => {
+		const store = new Store(new FakeClock())
+
+		expect(store.accepts("file:")).toBe(false)
+		expect(() =>
+			store.save("file:", {
+				kind: "audio",
+				cover: "https://example.com/cover.jpg",
+				sourceFilename: "x.mp3",
+			}),
+		).toThrow()
+		expect(disk.writes).toBe(0)
+	})
+
 	it("refuses to save exactly the keys it said it would refuse", () => {
 		const store = new Store(new FakeClock())
 		const draft = { kind: "video", title: "Whatever", sourceFilename: "x.mkv" } as const

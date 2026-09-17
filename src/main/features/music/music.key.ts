@@ -4,6 +4,7 @@ import type { AudioFileIdentity, TrackQuery } from "./music.types"
 
 const TRACK_PREFIX = "track:"
 const AUDIO_OVERRIDE_PREFIX = "audio:"
+const FILE_OVERRIDE_PREFIX = "file:"
 const FINGERPRINT_PREFIX = "fp:"
 
 /**
@@ -45,6 +46,27 @@ export function audioOverrideKey(query: TrackQuery): string {
 	const artist = normalize(query.artists[0] ?? "")
 	const album = normalize(query.album ?? "")
 	return `${AUDIO_OVERRIDE_PREFIX}${artist}|${album.length > 0 ? album : normalize(query.title)}`
+}
+
+/**
+ * Where a correction is filed for audio whose tags name nothing, which is the
+ * one kind of file `audioOverrideKey` cannot key: with no artist tag its first
+ * component is empty, and the store refuses that precisely so one cover cannot
+ * claim every untagged file in a library.
+ *
+ * The file is the identity left, and it is the same reasoning `fingerprintKey`
+ * runs on one line below. The difference is what is not in here: no size and no
+ * modification time. That pair retires a fingerprint answer because the answer
+ * is derived from the bytes and stale bytes make it wrong. A correction is not
+ * derived from anything, it is what the user said this file is, so a tag editor
+ * or a ReplayGain pass touching the file must not throw it away.
+ *
+ * Unhashed, unlike the fingerprint key, because this one does need reading
+ * back: a correction that stops applying is only explainable if the list can
+ * name the file it was filed against.
+ */
+export function fileOverrideKey(path: string): string {
+	return `${FILE_OVERRIDE_PREFIX}${path}`
 }
 
 /**

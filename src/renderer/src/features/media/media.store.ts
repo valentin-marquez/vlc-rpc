@@ -37,6 +37,12 @@ export interface MediaState {
 	 */
 	overrideKey: string | null
 	overrideActive: boolean
+	/**
+	 * What that key is bound to. `file` means the tags named nothing and the
+	 * correction follows the file itself, which the form has to say out loud
+	 * because it stops applying the day the file moves.
+	 */
+	overrideBinding: "metadata" | "file" | null
 }
 
 const INITIAL_STATE: MediaState = {
@@ -57,6 +63,7 @@ const INITIAL_STATE: MediaState = {
 	year: null,
 	overrideKey: null,
 	overrideActive: false,
+	overrideBinding: null,
 }
 
 export const mediaStore = atom<MediaState>(INITIAL_STATE)

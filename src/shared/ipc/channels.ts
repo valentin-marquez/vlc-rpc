@@ -21,6 +21,19 @@ export type OverrideDraft =
 			sourceFilename: string
 	  }
 	| { kind: "audio"; cover: string; sourceFilename: string }
+	/**
+	 * Audio with no tags of its own, where the correction carries what the file
+	 * is. The cover is optional here on purpose: given the artist and the title
+	 * the ordinary lookup finds the artwork, and typing two words beats going to
+	 * find an image address.
+	 */
+	| {
+			kind: "untagged-audio"
+			title?: string | undefined
+			artist?: string | undefined
+			cover?: string | undefined
+			sourceFilename: string
+	  }
 
 export type SavedOverride = OverrideDraft & { savedAt: number }
 

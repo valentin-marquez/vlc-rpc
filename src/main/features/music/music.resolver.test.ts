@@ -15,6 +15,7 @@ import type {
 	CacheEntry,
 	CandidateRelease,
 	CoverArtSource,
+	FileLocator,
 	IdentifyOutcome,
 	MusicProvider,
 	MusicResult,
@@ -118,6 +119,22 @@ function noOverrides(): OverrideLookup {
 	return fakeOverrides().overrides
 }
 
+function fakeLocator(file: AudioFileIdentity | null) {
+	const calls = { asked: 0 }
+	const locator: FileLocator = {
+		fileFor: async () => {
+			calls.asked++
+			return file
+		},
+	}
+	return { locator, calls }
+}
+
+/** VLC playing something with no bytes on disk, a stream for instance. */
+function noLocator(): FileLocator {
+	return fakeLocator(null).locator
+}
+
 function candidate(overrides: Partial<RecordingCandidate> = {}): RecordingCandidate {
 	return {
 		provider: "itunes",
@@ -142,13 +159,30 @@ const handPicked: Override = {
 	sourceFilename: "01 Probablemente.mp3",
 	savedAt: 0,
 }
+
+/** What iTunes answers for the measured file, once the correction names it. */
+function arnero(): RecordingCandidate {
+	return candidate({
+		id: "2",
+		title: "José Arnero",
+		artists: ["El Baucha"],
+		releases: [{ title: "Yo nací pa' cantar cueca", coverUrl: "https://example.com/itunes.jpg" }],
+	})
+}
+
+/** A file with an empty ID3 tag, which is what the file key exists for. */
+const RIPPED: AudioFileIdentity = {
+	path: "C:\\Music\\Ripped\\track01.mp3",
+	size: 5_242_880,
+	modifiedAt: 1_726_500_000_000,
+}
 describe("Resolver.resolve", () => {
 	it("returns null for non audio media without touching the cache or the providers", async () => {
 		const { cache, calls: cacheCalls } = fakeCache()
 		const { provider: itunes, calls: itunesCalls } = fakeProvider([])
 		const { provider: musicbrainz, calls: mbCalls } = fakeProvider([])
 		const { source, asked } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		expect(await resolver.resolve(status(tagged, "video"))).toBeNull()
 		expect(cacheCalls.get).toBe(0)
@@ -162,7 +196,7 @@ describe("Resolver.resolve", () => {
 		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
 		const { provider: musicbrainz, calls: mbCalls } = fakeProvider([])
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(status({ title: "Probablemente", artist: "", album: "" }))
 
@@ -177,7 +211,7 @@ describe("Resolver.resolve", () => {
 		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(
 			status({ title: "Unknown", artist: "Christian Nodal", album: "" }),
@@ -193,7 +227,7 @@ describe("Resolver.resolve", () => {
 		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(
 			status({
@@ -216,7 +250,7 @@ describe("Resolver.resolve", () => {
 		const { provider: itunes, queries } = fakeProvider([])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		await resolver.resolve(
 			status({ title: "Back In Black", artist: "AC/DC", album: "Back In Black" }),
@@ -233,7 +267,7 @@ describe("Resolver.resolve", () => {
 		const { provider: itunes, queries } = fakeProvider([])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		await resolver.resolve(
 			status({
@@ -252,7 +286,7 @@ describe("Resolver.resolve", () => {
 		const { provider: itunes } = fakeProvider([candidate()])
 		const { provider: musicbrainz, calls: mbCalls } = fakeProvider([])
 		const { source, asked } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(status(tagged))
 
@@ -276,7 +310,7 @@ describe("Resolver.resolve", () => {
 			}),
 		])
 		const { source } = fakeCoverSource({ r1: "https://example.com/caa.jpg" })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(status(tagged))
 
@@ -299,7 +333,7 @@ describe("Resolver.resolve", () => {
 			}),
 		])
 		const { source } = fakeCoverSource({ r1: "https://example.com/caa.jpg" })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(status(tagged))
 
@@ -312,7 +346,7 @@ describe("Resolver.resolve", () => {
 		const { provider: itunes } = fakeProvider([], true)
 		const { provider: musicbrainz } = fakeProvider([], true)
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(status(tagged))
 
@@ -329,7 +363,7 @@ describe("Resolver.resolve", () => {
 		const { provider: itunes, calls: itunesCalls } = fakeProvider(() => pending)
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const first = resolver.resolve(status(tagged))
 		const second = resolver.resolve(status(tagged))
@@ -347,7 +381,7 @@ describe("Resolver.resolve", () => {
 		const { provider: itunes } = fakeProvider([candidate()])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		let cachedOnSettle: CacheEntry | null = null
 		const key = musicKey({
@@ -382,7 +416,7 @@ describe("Resolver.resolve", () => {
 			}),
 		])
 		const { source, asked } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(status(tagged))
 
@@ -405,7 +439,7 @@ describe("Resolver.resolve", () => {
 			}),
 		])
 		const { source, asked } = fakeCoverSource({ r2: "https://example.com/second.jpg" })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(
 			status({ title: "Probablemente", artist: "Christian Nodal", album: "" }),
@@ -432,7 +466,7 @@ describe("Resolver.resolve", () => {
 			r1: "https://example.com/compilation.jpg",
 			r2: "https://example.com/album.jpg",
 		})
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(status(tagged))
 
@@ -464,7 +498,7 @@ describe("Resolver.resolve", () => {
 			r1: "https://example.com/compilation.jpg",
 			r2: "https://example.com/deluxe.jpg",
 		})
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(
 			status({
@@ -496,7 +530,7 @@ describe("Resolver.resolve", () => {
 		])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const fromTheAlbum = await resolver.resolve(status(tagged))
 		const fromTheSingle = await resolver.resolve(
@@ -524,7 +558,7 @@ describe("Resolver.resolve", () => {
 			}),
 		])
 		const { source } = fakeCoverSource({ r1: "https://example.com/caa.jpg" })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(status(tagged))
 
@@ -550,7 +584,7 @@ describe("Resolver.resolve", () => {
 			}),
 		])
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(status(tagged))
 
@@ -569,7 +603,7 @@ describe("Resolver.resolve", () => {
 			}),
 		])
 		const { source } = fakeCoverSource({}, true)
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		const result = await resolver.resolve(status(tagged))
 
@@ -585,7 +619,7 @@ describe("Resolver.resolve", () => {
 		const { overrides, asked } = fakeOverrides({
 			"audio:christian nodal|me deje llevar": handPicked,
 		})
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides)
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, noLocator())
 
 		const result = await resolver.resolve(status(tagged))
 
@@ -612,7 +646,7 @@ describe("Resolver.resolve", () => {
 		const { overrides } = fakeOverrides({
 			"audio:christian nodal|me deje llevar": handPicked,
 		})
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides)
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, noLocator())
 
 		const first = await resolver.resolve(status(tagged))
 		const second = await resolver.resolve(
@@ -636,7 +670,7 @@ describe("Resolver.resolve", () => {
 		const { overrides, asked } = fakeOverrides({
 			"audio:christian nodal|probablemente": handPicked,
 		})
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides)
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, noLocator())
 
 		const result = await resolver.resolve(
 			status({ title: "Probablemente", artist: "Christian Nodal", album: "" }),
@@ -646,13 +680,150 @@ describe("Resolver.resolve", () => {
 		expect(result?.cover).toBe("https://example.com/by-hand.jpg")
 	})
 
+	it("serves a correction filed against the file, which is all an untagged file has", async () => {
+		// Without this the fingerprint step is the last word on a file no text
+		// search can reach, and a wrong identification there had no way out.
+		const { cache } = fakeCache()
+		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides, asked } = fakeOverrides(
+			{ "file:C:\\Music\\Ripped\\track01.mp3": handPicked },
+			["audio:|probablemente"],
+		)
+		const { locator } = fakeLocator({
+			path: "C:\\Music\\Ripped\\track01.mp3",
+			size: 5_242_880,
+			modifiedAt: 1_726_500_000_000,
+		})
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, locator)
+
+		const result = await resolver.resolve(status({ title: "Probablemente", album: "" }))
+
+		expect(result).toEqual({
+			cover: "https://example.com/by-hand.jpg",
+			provider: "override",
+			id: "file:C:\\Music\\Ripped\\track01.mp3",
+		})
+		expect(asked).toEqual(["file:C:\\Music\\Ripped\\track01.mp3"])
+		expect(itunesCalls.search).toBe(0)
+	})
+
+	it("searches the catalogs with the tags the correction supplies", async () => {
+		// The measured case: a file with an empty ID3 tag that AcoustID does not
+		// know and iTunes has exactly. The artist and the title are two words the
+		// user already knows, and typing them buys the cover for free.
+		const { cache } = fakeCache()
+		const { provider: itunes, calls: itunesCalls, queries } = fakeProvider([arnero()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides } = fakeOverrides(
+			{
+				"file:C:\\Music\\Ripped\\track01.mp3": {
+					kind: "untagged-audio",
+					title: "José Arnero",
+					artist: "El Baucha",
+					sourceFilename: "Jose Arnero.mp3",
+					savedAt: 0,
+				},
+			},
+			["audio:|jose arnero"],
+		)
+		const { locator } = fakeLocator(RIPPED)
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, locator)
+
+		const result = await resolver.resolve(status({ title: "Jose Arnero", album: "" }))
+
+		expect(itunesCalls.search).toBe(1)
+		expect(queries[0]).toEqual({ artists: ["El Baucha"], title: "José Arnero", album: undefined })
+		expect(result?.cover).toBe("https://example.com/itunes.jpg")
+		expect(result?.provider).toBe("itunes")
+	})
+
+	it("prefers a cover the correction carries over anything a catalog would find", async () => {
+		// A typed address is a stronger statement than a search result, and it is
+		// the answer for a record no catalog holds.
+		const { cache } = fakeCache()
+		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides } = fakeOverrides(
+			{
+				"file:C:\\Music\\Ripped\\track01.mp3": {
+					kind: "untagged-audio",
+					title: "José Arnero",
+					artist: "El Baucha",
+					cover: "https://example.com/by-hand.jpg",
+					sourceFilename: "Jose Arnero.mp3",
+					savedAt: 0,
+				},
+			},
+			["audio:|jose arnero"],
+		)
+		const { locator } = fakeLocator(RIPPED)
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, locator)
+
+		const result = await resolver.resolve(status({ title: "Jose Arnero", album: "" }))
+
+		expect(result?.cover).toBe("https://example.com/by-hand.jpg")
+		expect(result?.provider).toBe("override")
+		expect(itunesCalls.search).toBe(0)
+	})
+
+	it("caches what the corrected tags resolved under those tags, not under the file", async () => {
+		// The corrected values are a real credit and a real title, so the entry is
+		// worth sharing with any other file the user corrects the same way.
+		const { cache, store } = fakeCache()
+		const { provider: itunes } = fakeProvider([arnero()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides } = fakeOverrides(
+			{
+				"file:C:\\Music\\Ripped\\track01.mp3": {
+					kind: "untagged-audio",
+					title: "José Arnero",
+					artist: "El Baucha",
+					sourceFilename: "Jose Arnero.mp3",
+					savedAt: 0,
+				},
+			},
+			["audio:|jose arnero"],
+		)
+		const { locator } = fakeLocator(RIPPED)
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, locator)
+
+		await resolver.resolve(status({ title: "Jose Arnero", album: "" }))
+
+		expect(store.has(musicKey({ artists: ["El Baucha"], title: "José Arnero" }))).toBe(true)
+	})
+
+	it("does not let one untagged file's correction reach another", async () => {
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides } = fakeOverrides({ "file:C:\\Music\\Ripped\\track01.mp3": handPicked }, [
+			"audio:|unknown",
+		])
+		const { locator } = fakeLocator({
+			path: "C:\\Music\\Other\\track01.mp3",
+			size: 4_100_000,
+			modifiedAt: 1_726_500_000_001,
+		})
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, locator)
+
+		const result = await resolver.resolve(status({ title: "Unknown", artist: "", album: "" }))
+
+		expect(result).toBeNull()
+	})
+
 	it("resolves as usual when the store holds no override for the track", async () => {
 		const { cache } = fakeCache()
 		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
 		const { overrides } = fakeOverrides({ "audio:someone else|another record": handPicked })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides)
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, noLocator())
 
 		const result = await resolver.resolve(status(tagged))
 
@@ -667,7 +838,7 @@ describe("Resolver.evictOverride", () => {
 		const { provider: itunes } = fakeProvider([])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 		return { resolver, cache, store, calls }
 	}
 
@@ -752,26 +923,51 @@ describe("Resolver.evictOverride", () => {
 
 		expect(store.has(key)).toBe(true)
 	})
+
+	it("leaves the cache alone for a correction filed against a file", () => {
+		// What such a correction replaces is the fingerprint entry, which is a
+		// function of the bytes: re-asking costs a request on the one budget every
+		// user of this app shares, to be told the same thing.
+		const { resolver, cache, store } = evicting()
+		const key = cached(cache, album, "1")
+
+		resolver.evictOverride("file:C:\\Music\\Ripped\\track01.mp3")
+
+		expect(store.has(key)).toBe(true)
+	})
 })
 
 describe("Resolver.overrideTargetFor", () => {
-	function targeting(entries: Record<string, Override> = {}, refused: readonly string[] = []) {
+	const RIP: AudioFileIdentity = {
+		path: "C:\\Music\\Ripped\\track01.mp3",
+		size: 5_242_880,
+		modifiedAt: 1_726_500_000_000,
+	}
+
+	function targeting(
+		entries: Record<string, Override> = {},
+		refused: readonly string[] = [],
+		file: AudioFileIdentity | null = null,
+	) {
 		const { cache, calls } = fakeCache()
 		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
 		const { overrides } = fakeOverrides(entries, refused)
+		const { locator, calls: locatorCalls } = fakeLocator(file)
 		return {
-			resolver: new Resolver(cache, itunes, musicbrainz, source, overrides),
+			resolver: new Resolver(cache, itunes, musicbrainz, source, overrides, locator),
 			calls,
 			itunesCalls,
+			locatorCalls,
 		}
 	}
 
-	it("names the record key without asking a provider or reading the cache", () => {
+	it("names the record key without asking a provider or reading the cache", async () => {
 		const { resolver, calls, itunesCalls } = targeting()
 
-		expect(resolver.overrideTargetFor(status(tagged))).toEqual({
+		expect(await resolver.overrideTargetFor(status(tagged))).toEqual({
+			kind: "metadata",
 			key: "audio:christian nodal|me deje llevar",
 			active: false,
 		})
@@ -779,7 +975,7 @@ describe("Resolver.overrideTargetFor", () => {
 		expect(calls.get).toBe(0)
 	})
 
-	it("names the same key every track of the record would be corrected under", () => {
+	it("names the same key every track of the record would be corrected under", async () => {
 		const { resolver } = targeting()
 
 		const other = status({
@@ -788,82 +984,276 @@ describe("Resolver.overrideTargetFor", () => {
 			album: "Me Dejé Llevar",
 		})
 
-		expect(resolver.overrideTargetFor(other)?.key).toBe("audio:christian nodal|me deje llevar")
+		expect((await resolver.overrideTargetFor(other))?.key).toBe(
+			"audio:christian nodal|me deje llevar",
+		)
 	})
 
-	it("falls back to the title when the file carries no album tag", () => {
+	it("falls back to the title when the file carries no album tag", async () => {
 		const { resolver } = targeting()
 
 		const untagged = status({ title: "Probablemente", artist: "Christian Nodal", album: "" })
 
-		expect(resolver.overrideTargetFor(untagged)?.key).toBe("audio:christian nodal|probablemente")
+		expect((await resolver.overrideTargetFor(untagged))?.key).toBe(
+			"audio:christian nodal|probablemente",
+		)
 	})
 
-	it("reports a key an override is already saved under as active", () => {
+	it("reports a key an override is already saved under as active", async () => {
 		const { resolver } = targeting({ "audio:christian nodal|me deje llevar": handPicked })
 
-		expect(resolver.overrideTargetFor(status(tagged))).toEqual({
+		expect(await resolver.overrideTargetFor(status(tagged))).toEqual({
+			kind: "metadata",
 			key: "audio:christian nodal|me deje llevar",
 			active: true,
 		})
 	})
 
-	it("reports no key when the file has no artist, since the store would refuse it", () => {
-		// The credit leads the key precisely so this is the component the store
-		// finds empty: one cover for every untagged file is the wrong answer.
-		const { resolver } = targeting({}, ["audio:|me deje llevar"])
+	it("does not ask which file is playing while the tags name the record", async () => {
+		// The playlist is an http round trip. A file that says what it is has an
+		// identity already, so nothing is gained by going to find another.
+		const { resolver, locatorCalls } = targeting({}, [], RIP)
 
-		const anonymous = status({ title: "Probablemente", album: "Me Dejé Llevar" })
+		await resolver.overrideTargetFor(status(tagged))
 
-		expect(resolver.overrideTargetFor(anonymous)).toBeNull()
+		expect(locatorCalls.asked).toBe(0)
 	})
 
-	it("reports no key for video, which the catalog keys its own way", () => {
+	it("files audio with no artist tag under the file itself, which the store does take", async () => {
+		// The hole this closes: the credit leads the record key, so audio with no
+		// artist tag produces a key the store refuses, and the one kind of file
+		// most likely to be identified wrongly was the one kind nobody could fix.
+		const { resolver } = targeting({}, ["audio:|probablemente"], RIP)
+
+		const anonymous = status({ title: "Probablemente", album: "" })
+
+		expect(await resolver.overrideTargetFor(anonymous)).toEqual({
+			kind: "file",
+			key: "file:C:\\Music\\Ripped\\track01.mp3",
+			active: false,
+		})
+	})
+
+	it("gives two untagged files two keys, which is the whole reason it is the file", async () => {
+		const other: AudioFileIdentity = { ...RIP, path: "C:\\Music\\Other\\track01.mp3" }
+		const first = targeting({}, ["audio:|unknown"], RIP)
+		const second = targeting({}, ["audio:|unknown"], other)
+
+		const untagged = status({ title: "Unknown", artist: "", album: "" })
+
+		expect((await first.resolver.overrideTargetFor(untagged))?.key).not.toBe(
+			(await second.resolver.overrideTargetFor(untagged))?.key,
+		)
+	})
+
+	it("reports a correction already filed against the file as active", async () => {
+		const { resolver } = targeting(
+			{ "file:C:\\Music\\Ripped\\track01.mp3": handPicked },
+			["audio:|probablemente"],
+			RIP,
+		)
+
+		const anonymous = status({ title: "Probablemente", album: "" })
+
+		expect(await resolver.overrideTargetFor(anonymous)).toEqual({
+			kind: "file",
+			key: "file:C:\\Music\\Ripped\\track01.mp3",
+			active: true,
+		})
+	})
+
+	it("reports no key when the tags name nothing and neither does a file", async () => {
+		// A stream has no bytes on disk, so there is no third identity to fall to
+		// and no honest key left to offer.
+		const { resolver } = targeting({}, ["audio:|probablemente"], null)
+
+		const anonymous = status({ title: "Probablemente", album: "" })
+
+		expect(await resolver.overrideTargetFor(anonymous)).toBeNull()
+	})
+
+	it("offers the file key on an install that carries no fingerprint binary", async () => {
+		// The correction exists for the files the fingerprint step gets wrong, and
+		// that step is absent on every clone built without a key. A correction gated
+		// on the same optional binary would be missing wherever it is needed.
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([candidate()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides } = fakeOverrides({}, ["audio:|probablemente"])
+		const { locator } = fakeLocator(RIP)
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, locator)
+
+		const anonymous = status({ title: "Probablemente", album: "" })
+
+		expect((await resolver.overrideTargetFor(anonymous))?.key).toBe(
+			"file:C:\\Music\\Ripped\\track01.mp3",
+		)
+	})
+
+	it("reports no key for video, which the catalog keys its own way", async () => {
 		const { resolver } = targeting()
 
-		expect(resolver.overrideTargetFor(status(tagged, "video"))).toBeNull()
+		expect(await resolver.overrideTargetFor(status(tagged, "video"))).toBeNull()
+	})
+})
+
+describe("Resolver.correctedTagsFor", () => {
+	function asking(entries: Record<string, Override> = {}, refused: readonly string[] = []) {
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([candidate()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { overrides } = fakeOverrides(entries, refused)
+		const { locator, calls } = fakeLocator(RIPPED)
+		return {
+			resolver: new Resolver(cache, itunes, musicbrainz, source, overrides, locator),
+			locatorCalls: calls,
+		}
+	}
+
+	it("hands back what the user typed, which is all the presence text has to read", async () => {
+		const { resolver } = asking(
+			{
+				"file:C:\\Music\\Ripped\\track01.mp3": {
+					kind: "untagged-audio",
+					title: "José Arnero",
+					artist: "El Baucha",
+					sourceFilename: "Jose Arnero.mp3",
+					savedAt: 0,
+				},
+			},
+			["audio:|jose arnero"],
+		)
+
+		expect(await resolver.correctedTagsFor(status({ title: "Jose Arnero", album: "" }))).toEqual({
+			title: "José Arnero",
+			artist: "El Baucha",
+		})
+	})
+
+	it("hands back nothing for a correction that only picked a cover", async () => {
+		const { resolver } = asking(
+			{
+				"file:C:\\Music\\Ripped\\track01.mp3": {
+					kind: "untagged-audio",
+					cover: "https://example.com/by-hand.jpg",
+					sourceFilename: "Jose Arnero.mp3",
+					savedAt: 0,
+				},
+			},
+			["audio:|jose arnero"],
+		)
+
+		expect(await resolver.correctedTagsFor(status({ title: "Jose Arnero", album: "" }))).toBeNull()
+	})
+
+	it("hands back nothing for audio that carries its own tags", async () => {
+		// The asymmetry the phase 4 spec documents still stands where it was
+		// argued: a file that says what it is has a text already.
+		const { resolver, locatorCalls } = asking({
+			"audio:christian nodal|me deje llevar": handPicked,
+		})
+
+		expect(await resolver.correctedTagsFor(status(tagged))).toBeNull()
+		expect(locatorCalls.asked).toBe(0)
+	})
+
+	it("hands back nothing for video", async () => {
+		const { resolver } = asking()
+
+		expect(await resolver.correctedTagsFor(status(tagged, "video"))).toBeNull()
 	})
 })
 
 describe("Resolver.overrideCoverFor", () => {
-	function looking(entries: Record<string, Override> = {}) {
+	const RIP = RIPPED
+
+	function looking(
+		entries: Record<string, Override> = {},
+		file: AudioFileIdentity | null = null,
+		refused: readonly string[] = [],
+	) {
 		const { cache, calls } = fakeCache()
 		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
-		const { overrides, asked } = fakeOverrides(entries)
+		const { overrides, asked } = fakeOverrides(entries, refused)
+		const { locator, calls: locatorCalls } = fakeLocator(file)
 		return {
-			resolver: new Resolver(cache, itunes, musicbrainz, source, overrides),
+			resolver: new Resolver(cache, itunes, musicbrainz, source, overrides, locator),
 			calls,
 			itunesCalls,
 			asked,
+			locatorCalls,
 		}
 	}
 
-	it("answers with the saved cover without asking a provider or reading the cache", () => {
+	it("answers with the saved cover without asking a provider or reading the cache", async () => {
 		const { resolver, calls, itunesCalls, asked } = looking({
 			"audio:christian nodal|me deje llevar": handPicked,
 		})
 
-		expect(resolver.overrideCoverFor(status(tagged))).toBe("https://example.com/by-hand.jpg")
+		expect(await resolver.overrideCoverFor(status(tagged))).toBe("https://example.com/by-hand.jpg")
 		expect(asked).toEqual(["audio:christian nodal|me deje llevar"])
 		expect(itunesCalls.search).toBe(0)
 		expect(calls.get).toBe(0)
 	})
 
-	it("answers nothing when the record was never corrected", () => {
+	it("answers nothing when the record was never corrected", async () => {
 		const { resolver, itunesCalls } = looking()
 
-		expect(resolver.overrideCoverFor(status(tagged))).toBeNull()
+		expect(await resolver.overrideCoverFor(status(tagged))).toBeNull()
 		expect(itunesCalls.search).toBe(0)
 	})
 
-	it("answers nothing for video, whose corrections the catalog reads", () => {
+	it("answers with the cover filed against the file when the tags name nothing", async () => {
+		const { resolver } = looking({ "file:C:\\Music\\Ripped\\track01.mp3": handPicked }, RIP, [
+			"audio:|probablemente",
+		])
+
+		const anonymous = status({ title: "Probablemente", album: "" })
+
+		expect(await resolver.overrideCoverFor(anonymous)).toBe("https://example.com/by-hand.jpg")
+	})
+
+	it("answers nothing when the correction supplied tags and no cover", async () => {
+		// This is asked ahead of the file's own artwork, and a correction that only
+		// says what the file is has not claimed to know what it looks like. The
+		// embedded art, then the lookup the tags now make possible, answer that.
+		const { resolver } = looking(
+			{
+				"file:C:\\Music\\Ripped\\track01.mp3": {
+					kind: "untagged-audio",
+					title: "José Arnero",
+					artist: "El Baucha",
+					sourceFilename: "Jose Arnero.mp3",
+					savedAt: 0,
+				},
+			},
+			RIP,
+			["audio:|jose arnero"],
+		)
+
+		expect(await resolver.overrideCoverFor(status({ title: "Jose Arnero", album: "" }))).toBeNull()
+	})
+
+	it("does not go looking for the file when the tags already name the record", async () => {
+		// This runs for every audio track, ahead of the file's own artwork, so the
+		// common case has to stay a local read.
+		const { resolver, locatorCalls } = looking({}, RIP)
+
+		await resolver.overrideCoverFor(status(tagged))
+
+		expect(locatorCalls.asked).toBe(0)
+	})
+
+	it("answers nothing for video, whose corrections the catalog reads", async () => {
 		const { resolver, asked } = looking({
 			"audio:christian nodal|me deje llevar": handPicked,
 		})
 
-		expect(resolver.overrideCoverFor(status(tagged, "video"))).toBeNull()
+		expect(await resolver.overrideCoverFor(status(tagged, "video"))).toBeNull()
 		expect(asked).toEqual([])
 	})
 })
@@ -929,7 +1319,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
 		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		const result = await resolver.resolve(playing(tagged, 1))
 
@@ -944,7 +1342,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source, asked } = fakeCoverSource({ "Me dejé llevar": "https://example.com/fp.jpg" })
 		const { identifier } = fakeIdentifier({ 1: FIRST_FILE })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		const result = await resolver.resolve(playing(untagged, 1))
 
@@ -975,7 +1381,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 					? recording()
 					: recording({ id: "other", releases: [{ title: "Ahora", releaseGroupId: "rg-2" }] }),
 		}))
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		const first = await resolver.resolve(playing(untagged, 1))
 		const second = await resolver.resolve(playing(untagged, 2))
@@ -994,7 +1408,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource({ "Me dejé llevar": "https://example.com/fp.jpg" })
 		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		await resolver.resolve(playing(untagged, 1))
 		const again = await resolver.resolve(playing(untagged, 1))
@@ -1009,7 +1431,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource({ "Me dejé llevar": "https://example.com/fp.jpg" })
 		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		const [first, second] = await Promise.all([
 			resolver.resolve(playing(untagged, 1)),
@@ -1027,7 +1457,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource({ "Me dejé llevar": "https://example.com/fp.jpg" })
 		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		const result = await resolver.resolve(playing(tagged, 1))
 
@@ -1040,7 +1478,7 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: itunes } = fakeProvider([])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), noLocator())
 
 		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
 		expect(unresolvedReasons).toEqual(["insufficient-tags"])
@@ -1052,7 +1490,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
 		const { identifier, calls } = fakeIdentifier({})
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
 		expect(calls.identify).toBe(0)
@@ -1064,7 +1510,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
 		const { identifier } = fakeIdentifier({ 1: FIRST_FILE }, () => ({ kind: "unavailable" }))
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
 		expect(unresolvedReasons).toEqual(["insufficient-tags", "provider-error"])
@@ -1079,7 +1533,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 			kind: "unidentified",
 			reason: "no-results",
 		}))
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
 		expect(unresolvedReasons).toEqual(["insufficient-tags", "no-results"])
@@ -1091,7 +1553,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
 		const { identifier } = fakeIdentifier({ 1: FIRST_FILE })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
 		expect(unresolvedReasons).toEqual(["insufficient-tags", "no-cover"])
@@ -1108,7 +1578,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 				throw new Error("fpcalc exploded")
 			},
 		}
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
 		expect(unresolvedReasons).toEqual(["insufficient-tags", "provider-error"])
@@ -1124,7 +1602,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: musicbrainz } = fakeProvider([], true)
 		const { source } = fakeCoverSource()
 		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		expect(await resolver.resolve(playing(tagged, 1))).toBeNull()
 		expect(unresolvedReasons).toEqual(["provider-error"])
@@ -1140,7 +1626,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: musicbrainz } = fakeProvider([], true)
 		const { source } = fakeCoverSource()
 		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		await resolver.resolve(playing(tagged, 1))
 		expect(await resolver.resolve(playing(tagged, 1))).toBeNull()
@@ -1159,7 +1653,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
 		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
 
 		expect(await resolver.resolve(playing(tagged, 1))).toBeNull()
 		expect(unresolvedReasons).toEqual(["no-cover"])
@@ -1173,7 +1675,15 @@ describe("Resolver.resolve, by fingerprint", () => {
 		const { source } = fakeCoverSource()
 		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
 		const { overrides } = fakeOverrides({ "audio:christian nodal|me deje llevar": handPicked })
-		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, identifier)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			overrides,
+			noLocator(),
+			identifier,
+		)
 
 		const result = await resolver.resolve(playing(tagged, 1))
 

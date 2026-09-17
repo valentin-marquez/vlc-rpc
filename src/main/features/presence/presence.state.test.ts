@@ -1,6 +1,7 @@
 import type { Resolver as CatalogResolver, CatalogResult } from "@main/features/catalog"
 import type { CoverOutcome } from "@main/features/cover"
 import type { MusicResult } from "@main/features/music"
+import type { CorrectedTags } from "@main/features/overrides"
 import type { AppConfig } from "@shared/config/app-config"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -75,10 +76,19 @@ function status(state: "playing" | "paused", artworkUrl?: string): VlcStatus {
 const catalogHit: MusicResult = { cover: CATALOG_COVER, provider: "itunes", id: "42" }
 const timeline = { start: 1000, end: 1180 }
 
+/** The measured file: an ID3 tag whose every field is an empty string. */
+function untaggedStatus(state: "playing" | "paused"): VlcStatus {
+	return {
+		...status(state),
+		media: { title: "Jose Arnero", artist: "", album: "" },
+	}
+}
+
 function build(
 	outcome: CoverOutcome,
 	result: MusicResult | null = catalogHit,
 	override: string | null = null,
+	corrected: CorrectedTags | null = null,
 ) {
 	const calls = { fetch: 0, resolve: 0 }
 	const artwork = new ArtworkResolver(
@@ -93,7 +103,7 @@ function build(
 				calls.resolve++
 				return result
 			},
-			overrideCoverFor: () => override,
+			overrideCoverFor: async () => override,
 		},
 	)
 	const catalog = {
@@ -102,7 +112,10 @@ function build(
 		},
 	} as unknown as CatalogResolver
 
-	return { service: new Service(artwork, catalog), calls }
+	return {
+		service: new Service(artwork, catalog, { correctedTagsFor: async () => corrected }),
+		calls,
+	}
 }
 
 describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
@@ -151,6 +164,34 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 	},
 )
 
+describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
+	"Presence audio text while $state",
+	({ state }) => {
+		it("reads the tags the user typed for a file that carries none", async () => {
+			// Without this the text is built from a file name, which is what the
+			// mapper falls back to, and Discord reads "Jose Arnero" with no artist.
+			const { service } = build({ kind: "no-artwork" }, catalogHit, null, {
+				title: "José Arnero",
+				artist: "El Baucha",
+			})
+
+			const presence = await service.getDiscordPresence(untaggedStatus(state), timeline)
+
+			expect(presence?.details).toBe("José Arnero")
+			expect(presence?.state).toBe("by El Baucha")
+		})
+
+		it("keeps the file's own tags when nothing was corrected", async () => {
+			const { service } = build({ kind: "no-artwork" })
+
+			const presence = await service.getDiscordPresence(status(state), timeline)
+
+			expect(presence?.details).toBe("Probablemente")
+			expect(presence?.state).toBe("by Christina Aguilera")
+		})
+	},
+)
+
 const SERIES: CatalogResult = {
 	title: "Breaking Bad",
 	poster: null,
@@ -183,12 +224,16 @@ function videoService(result: CatalogResult | null): Service {
 			resolve: async () => {
 				throw new Error("the music catalog must not be consulted for video")
 			},
-			overrideCoverFor: () => null,
+			overrideCoverFor: async () => null,
 		},
 	)
 	const catalog = { resolve: async () => result } as unknown as CatalogResolver
 
-	return new Service(artwork, catalog)
+	return new Service(artwork, catalog, {
+		correctedTagsFor: async () => {
+			throw new Error("the audio corrections must not be consulted for video")
+		},
+	})
 }
 
 describe.each([{ state: "playing" as const }, { state: "paused" as const }])(

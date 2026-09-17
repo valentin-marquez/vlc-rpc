@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { audioOverrideKey, fingerprintKey, musicKey, overrideCoversTrack } from "./music.key"
+import {
+	audioOverrideKey,
+	fileOverrideKey,
+	fingerprintKey,
+	musicKey,
+	overrideCoversTrack,
+} from "./music.key"
 
 describe("musicKey", () => {
 	it("ignores case, accents and punctuation", () => {
@@ -115,6 +121,30 @@ describe("audioOverrideKey", () => {
 	it("falls back to the title when the file carries no album tag", () => {
 		const untagged = audioOverrideKey({ artists: ["Christian Nodal"], title: "Probablemente" })
 		expect(untagged).toBe("audio:christian nodal|probablemente")
+	})
+})
+
+describe("fileOverrideKey", () => {
+	it("names one file and no other, which is what an untagged file has left", () => {
+		const first = fileOverrideKey("C:\\Music\\Ripped\\track01.mp3")
+		const second = fileOverrideKey("C:\\Music\\Other\\track01.mp3")
+		expect(second).not.toBe(first)
+	})
+
+	it("carries the path in the open, so the list can say which file it is", () => {
+		expect(fileOverrideKey("/home/v/Music/track01.mp3")).toBe("file:/home/v/Music/track01.mp3")
+	})
+
+	it("does not move when the file is retouched, unlike the fingerprint entry", () => {
+		// The fingerprint key retires on a new size or mtime because its answer is
+		// derived from the bytes. A correction is the user's word about the file, so
+		// a tag editor writing to it must not silently throw the correction away.
+		const before = fileOverrideKey("/home/v/Music/track01.mp3")
+		const afterRetag = fileOverrideKey("/home/v/Music/track01.mp3")
+		expect(afterRetag).toBe(before)
+		expect(before).not.toBe(
+			fingerprintKey({ path: "/home/v/Music/track01.mp3", size: 1, modifiedAt: 2 }),
+		)
 	})
 })
 

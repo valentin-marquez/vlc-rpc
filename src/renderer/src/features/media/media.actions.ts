@@ -28,6 +28,7 @@ export function updateFromVlcStatus(status: VlcStatus | null): void {
 			year: null,
 			overrideKey: null,
 			overrideActive: false,
+			overrideBinding: null,
 		})
 		return
 	}
@@ -51,6 +52,7 @@ export function updateFromVlcStatus(status: VlcStatus | null): void {
 					year: null,
 					overrideKey: null,
 					overrideActive: false,
+					overrideBinding: null,
 				}
 			: {}
 
@@ -92,6 +94,7 @@ export async function refreshMediaInfo(): Promise<void> {
 				year: null,
 				overrideKey: null,
 				overrideActive: false,
+				overrideBinding: null,
 			})
 			return
 		}
@@ -108,7 +111,10 @@ export async function refreshMediaInfo(): Promise<void> {
 				mediaInfo.content_metadata?.show_name ||
 				mediaInfo.content_metadata?.anime_name ||
 				mediaStore.get().title,
-			artist: mediaInfo.media?.artist || mediaStore.get().artist,
+			// A correction on a file with no tags arrives here, the same way a catalog
+			// title does above, so the screen shows what Discord is about to show.
+			artist:
+				mediaInfo.content_metadata?.artist || mediaInfo.media?.artist || mediaStore.get().artist,
 			fileTitle: mediaInfo.media?.title || mediaStore.get().fileTitle,
 			mediaType: mediaInfo.mediaType || mediaStore.get().mediaType,
 			season: mediaInfo.content_metadata?.season || null,
@@ -118,6 +124,7 @@ export async function refreshMediaInfo(): Promise<void> {
 			// the store would refuse this file rather than that nothing is playing.
 			overrideKey: mediaInfo.override_key || null,
 			overrideActive: mediaInfo.override_active === true,
+			overrideBinding: mediaInfo.override_binding ?? null,
 		})
 
 		logger.info("Media information updated")

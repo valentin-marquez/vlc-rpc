@@ -37,7 +37,7 @@ function fakeMusic(result: MusicResult | null, override: string | null = null) {
 			calls.resolve++
 			return result
 		},
-		overrideCoverFor: () => override,
+		overrideCoverFor: async () => override,
 	}
 	return { music, calls }
 }

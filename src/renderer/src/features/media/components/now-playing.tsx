@@ -20,7 +20,7 @@ const WATCHING: ActivityType = 3
 // Four different facts, and the user acts on each of them differently, so they
 // are never folded into one empty state.
 const CLEARED_BECAUSE: Record<PresenceClearReason, string> = {
-	"rpc-disabled": "Rich presence is turned off",
+	"rpc-disabled": "Rich Presence is turned off",
 	"vlc-unavailable": "VLC is not reachable",
 	"playback-stopped": "VLC has nothing playing",
 	"loop-stopped": "Presence updates are stopped",

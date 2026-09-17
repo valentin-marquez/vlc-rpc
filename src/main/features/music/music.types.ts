@@ -145,6 +145,16 @@ export interface AudioFileIdentity {
 	modifiedAt: number
 }
 
+/**
+ * Which file on disk VLC is playing. Split out from the identifier because a
+ * correction needs the same answer and must not depend on the optional binary
+ * the identifier is gated on.
+ */
+export interface FileLocator {
+	/** `null` when the playing item is not a local file, a stream for instance. */
+	fileFor(status: VlcStatus): Promise<AudioFileIdentity | null>
+}
+
 export type IdentifyOutcome =
 	| { kind: "identified"; recording: RecordingCandidate }
 	/** The audio was read and nothing came back that could be trusted. */

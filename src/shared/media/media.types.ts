@@ -24,6 +24,8 @@ export interface ContentMetadata {
 	year?: string
 	anime_name?: string
 	title?: string
+	/** Audio only: the credit a correction supplied for a file that carries none. */
+	artist?: string
 }
 
 /**
@@ -51,6 +53,14 @@ export interface DetectedMediaInfo {
 	override_key?: string
 	/** Whether a correction is already saved under that key. */
 	override_active?: boolean
+	/**
+	 * What that key is bound to, which the screen has to be able to say because
+	 * the two stop applying for different reasons. `metadata` is what the app
+	 * read out of the file, so it covers every file that reads the same and is
+	 * lost when a release is named differently. `file` is one file on disk, used
+	 * for audio whose tags name nothing, and is lost when it moves or is renamed.
+	 */
+	override_binding?: "metadata" | "file"
 }
 
 /**

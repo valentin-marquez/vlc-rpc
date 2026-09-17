@@ -60,7 +60,7 @@ export function SourcePanel(): JSX.Element {
 					<Row
 						kind="value"
 						label="Correction"
-						value={media.overrideActive ? "Saved for this file" : "Not set"}
+						value={correctionSummary(media)}
 						trailing={
 							<Button
 								size="sm"
@@ -79,7 +79,7 @@ export function SourcePanel(): JSX.Element {
 			{!media.overrideKey && (
 				<p className="type-caption text-pretty text-muted-foreground">
 					{isAudio
-						? "This file has no artist tag, so there is nothing to file a correction under."
+						? "This is not a file on disk, so there is nothing to file a correction against."
 						: "This file name carries no title, so there is nothing to file a correction under."}
 				</p>
 			)}
@@ -90,7 +90,9 @@ export function SourcePanel(): JSX.Element {
 						overrideKey={media.overrideKey}
 						sourceFilename={media.fileTitle ?? media.title}
 						isAudio={isAudio}
+						binding={media.overrideBinding ?? "metadata"}
 						deducedTitle={media.title}
+						deducedArtist={media.artist ?? ""}
 						deducedKind={deducedKind(media)}
 						currentCoverUrl={artworkUrl}
 						coverSourceUrl={media.contentImageSourceUrl}
@@ -107,6 +109,17 @@ export function SourcePanel(): JSX.Element {
 			)}
 		</div>
 	)
+}
+
+/**
+ * A file binding is worth saying out loud: it behaves differently from the
+ * usual one, and Settings is where the difference is explained in full.
+ */
+function correctionSummary(media: MediaState): string {
+	if (!media.overrideActive) {
+		return media.overrideBinding === "file" ? "Not set, held against this file" : "Not set"
+	}
+	return media.overrideBinding === "file" ? "Saved against this file" : "Saved for this file"
 }
 
 function deducedKind(media: MediaState): "movie" | "tv" | null {

@@ -398,7 +398,7 @@ describe("Resolver.overrideTargetFor", () => {
 		// Western naming has no provider at all, so this never resolves.
 		const target = resolver.overrideTargetFor(status("Some.Movie.2019.1080p.BluRay.x264.mp4"))
 
-		expect(target).toEqual({ key: "movie:Some Movie|2019", active: false })
+		expect(target).toEqual({ kind: "metadata", key: "movie:Some Movie|2019", active: false })
 		expect(anilistCalls.search).toBe(0)
 		expect(cacheCalls.get).toBe(0)
 	})
@@ -429,6 +429,7 @@ describe("Resolver.overrideTargetFor", () => {
 		const resolver = new Resolver(cache, anilist, overrides)
 
 		expect(resolver.overrideTargetFor(status("Some.Show.S01E07.1080p.WEB-DL.mp4"))).toEqual({
+			kind: "metadata",
 			key: "tv:Some Show|1",
 			active: true,
 		})

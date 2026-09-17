@@ -14,7 +14,14 @@ export interface OverrideFormProps {
 	/** The file title as VLC reports it, stored so a future rename can be migrated. */
 	sourceFilename: string
 	isAudio: boolean
+	/**
+	 * What the key is bound to. `file` is audio whose tags name nothing, and it
+	 * is the one case where the correction carries the tags themselves.
+	 */
+	binding: "metadata" | "file"
 	deducedTitle: string
+	/** Empty for the untagged file this form exists for, which is the point. */
+	deducedArtist: string
 	/** Named on the fallback choice, so the user can see what they are keeping. */
 	deducedKind: "movie" | "tv" | null
 	/** Shown beside the address field: what the cover actually draws as, usually a data URL. */
@@ -31,7 +38,9 @@ export function OverrideForm({
 	overrideKey,
 	sourceFilename,
 	isAudio,
+	binding,
 	deducedTitle,
+	deducedArtist,
 	deducedKind,
 	currentCoverUrl,
 	coverSourceUrl,
@@ -40,11 +49,17 @@ export function OverrideForm({
 	onCancel,
 }: OverrideFormProps): JSX.Element {
 	const titleId = React.useId()
+	const artistId = React.useId()
 	const coverId = React.useId()
 	const kindName = React.useId()
 	const firstFieldRef = React.useRef<HTMLInputElement>(null)
 
+	// Audio that carries no tags is the one audio case with a text to correct,
+	// and its text is the only thing `applyTemplate` would have to read.
+	const correctsTags = isAudio && binding === "file"
+
 	const [title, setTitle] = React.useState(deducedTitle)
+	const [artist, setArtist] = React.useState(deducedArtist)
 	// Prefilled like the title is: the user corrects what is there rather than
 	// retyping an address they would have to go and find first.
 	const [cover, setCover] = React.useState(coverSourceUrl ?? "")
@@ -59,9 +74,12 @@ export function OverrideForm({
 
 	const trimmedCover = cover.trim()
 	const trimmedTitle = title.trim()
-	const canSave = isAudio
-		? trimmedCover !== ""
-		: trimmedTitle !== "" || trimmedCover !== "" || kind !== "deduced"
+	const trimmedArtist = artist.trim()
+	const canSave = correctsTags
+		? trimmedTitle !== "" || trimmedArtist !== "" || trimmedCover !== ""
+		: isAudio
+			? trimmedCover !== ""
+			: trimmedTitle !== "" || trimmedCover !== "" || kind !== "deduced"
 
 	async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
 		event.preventDefault()
@@ -104,6 +122,16 @@ export function OverrideForm({
 	}
 
 	function buildDraft(): OverrideDraft {
+		if (correctsTags) {
+			return {
+				kind: "untagged-audio",
+				title: trimmedTitle || undefined,
+				artist: trimmedArtist || undefined,
+				cover: trimmedCover || undefined,
+				sourceFilename,
+			}
+		}
+
 		if (isAudio) {
 			return { kind: "audio", cover: trimmedCover, sourceFilename }
 		}
@@ -122,30 +150,40 @@ export function OverrideForm({
 			onSubmit={handleSubmit}
 			className="flex flex-col gap-4 rounded-md border border-divider bg-card p-4"
 		>
-			<p className="type-caption text-muted-foreground">
-				{isAudio
-					? "Audio text is built from the file's own tags, so only the cover can be corrected."
-					: "These start with what the app worked out. Clearing the title falls back to the file name, and clearing the cover leaves no cover."}
-			</p>
+			<p className="type-caption text-muted-foreground">{introFor(isAudio, correctsTags)}</p>
 
-			{!isAudio && (
+			{(!isAudio || correctsTags) && (
 				<div className="flex flex-col gap-2">
 					<label htmlFor={titleId} className="type-caption text-muted-foreground">
-						Title
+						{correctsTags ? "Song title" : "Title"}
 					</label>
 					<Input
 						ref={firstFieldRef}
 						id={titleId}
 						value={title}
 						onChange={(event) => setTitle(event.target.value)}
-						placeholder="What this should be called"
+						placeholder={correctsTags ? "What the song is called" : "What this should be called"}
+					/>
+				</div>
+			)}
+
+			{correctsTags && (
+				<div className="flex flex-col gap-2">
+					<label htmlFor={artistId} className="type-caption text-muted-foreground">
+						Artist
+					</label>
+					<Input
+						id={artistId}
+						value={artist}
+						onChange={(event) => setArtist(event.target.value)}
+						placeholder="Who recorded it"
 					/>
 				</div>
 			)}
 
 			<div className="flex flex-col gap-2">
 				<label htmlFor={coverId} className="type-caption text-muted-foreground">
-					Cover image address
+					{correctsTags ? "Cover image address, if the search misses it" : "Cover image address"}
 				</label>
 				<div className="flex items-center gap-3">
 					{currentCoverUrl && (
@@ -156,7 +194,7 @@ export function OverrideForm({
 						/>
 					)}
 					<Input
-						ref={isAudio ? firstFieldRef : undefined}
+						ref={isAudio && !correctsTags ? firstFieldRef : undefined}
 						id={coverId}
 						type="url"
 						value={cover}
@@ -166,8 +204,9 @@ export function OverrideForm({
 					/>
 				</div>
 				<p className="type-caption text-muted-foreground">
-					Open the image on its own first, then copy its address. The address of the page it sits on
-					will not load.
+					{correctsTags
+						? "Leave this empty and the search fills it in. Paste an address only for a record no catalog holds."
+						: "Open the image on its own first, then copy its address. The address of the page it sits on will not load."}
 				</p>
 			</div>
 
@@ -224,9 +263,33 @@ export function OverrideForm({
 				)}
 			</div>
 
-			<p className="type-caption break-all text-muted-foreground">Filed under {overrideKey}</p>
+			<p className="type-caption break-all text-muted-foreground">
+				{binding === "file" ? "Kept against this file, at " : "Filed under "}
+				<span className="select-text">{keyLabel(overrideKey, binding)}</span>
+				{binding === "file" && ". Moving or renaming it ends the correction."}
+			</p>
 		</form>
 	)
+}
+
+/**
+ * The opening line, which has to be honest about three different deals: video
+ * corrects everything, tagged audio corrects only the picture, and audio with
+ * no tags corrects what the file is so the ordinary search can do the rest.
+ */
+function introFor(isAudio: boolean, correctsTags: boolean): string {
+	if (correctsTags) {
+		return "This file carries no tags, so the app has only its name to go on. Name the song and the artist and the usual search finds the cover on its own."
+	}
+	if (isAudio) {
+		return "Audio text is built from the file's own tags, so only the cover can be corrected."
+	}
+	return "These start with what the app worked out. Clearing the title falls back to the file name, and clearing the cover leaves no cover."
+}
+
+/** A file key is the path with a prefix, and the path is the part worth reading. */
+function keyLabel(key: string, binding: "metadata" | "file"): string {
+	return binding === "file" ? key.slice("file:".length) : key
 }
 
 interface SaveError {
