@@ -24,12 +24,24 @@ const TEMPORARY_DISABLES = [
 	{ label: "Disable for 2 hours", minutes: 120 },
 ] as const
 
+// Built once, at import. `toLocaleTimeString` builds a formatter per call, and
+// the first one built in a process is what pays for the platform's locale data:
+// on Windows that is the host time zone lookup, tens of milliseconds when the
+// machine is idle and unbounded when it is not. This menu is rebuilt every ten
+// seconds for as long as a temporary window runs, so the cost belongs at
+// startup rather than inside the first menu that happens to name a time.
+const UNTIL_TIME = new Intl.DateTimeFormat(undefined, {
+	hour: "2-digit",
+	minute: "2-digit",
+})
+
 export class Tray {
 	private tray: ElectronTray | null = null
 	private window: Window | null = null
 	private readyPromise: Promise<void>
 	private readyResolver: (() => void) | null = null
 	private menuUpdateTimer: NodeJS.Timeout | null = null
+	private keepaliveTimer: NodeJS.Timeout | null = null
 
 	constructor(
 		private readonly startup: Startup,
@@ -45,14 +57,7 @@ export class Tray {
 			app.whenReady().then(() => this.initTray())
 		}
 
-		app.on("before-quit", () => {
-			if (this.tray) {
-				this.tray.destroy()
-				this.tray = null
-				logger.info("Tray destroyed during app quit")
-			}
-			this.stopMenuUpdateTimer()
-		})
+		app.on("before-quit", () => this.dispose())
 
 		// Handle system events that may affect the tray
 		powerMonitor.on("suspend", () => {
@@ -98,6 +103,22 @@ export class Tray {
 	 */
 	public setWindow(window: Window): void {
 		this.window = window
+	}
+
+	/**
+	 * Stop everything this tray started. The keepalive watches for an icon that
+	 * went missing and builds a new one, so leaving it running past the quit is
+	 * how a tray icon comes back a minute after the user asked for it to go.
+	 */
+	public dispose(): void {
+		this.stopTrayKeepalive()
+		this.stopMenuUpdateTimer()
+
+		if (this.tray) {
+			this.tray.destroy()
+			this.tray = null
+			logger.info("Tray destroyed")
+		}
 	}
 
 	/**
@@ -244,12 +265,25 @@ export class Tray {
 	 * Setup a periodic check to ensure tray icon exists
 	 */
 	private setupTrayKeepalive(): void {
-		setInterval(() => {
+		this.stopTrayKeepalive()
+
+		this.keepaliveTimer = setInterval(() => {
 			if (!this.tray || this.tray.isDestroyed()) {
 				logger.info("Tray keepalive check - tray missing or destroyed, reinitializing")
 				this.initTray()
 			}
 		}, 60000)
+	}
+
+	/**
+	 * Stop the periodic tray check
+	 */
+	private stopTrayKeepalive(): void {
+		if (this.keepaliveTimer) {
+			clearInterval(this.keepaliveTimer)
+			this.keepaliveTimer = null
+			logger.info("Tray keepalive stopped")
+		}
 	}
 
 	/**
@@ -385,10 +419,6 @@ export class Tray {
 			return "Rich Presence (off)"
 		}
 
-		const until = new Date(disabledUntil).toLocaleTimeString(undefined, {
-			hour: "2-digit",
-			minute: "2-digit",
-		})
-		return `Rich Presence (off until ${until})`
+		return `Rich Presence (off until ${UNTIL_TIME.format(disabledUntil)})`
 	}
 }

@@ -1,7 +1,7 @@
 import type { Clock } from "@main/core/clock"
 import type { AppConfig } from "@shared/config/app-config"
 import type { MenuItemConstructorOptions } from "electron"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Startup } from "./app.startup"
 
 const { store, captured } = vi.hoisted(() => ({
@@ -94,14 +94,16 @@ const fakeStartup = {
 	setStartAtLogin: () => {},
 } as unknown as Startup
 
+const built: Tray[] = []
+
 function makeTray() {
 	store.value = { rpcEnabled: true, minimizeToTray: true, startWithSystem: false }
 	captured.template = []
-	vi.useFakeTimers()
 
 	const clock = new FakeClock()
 	const discord = new DiscordClient(clock)
 	const tray = new Tray(fakeStartup, discord)
+	built.push(tray)
 
 	return { tray, discord, clock }
 }
@@ -116,7 +118,17 @@ function rpcItem(): MenuItemConstructorOptions {
 	return item
 }
 
+// A tray starts two intervals the moment it is built, so the fake clock has to
+// be in place before any test constructs one and every tray has to be stopped
+// while that clock is still the one holding its handles.
+beforeEach(() => {
+	vi.useFakeTimers()
+})
+
 afterEach(() => {
+	for (const tray of built.splice(0)) {
+		tray.dispose()
+	}
 	vi.useRealTimers()
 	store.value = {}
 })
@@ -170,5 +182,20 @@ describe("Tray Rich Presence entry", () => {
 
 		expect(rpcItem().checked).toBe(true)
 		expect(store.value.rpcDisabledUntil).toBeUndefined()
+	})
+
+	// The keepalive rebuilds a tray it finds missing, which is exactly what a
+	// destroyed one looks like, so a tray that is not disposed puts its icon
+	// back a minute after the app was asked to go.
+	it("stops both of its timers once it is disposed", () => {
+		const { tray, discord } = makeTray()
+
+		discord.disableRpcTemporary(30)
+		tray.dispose()
+		captured.template = []
+
+		vi.advanceTimersByTime(HALF_HOUR_MS)
+
+		expect(captured.template).toHaveLength(0)
 	})
 })
