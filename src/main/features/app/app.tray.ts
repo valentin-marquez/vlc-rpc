@@ -18,6 +18,12 @@ import type { Window } from "./app.window"
 /**
  * System tray service
  */
+const TEMPORARY_DISABLES = [
+	{ label: "Disable for 15 minutes", minutes: 15 },
+	{ label: "Disable for 1 hour", minutes: 60 },
+	{ label: "Disable for 2 hours", minutes: 120 },
+] as const
+
 export class Tray {
 	private tray: ElectronTray | null = null
 	private window: Window | null = null
@@ -333,14 +339,16 @@ export class Tray {
 						this.updateContextMenu()
 					},
 				},
-				{
-					label: "Disable for 30 minutes",
+				// The three the README has always promised. Issue 30 is someone
+				// reading that page, looking for them here and finding one.
+				...TEMPORARY_DISABLES.map(({ label, minutes }) => ({
+					label,
 					enabled: rpcEnabled,
 					click: () => {
-						this.discord.disableRpcTemporary(30)
+						this.discord.disableRpcTemporary(minutes)
 						this.updateContextMenu()
 					},
-				},
+				})),
 			)
 
 			menuItems.push(
