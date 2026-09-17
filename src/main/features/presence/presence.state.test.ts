@@ -162,6 +162,15 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 			expect(calls.resolve).toBe(0)
 			expect(presence?.large_image).not.toBe(CATALOG_COVER)
 		})
+
+		it("keeps the fallback rather than a path Discord cannot read when the upload failed", async () => {
+			const { service } = build({ kind: "publish-failed" })
+
+			const presence = await service.getDiscordPresence(status(state, LOCAL_ARTWORK), timeline)
+
+			expect(presence?.large_image).not.toContain("file://")
+			expect(presence?.large_image).toBe(BASE_CONFIG.largeImage)
+		})
 	},
 )
 
@@ -241,7 +250,11 @@ const SERIES: CatalogResult = {
 }
 const FILM: CatalogResult = { title: "The Matrix", poster: null, mediaKind: "movie" }
 
-function videoStatus(title: string, state: "playing" | "paused" = "playing"): VlcStatus {
+function videoStatus(
+	title: string,
+	state: "playing" | "paused" = "playing",
+	artworkUrl?: string,
+): VlcStatus {
 	return {
 		active: true,
 		status: state,
@@ -249,7 +262,7 @@ function videoStatus(title: string, state: "playing" | "paused" = "playing"): Vl
 		plid: 1,
 		playback: { position: 30, time: 30, duration: 210, rate: 1 },
 		mediaType: "video",
-		media: { title },
+		media: { title, artworkUrl },
 	}
 }
 
@@ -363,6 +376,43 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 
 			expect(presence?.details).toBe("Breaking Bad")
 			expect(presence?.state).toBe("S2E5")
+		})
+	},
+)
+
+const LOCAL_VIDEO_ARTWORK = "file:///C:/movies/The%20Matrix/folder.jpg"
+const POSTER = "https://catalog.example/poster.jpg"
+const STREAM_ARTWORK = "https://stream.example/art.jpg"
+
+describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
+	"Presence video artwork while $state",
+	({ state }) => {
+		it("keeps the fallback rather than a path Discord cannot read", async () => {
+			const presence = await videoService(FILM).getDiscordPresence(
+				videoStatus("The Matrix (1999).mkv", state, LOCAL_VIDEO_ARTWORK),
+				timeline,
+			)
+
+			expect(presence?.large_image).not.toContain("file://")
+			expect(presence?.large_image).toBe(BASE_CONFIG.largeImage)
+		})
+
+		it("prefers the catalog poster over the artwork VLC found on disk", async () => {
+			const presence = await videoService({ ...FILM, poster: POSTER }).getDiscordPresence(
+				videoStatus("The Matrix (1999).mkv", state, LOCAL_VIDEO_ARTWORK),
+				timeline,
+			)
+
+			expect(presence?.large_image).toBe(POSTER)
+		})
+
+		it("sends artwork VLC reports as a url, which a stream can carry", async () => {
+			const presence = await videoService(null).getDiscordPresence(
+				videoStatus("holiday-clip.mkv", state, STREAM_ARTWORK),
+				timeline,
+			)
+
+			expect(presence?.large_image).toBe(STREAM_ARTWORK)
 		})
 	},
 )

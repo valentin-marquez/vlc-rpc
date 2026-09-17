@@ -23,6 +23,27 @@ function firstNonEmpty(...values: (string | undefined)[]): string | undefined {
 	return values.find((value) => value !== undefined && value !== "")
 }
 
+// Discord fetches the large image itself, so a path only this machine can read
+// draws nothing at all, where the fallback it replaced would have drawn something.
+function reachableByDiscord(candidate: string | null | undefined): boolean {
+	if (!candidate) {
+		return false
+	}
+
+	try {
+		const { protocol } = new URL(candidate)
+		return protocol === "http:" || protocol === "https:"
+	} catch {
+		return false
+	}
+}
+
+// The one gate for the image key, candidates in falling order of preference, so
+// playing and paused cannot disagree about what Discord is allowed to be handed.
+function largeImageFor(fallback: string, ...candidates: (string | null | undefined)[]): string {
+	return candidates.find(reachableByDiscord) ?? fallback
+}
+
 interface PresenceLines {
 	details: string
 	state: string
@@ -193,16 +214,6 @@ class PlayingState extends MediaState {
 		// Discord shows this on hover over the small image, so it is a word, not the
 		// asset key that picks the image itself.
 		let smallText = "Playing"
-		let largeImage = config.largeImage
-
-		// Use artwork from VLC if available
-		if (media.artworkUrl) {
-			largeImage = media.artworkUrl
-		}
-
-		if (mediaType === "video" && catalogResult?.poster) {
-			largeImage = catalogResult.poster
-		}
 
 		const videoInfo = mediaInfo.videoInfo
 		if (mediaType === "video" && videoInfo && videoInfo.width && videoInfo.height) {
@@ -210,9 +221,12 @@ class PlayingState extends MediaState {
 			smallText += `, ${resolution}`
 		}
 
-		if (cover) {
-			largeImage = cover
-		}
+		const largeImage = largeImageFor(
+			config.largeImage,
+			cover,
+			catalogResult?.poster,
+			media.artworkUrl,
+		)
 
 		const presenceData: DiscordPresenceData = {
 			details,
@@ -292,16 +306,6 @@ class PausedState extends MediaState {
 		const state = this.formatText(lines.state)
 
 		let smallText = "Paused"
-		let largeImage = config.largeImage
-
-		// Use artwork from VLC if available
-		if (media.artworkUrl) {
-			largeImage = media.artworkUrl
-		}
-
-		if (mediaType === "video" && catalogResult?.poster) {
-			largeImage = catalogResult.poster
-		}
 
 		const videoInfo = mediaInfo.videoInfo
 		if (mediaType === "video" && videoInfo && videoInfo.width && videoInfo.height) {
@@ -309,9 +313,12 @@ class PausedState extends MediaState {
 			smallText += `, ${resolution}`
 		}
 
-		if (cover) {
-			largeImage = cover
-		}
+		const largeImage = largeImageFor(
+			config.largeImage,
+			cover,
+			catalogResult?.poster,
+			media.artworkUrl,
+		)
 
 		const presenceData: DiscordPresenceData = {
 			details,
