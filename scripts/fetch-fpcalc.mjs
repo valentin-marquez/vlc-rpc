@@ -106,7 +106,20 @@ async function main() {
 	}
 }
 
+// Two callers want opposite things from a failure. On postinstall the binary is
+// optional, the app degrades to skipping one identification step, and taking the
+// whole install down over a network blip would block every contributor and every
+// CI run. Before packaging a release it is not optional: shipping without it
+// means that step is dead in the build, silently, so there it has to stop.
+const soft = process.argv.includes("--soft")
+
 main().catch((error) => {
 	console.error(error.message)
-	process.exit(1)
+	if (soft) {
+		console.error("fpcalc: continuing without it, audio fingerprinting will be skipped")
+		return
+	}
+	// Not process.exit: the fetch may still hold an open handle, and tearing that
+	// down mid flight turns a clear 404 into a libuv assertion.
+	process.exitCode = 1
 })

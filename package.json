@@ -38,7 +38,7 @@
 		"dev": "electron-vite dev",
 		"dev:force-update": "cross-env FORCE_UPDATE_CHECK=1 electron-vite dev",
 		"build": "npm run typecheck && electron-vite build",
-		"postinstall": "node scripts/fetch-fpcalc.mjs && electron-builder install-app-deps",
+		"postinstall": "node scripts/fetch-fpcalc.mjs --soft && electron-builder install-app-deps",
 		"build:unpack": "npm run build && electron-builder --dir",
 		"build:win": "npm run fetch:fpcalc && electron-vite build && electron-builder --win --publish never",
 		"changeset": "changeset",
