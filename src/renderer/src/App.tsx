@@ -8,7 +8,6 @@ import { SettingsPage } from "@renderer/features/settings"
 import { UpdateNotification } from "@renderer/features/updates"
 import { useAppInit } from "@renderer/hooks/use-app-init"
 import { cn } from "@renderer/lib/utils"
-import { Navigation } from "@renderer/shell/navigation"
 import { Titlebar } from "@renderer/shell/titlebar"
 import { isFirstRun } from "@renderer/stores/config.store"
 import { useEffect, useState } from "react"
@@ -92,15 +91,14 @@ function App(): JSX.Element {
 
 	return (
 		<Router hook={useHashLocation}>
-			<div className="grid h-dvh grid-cols-[72px_1fr] grid-rows-[48px_1fr] bg-canvas text-body">
-				<Navigation isMac={isMac} />
+			<div className="grid h-dvh grid-rows-[48px_1fr] bg-canvas text-body">
 				<Titlebar isMac={isMac} scrolled={scrolled} />
 
 				<main
 					onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 0)}
-					className="scroll-region col-start-2 row-start-2 min-h-0 px-6 pt-6 pb-8"
+					className="scroll-region min-h-0 px-6 pt-6 pb-8"
 				>
-					<div className="max-w-[740px] me-auto">
+					<div className="mx-auto w-full max-w-[880px]">
 						<Switch>
 							<Route path="/" component={HomePage} />
 							<Route path="/layout" component={LayoutPage} />

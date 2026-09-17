@@ -1,9 +1,8 @@
 import { Cross1Icon, MinusIcon, SizeIcon } from "@radix-ui/react-icons"
 import { cn } from "@renderer/lib/utils"
-import { NAV_ITEMS } from "@renderer/shell/navigation"
+import { Navigation } from "@renderer/shell/navigation"
 import { StatusChips } from "@renderer/shell/status-chip"
 import { useEffect, useState } from "react"
-import { useHashLocation } from "wouter/use-hash-location"
 
 const windowControl = cn(
 	"focus-discord inline-flex h-8 w-[46px] cursor-pointer items-center justify-center",
@@ -18,7 +17,6 @@ interface TitlebarProps {
 
 export function Titlebar({ isMac, scrolled }: TitlebarProps): JSX.Element {
 	const [isMaximized, setIsMaximized] = useState(false)
-	const [location] = useHashLocation()
 
 	useEffect(() => {
 		async function initWindowState() {
@@ -52,17 +50,15 @@ export function Titlebar({ isMac, scrolled }: TitlebarProps): JSX.Element {
 		await window.api.app.close()
 	}
 
-	const title = NAV_ITEMS.find((item) => item.path === location)?.label ?? "Not found"
-
 	return (
 		<header
 			className={cn(
-				"app-titlebar relative col-start-2 row-start-1 flex h-12 select-none items-center",
+				"app-titlebar relative flex h-12 select-none items-center",
 				"justify-between bg-canvas ps-6 shadow-[inset_0_-1px_0_hsl(var(--divider))]",
 				isMac && "pe-6",
 			)}
 		>
-			<h1 className="type-title text-strong">{title}</h1>
+			<Navigation />
 
 			<div className="flex items-center gap-1">
 				<StatusChips />
