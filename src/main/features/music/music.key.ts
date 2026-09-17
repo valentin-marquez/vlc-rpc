@@ -1,8 +1,10 @@
+import { createHash } from "node:crypto"
 import { normalize } from "@main/core/similarity"
-import type { TrackQuery } from "./music.types"
+import type { AudioFileIdentity, TrackQuery } from "./music.types"
 
 const TRACK_PREFIX = "track:"
 const AUDIO_OVERRIDE_PREFIX = "audio:"
+const FINGERPRINT_PREFIX = "fp:"
 
 /**
  * Cache identity of a track query: credit, title and album, normalized.
@@ -43,6 +45,25 @@ export function audioOverrideKey(query: TrackQuery): string {
 	const artist = normalize(query.artists[0] ?? "")
 	const album = normalize(query.album ?? "")
 	return `${AUDIO_OVERRIDE_PREFIX}${artist}|${album.length > 0 ? album : normalize(query.title)}`
+}
+
+/**
+ * Cache identity of an answer that came from the audio itself.
+ *
+ * Deliberately not `musicKey`. A file with no tags produces a query with an
+ * empty credit and a placeholder title, so every untagged file in a library
+ * derives the same track key, and one entry under it would hand the first
+ * cover identified to all of them. What the fingerprint answers about is the
+ * file, so the file is what names the entry: the path, plus the size and the
+ * modification time, so re-encoding or replacing the file stops the old answer
+ * rather than serving it for a day.
+ *
+ * Hashed because the value is a path of unbounded length that lands in a json
+ * file the user can open, and nothing ever needs to read it back.
+ */
+export function fingerprintKey(file: AudioFileIdentity): string {
+	const identity = `${file.path}|${file.size}|${file.modifiedAt}`
+	return `${FINGERPRINT_PREFIX}${createHash("sha1").update(identity).digest("hex")}`
 }
 
 /**

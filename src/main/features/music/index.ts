@@ -1,5 +1,8 @@
+export { AcoustId } from "./music.acoustid"
 export { Cache } from "./music.cache"
 export { CoverArtArchive } from "./music.coverart"
+export { Fpcalc } from "./music.fpcalc"
+export { Identifier } from "./music.identify"
 export { ITunesProvider } from "./music.itunes"
 export { MusicBrainzProvider } from "./music.musicbrainz"
 export { Resolver } from "./music.resolver"

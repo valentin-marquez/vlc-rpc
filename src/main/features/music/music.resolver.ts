@@ -3,11 +3,14 @@ import type { Override, OverrideTarget } from "@main/features/overrides"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import type { Cache } from "./music.cache"
 import { splitCollaboration } from "./music.credit"
-import { audioOverrideKey, musicKey, overrideCoversTrack } from "./music.key"
+import { audioOverrideKey, fingerprintKey, musicKey, overrideCoversTrack } from "./music.key"
 import { albumMatches, pickBest } from "./music.scorer"
 import type {
+	AudioFileIdentity,
+	AudioIdentifier,
 	CandidateRelease,
 	CoverArtSource,
+	IdentifyOutcome,
 	MusicProvider,
 	MusicResult,
 	RecordingCandidate,
@@ -123,6 +126,12 @@ export class Resolver {
 		private readonly musicbrainz: MusicProvider,
 		private readonly coverArt: CoverArtSource,
 		private readonly overrides: OverrideLookup,
+		/**
+		 * Absent when no AcoustID key was configured, which is the normal case for
+		 * a contributor who cloned the repository. Everything above this line then
+		 * behaves exactly as it did before.
+		 */
+		private readonly identifier?: AudioIdentifier | undefined,
 	) {}
 
 	public async resolve(status: VlcStatus): Promise<MusicResult | null> {
@@ -138,26 +147,16 @@ export class Resolver {
 			return { cover: override.cover, provider: "override", id: overrideAt }
 		}
 
-		const key = musicKey(query)
-
-		const cached = this.cache.get(key)
-		if (cached) {
-			return cached.status === "resolved" ? cached.result : null
+		const byTags = await this.resolveByTags(query)
+		if (byTags !== null) {
+			return byTags
 		}
 
-		const existing = this.inflight.get(key)
-		if (existing) {
-			return existing
-		}
-
-		const promise = this.resolveUncached(query, key)
-		this.inflight.set(key, promise)
-
-		try {
-			return await promise
-		} finally {
-			this.inflight.delete(key)
-		}
+		// Last, and only for what the tags could not name. The limit AcoustID
+		// enforces is per application key and therefore shared by every user of
+		// this app, unlike every other provider here, and hashing the audio is
+		// the most expensive thing this feature does on the machine it runs on.
+		return await this.resolveByAudio(status, query)
 	}
 
 	/**
@@ -210,6 +209,119 @@ export class Resolver {
 	 */
 	public evictOverride(key: string): void {
 		this.cache.deleteWhere((cached) => overrideCoversTrack(cached, key))
+	}
+
+	/**
+	 * One answer per key: what is already cached, then what is already running
+	 * for it, and only then the work. The two chains below reach this with keys
+	 * from different key spaces, which is the whole point of the fingerprint one.
+	 */
+	private async once(
+		key: string,
+		work: () => Promise<MusicResult | null>,
+	): Promise<MusicResult | null> {
+		const cached = this.cache.get(key)
+		if (cached) {
+			return cached.status === "resolved" ? cached.result : null
+		}
+
+		const existing = this.inflight.get(key)
+		if (existing) {
+			return existing
+		}
+
+		const promise = work()
+		this.inflight.set(key, promise)
+
+		try {
+			return await promise
+		} finally {
+			this.inflight.delete(key)
+		}
+	}
+
+	private async resolveByTags(query: TrackQuery): Promise<MusicResult | null> {
+		const key = musicKey(query)
+		return await this.once(key, () => this.resolveUncached(query, key))
+	}
+
+	/**
+	 * The fingerprint step, keyed by the file rather than by the tags. Two files
+	 * with no tags derive the same track key, so the entry that remembers what
+	 * the audio said has to be named after the audio's file.
+	 */
+	private async resolveByAudio(status: VlcStatus, query: TrackQuery): Promise<MusicResult | null> {
+		const identifier = this.identifier
+		if (identifier === undefined) {
+			return null
+		}
+
+		const file = await this.locate(identifier, status)
+		if (file === null) {
+			return null
+		}
+
+		const key = fingerprintKey(file)
+		return await this.once(key, () => this.identifyUncached(identifier, file, key, query.album))
+	}
+
+	private async locate(
+		identifier: AudioIdentifier,
+		status: VlcStatus,
+	): Promise<AudioFileIdentity | null> {
+		try {
+			return await identifier.fileFor(status)
+		} catch {
+			logger.warn("Could not tell which file VLC is playing")
+			return null
+		}
+	}
+
+	private async identifyUncached(
+		identifier: AudioIdentifier,
+		file: AudioFileIdentity,
+		key: string,
+		album: string | undefined,
+	): Promise<MusicResult | null> {
+		let outcome: IdentifyOutcome
+		try {
+			outcome = await identifier.identify(file)
+		} catch {
+			// The step is the last one in the chain and it hangs off a child
+			// process, so a throw here reaches the poll loop. It stops being an
+			// exception and becomes a miss worth retrying.
+			logger.warn("Audio identification failed")
+			outcome = { kind: "unavailable" }
+		}
+
+		if (outcome.kind === "unavailable") {
+			this.cache.setUnresolved(key, "provider-error")
+			return null
+		}
+		if (outcome.kind === "unidentified") {
+			this.cache.setUnresolved(key, outcome.reason)
+			return null
+		}
+
+		try {
+			const cover = await this.artworkFor(outcome.recording, album)
+			if (cover === null) {
+				this.cache.setUnresolved(key, "no-cover")
+				return null
+			}
+
+			const result: MusicResult = {
+				cover,
+				provider: "acoustid",
+				id: outcome.recording.id,
+			}
+			this.cache.setResolved(key, result)
+			return result
+		} catch {
+			logger.warn("Music cover lookup failed after a fingerprint match")
+			this.cache.setUnresolved(key, "provider-error")
+			return null
+		}
 	}
 
 	private async resolveUncached(query: TrackQuery, key: string): Promise<MusicResult | null> {

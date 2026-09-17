@@ -1,5 +1,5 @@
 import { diceSimilarity, normalize } from "@main/core/similarity"
-import type { RecordingCandidate, TrackQuery } from "./music.types"
+import type { FingerprintMatch, RecordingCandidate, TrackQuery } from "./music.types"
 
 const IDENTITY_GATE_THRESHOLD = 0.92
 
@@ -135,4 +135,56 @@ export function pickBest(
 	}
 
 	return bestScore >= SCORE_THRESHOLD ? best : null
+}
+
+/**
+ * The floor an AcoustID score has to clear to count as this audio at all.
+ *
+ * Measured on the validated file: the recording that is actually playing scored
+ * 0.9589, and a different recording that reuses the same vocal take, a duet
+ * released on another album with another cover, scored 0.8551. The service is
+ * scoring how much audio the two share, so anything under 0.9 is a recording
+ * that overlaps this one rather than a recording of it, and its cover is a
+ * guess. Nothing is the right answer when the only alternative is a guess.
+ */
+const MIN_IDENTITY_SCORE = 0.9
+
+/**
+ * How far ahead the best match has to be before a second confident match stops
+ * mattering. The gap in the validated capture is 0.1038, so a margin of 0.05
+ * leaves that identification unambiguous while still refusing a pair the
+ * service cannot separate.
+ */
+const MIN_IDENTITY_MARGIN = 0.05
+
+/** Both credits come from MusicBrainz, so they either spell the same or differ. */
+function sameCredit(a: FingerprintMatch, b: FingerprintMatch): boolean {
+	return normalize(a.artists.join(" ")) === normalize(b.artists.join(" "))
+}
+
+/**
+ * Which recording an acoustic match names, or nothing when the answer is not
+ * clear enough to put a cover on screen.
+ *
+ * The three rules, in order: the best match clears the floor, it is far enough
+ * ahead of the next one, and when it is not, the two at least credit the same
+ * artist. That last case is the album take against the single or the live take:
+ * both covers belong to the performer the file is actually playing, and the
+ * release ordering downstream prefers the album. Two artists that close is the
+ * case this returns nothing for, because there the wrong cover is a stranger's
+ * record.
+ */
+export function pickIdentified(matches: FingerprintMatch[]): FingerprintMatch | null {
+	const confident = matches
+		.filter((match) => match.score >= MIN_IDENTITY_SCORE && match.id.length > 0)
+		.sort((a, b) => (a.score === b.score ? a.rank - b.rank : b.score - a.score))
+
+	const best = confident[0]
+	if (best === undefined) return null
+
+	const runnerUp = confident[1]
+	if (runnerUp === undefined) return best
+	if (best.score - runnerUp.score >= MIN_IDENTITY_MARGIN) return best
+
+	return sameCredit(best, runnerUp) ? best : null
 }
