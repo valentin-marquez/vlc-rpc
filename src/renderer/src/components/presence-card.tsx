@@ -37,11 +37,17 @@ interface PresenceCardBase {
 
 export interface PresenceCardLiveProps extends PresenceCardBase {
 	kind: "presence"
-	/** The whole header line Discord draws, verb included: "Listening to Queen". */
+	/** The verb on its own, above the body: "Listening", "Watching", "Playing". */
 	header: string
-	/** Line one. */
-	details: string
-	/** Line two. Discord draws no third body line for a third party presence. */
+	/**
+	 * The activity's name, which Discord draws as the first body line and in bold.
+	 * The app names an audio activity and nothing else, so a card without one closes
+	 * up rather than holding the line open.
+	 */
+	name?: string
+	/** Body line two. */
+	details?: string
+	/** Body line three. Discord draws no fourth one for a third party presence. */
 	state?: string
 	/** Hover text on the artwork, which is the only place Discord shows it. */
 	largeText?: string
@@ -108,17 +114,26 @@ export function PresenceCard(props: PresenceCardProps): JSX.Element {
 						<>
 							{/* A template that could not fill renders nothing, and Discord drops the
 							    line rather than drawing a blank one. */}
+							{props.name && (
+								<p className="type-label truncate text-strong" title={props.name}>
+									{props.name}
+								</p>
+							)}
 							{props.details && (
-								<p className="type-label truncate text-strong" title={props.details}>
+								<p className={cn(LINE[size], "truncate text-body")} title={props.details}>
 									{props.details}
 								</p>
 							)}
 							{props.state && (
-								<p className={cn(LINE[size], "truncate text-body")} title={props.state}>
+								<p className={cn(LINE[size], "truncate text-muted-foreground")} title={props.state}>
 									{props.state}
 								</p>
 							)}
-							{props.progress && <Progress progress={props.progress} />}
+							{/* No timestamps are sent for a paused file, so a bar at all means playback
+							    is running unless the small image says otherwise. */}
+							{props.progress && (
+								<Progress progress={props.progress} playback={props.badge?.kind ?? "playing"} />
+							)}
 						</>
 					)}
 				</div>
@@ -212,7 +227,13 @@ function ArtworkPlaceholder({
 	)
 }
 
-function Progress({ progress }: { progress: PresenceProgress }): JSX.Element {
+function Progress({
+	progress,
+	playback,
+}: {
+	progress: PresenceProgress
+	playback: PresenceBadgeKind
+}): JSX.Element {
 	const { elapsedSeconds, durationSeconds } = progress
 	const fraction =
 		durationSeconds > 0 ? Math.min(Math.max(elapsedSeconds / durationSeconds, 0), 1) : 0
@@ -256,19 +277,22 @@ function Progress({ progress }: { progress: PresenceProgress }): JSX.Element {
 		[],
 	)
 
+	// The glyph repeats the small image on purpose: it is where Discord draws the
+	// state next to the times, and the badge is where it draws the image itself.
+	const Glyph = playback === "paused" ? Pause : Play
+
 	return (
-		<div className="mt-2">
-			<div className="h-1 w-full overflow-hidden rounded-pill bg-inset">
+		<div className="type-caption mt-2 flex items-center gap-2 tabular-nums text-muted-foreground">
+			<Glyph aria-hidden="true" weight="fill" className="size-3 shrink-0" />
+			<span>{formatTime(elapsedSeconds)}</span>
+			<div className="h-1 min-w-0 flex-1 overflow-hidden rounded-pill bg-inset">
 				<div
 					ref={fillRef}
 					className="h-full w-full origin-left rounded-pill bg-brand"
 					style={{ transform: `scaleX(${fraction})` }}
 				/>
 			</div>
-			<div className="type-caption mt-1 flex justify-between tabular-nums text-muted-foreground">
-				<span>{formatTime(elapsedSeconds)}</span>
-				<span>{formatTime(durationSeconds)}</span>
-			</div>
+			<span>{formatTime(durationSeconds)}</span>
 		</div>
 	)
 }

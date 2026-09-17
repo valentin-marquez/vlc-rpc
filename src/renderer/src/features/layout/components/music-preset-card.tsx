@@ -46,7 +46,8 @@ export function MusicPresetCard({
 				kind="presence"
 				size="sm"
 				badge={PLAYING_BADGE}
-				header={`Listening to ${activityName}`}
+				header="Listening"
+				name={activityName}
 				details={renderLine(layout.details, variables)}
 				state={renderLine(layout.state, variables)}
 				largeText={variables.album}
