@@ -93,6 +93,16 @@ code needs a comment to be understood, consider renaming things instead.
 Do not add JSDoc that repeats the signature. A `@param filePath - Path to the file` on a parameter
 named `filePath` is noise.
 
+A comment earns its place by recording a decision, a measurement, or a trap that cost somebody
+time. "AcoustID limits by application key, not by IP" is worth a line. So is why an order matters.
+Everything else goes.
+
+Keep them short. A doc block longer than the function under it is too long: compress it to the
+sentence that carries the decision. One comment above the function, and inline only where the
+surprise is at that exact line.
+
+Write in English, code and comments both. Never commit commented out code, it is in git already.
+
 Do not use em dashes in code, comments, commit messages, documentation or pull request descriptions.
 Use a comma, a colon, parentheses or a new sentence.
 

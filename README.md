@@ -50,8 +50,12 @@ cover than the wrong one, so a weak match is discarded.
 A file ripped from YouTube usually has no artist and a title that is really its
 filename, so no text search can find it. For those the app computes an acoustic
 fingerprint of the audio and asks AcoustID which recording it is, which does not
-care what the file is called. That step runs last, only for what nothing else
-could identify, and you do not need an account for it.
+care what the file is called. When the match is strong enough it supplies the
+title and the artist as well, so Discord reads the song and not the file. Naming
+asks for more confidence than artwork does, so a match can be good enough for the
+cover and still leave the text as it was. That step runs last, only for what
+nothing else could identify, because its usage budget is shared by everyone
+running the app rather than being yours alone. You do not need an account for it.
 
 Artwork embedded in an audio file cannot be handed to Discord directly, because Discord fetches
 images by URL and knows nothing about your disk. The app uploads that image to a temporary public
@@ -95,18 +99,46 @@ The app lives in the system tray, and closing the window does not quit it. Right
 icon to turn Rich Presence off, or to turn it off for 15 minutes, an hour, or two hours, which is
 what you want when you are watching something you would rather not broadcast.
 
-**Layout** is where you pick how a track is laid out on your profile: title first, album first, or
-artist first. Each preset shows a live preview of what Discord will render.
+A new release announces itself with a button in the window header, next to the VLC and Discord
+chips, and there is nothing there the rest of the time, so an empty header means you are current.
+An installed copy reads "Update to 5.0.0", downloads it and restarts to finish. A portable copy
+reads "Get 5.0.0" and opens the release page, because a portable build cannot replace the file it
+is running from. While it downloads, the button becomes the version and the percent. If you would
+rather ask than wait, Settings has a "Check for updates" button under About, which answers next to
+the version it checked.
+
+**Layout** is where you build what your profile shows. On the left is a palette of pieces named the
+way you would name them: Title, Artist, Album, your own words, and for video Title, Episode, Year,
+Season number and Episode number, each one showing what it is worth for the file playing right now.
+On the right is the Discord card, the same one Home draws, and its lines are where the pieces go.
+Drag a piece onto a line, or pick a line and press a piece; a piece already placed moves with the
+arrow keys and comes off with delete. There is no preview beside it, because the card you arrange
+is the card your profile draws. Music and video are arranged separately.
+
+The lines are Discord's own, in the order it draws them: the header, where the verb and the name of
+the activity share one line, then the bold line, then the line under it, then the text on the
+artwork. Left empty, the header is Discord's to fill, and it writes the name of the app there, the
+way a Spotify card reads. Video has only the bold line and the one under it. A piece with nothing
+to draw takes itself off the line and takes the words beside it with it, which is how one
+arrangement reads for a series and for a film without writing "Unknown" or leaving empty brackets
+behind. The builder warns you when two lines would draw the same value, and when a line holds
+pieces but draws nothing in any of the examples.
 
 **Corrections** are for when the app gets it wrong, or when there is no source to get it right
-from. On the main screen, the last row of "What VLC reports" opens a small form already filled in
-with what the app worked out. For video you can change the title, the cover, and whether it is a
-film or a series. For audio only the cover, because the text is built from the file's own tags
-rather than from a lookup.
+from. On Home, the "Correction" row of "What VLC reports" opens a small form already filled in with
+what the app worked out. For video you can change the title, the cover, and whether it is a film or
+a series. For audio that carries tags you can change only the cover, because the text is built from
+those tags. For audio whose tags name nothing you can type the title and the artist too, and there
+the cover is optional: once the track has a name, the ordinary lookup usually finds the artwork by
+itself. A cover is a web address, and saving checks that it really loads before keeping it.
 
-A correction always wins. It is not weighed against anything, it skips the lookup entirely, and
-for audio it also beats the artwork embedded in the file. That last part matters more than it
-sounds, because a wrong or low resolution cover baked into an MP3 is the most common reason to
+When a file was named from its sound rather than from its tags, the "Audio match" row says so, with
+a button to go back to what the file says. That refusal is saved as a correction like any other,
+and the same row takes it back.
+
+A correction always wins. It is not weighed against anything and it is never scored, and the cover
+you give it for audio also beats the artwork embedded in the file. That last part matters more than
+it sounds, because a wrong or low resolution cover baked into an MP3 is the most common reason to
 want a correction in the first place.
 
 Saved corrections are listed in Settings, where you can see what each one applies to and remove it.
@@ -122,23 +154,30 @@ Anime works because AniList is open. Music works because iTunes and MusicBrainz 
 everything else, corrections are the answer, and they exist for exactly this reason.
 
 **Embedded cover art is uploaded to a public file host.** To show the artwork inside your audio
-files, the app uploads that image to one of several temporary hosts (catbox.moe, uguu.se, 0x0.st,
-tempfile.org) and gives Discord the resulting link. Anyone holding that link can open the image
-for as long as it lives, and the app asks for roughly seven days. Only the image goes up, under a
-generated name like `cover_1757980800000.jpg`, so neither your filename nor its path travels with
-it. If you would rather not, leave Rich Presence off for those files, or clear the cover with a
-correction.
+files, the app uploads that image to five temporary hosts at once (x0.at, catbox.moe, uguu.se,
+0x0.st, tempfile.org) and gives Discord the first link that comes back. The uploads still in flight
+are cancelled the moment one host answers, but a host that finished first has a copy of its own.
+Anyone holding one of those links can open the image for as long as it lives, and the app asks for
+roughly seven days. Only the image goes up, under a generated name like `cover_1757980800000.jpg`,
+so neither your filename nor its path travels with it. If you would rather not, leave Rich Presence
+off for those files, or point a correction at an image that is already on the web, which is handed
+to Discord as a link and uploads nothing.
 
-**A correction is tied to how the file is named.** The app identifies media from the filename, so
-the same series under two different release names counts as two different things, and a correction
-saved for one will not apply to the other. Settings shows what each correction applies to, so you
-can see why one stopped working instead of guessing.
+**A correction is tied to what the app matched, not to the file you were playing.** A video
+correction is filed against the title read out of the filename, so the same series under two
+release names counts as two different things and a correction saved for one will not apply to the
+other. An audio correction is filed against the artist and the record its tags name, so it covers
+the whole album at once. Audio with no tags has nothing to be filed against except the file itself,
+so that correction ends the day the file is moved or renamed. Settings spells out what each one
+applies to, so you can see why one stopped working instead of guessing.
 
 **VLC has to be restarted after the initial setup,** and again after any change to the port or the
 password, because VLC only reads `vlcrc` at startup.
 
 **Identification is confidence based and prefers silence.** If nothing scores well enough you get
-the filename and no cover, rather than a confident guess at the wrong show.
+the filename and no cover, rather than a confident guess at the wrong show. Replacing the text
+takes a better score than showing a cover does, so a file identified by its sound can end up with
+the right artwork and still read as its filename.
 
 **Windows only, as published.** The core has no Windows specific logic, but no macOS or Linux
 builds are produced or tested.
