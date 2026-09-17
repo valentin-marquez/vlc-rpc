@@ -1,87 +1,109 @@
-import { useStore } from "@nanostores/react"
-import { PauseIcon, PlayIcon, StopIcon } from "@radix-ui/react-icons"
-import { mediaStore, useProxiedArtwork } from "@renderer/features/media"
-import { vlcStatusStore } from "@renderer/features/vlc"
-import { ContentTypeBadge } from "./content-type-badge"
-import { MediaArtwork } from "./media-artwork"
-import { ProgressBar } from "./progress-bar"
+import {
+	PresenceCard,
+	type PresenceCardLiveProps,
+	type PresenceProgress,
+} from "@renderer/components/presence-card"
+import type { DiscordPresenceData, PresenceClearReason } from "@shared/presence/presence.types"
+import type { ActivityType } from "discord-api-types/v10"
 
+import { useLastPresence } from "../hooks/use-last-presence"
+import { usePresenceArtwork } from "../hooks/use-presence-artwork"
+
+// Read as wire numbers: discord-api-types is a transitive dependency of the RPC
+// client and has no business in the renderer bundle.
+const LISTENING: ActivityType = 2
+const WATCHING: ActivityType = 3
+
+// Four different facts, and the user acts on each of them differently, so they
+// are never folded into one empty state.
+const CLEARED_BECAUSE: Record<PresenceClearReason, string> = {
+	"rpc-disabled": "Rich presence is turned off",
+	"vlc-unavailable": "VLC is not reachable",
+	"playback-stopped": "VLC has nothing playing",
+	"loop-stopped": "Presence updates are stopped",
+}
+
+/**
+ * What Discord shows, as the main process reports having sent it rather than as
+ * this screen would have guessed. The three answers share one shell, so the page
+ * does not jump when the activity clears.
+ */
 export function NowPlaying(): JSX.Element {
-	const vlcStatus = useStore(vlcStatusStore)
-	const media = useStore(mediaStore)
-	const proxiedArtworkUrl = useProxiedArtwork()
-
-	const displayTitle = media.title
-	const isEpisode = media.season !== null && media.episode !== null
-	const isMovie = media.contentType === "movie" && media.year !== null
-
-	if (vlcStatus !== "connected") {
-		return (
-			<div className="bg-card text-card-foreground rounded-md border border-border p-8 text-center">
-				<div className="text-muted-foreground mb-2">
-					{vlcStatus === "connecting" ? (
-						<span className="animate-pulse">Connecting to VLC...</span>
-					) : (
-						<>VLC is not connected</>
-					)}
-				</div>
-				<p className="text-xs mt-2 text-muted-foreground">
-					Make sure VLC is running with HTTP interface enabled
-				</p>
-			</div>
-		)
-	}
-
-	if (!displayTitle) {
-		return (
-			<div className="bg-card text-card-foreground rounded-md border border-border p-8 text-center">
-				<StopIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-				<p className="text-muted-foreground">Nothing playing in VLC</p>
-				<p className="text-xs mt-2 text-muted-foreground">Play something in VLC to see it here</p>
-			</div>
-		)
-	}
-
-	return (
-		<div className="bg-card text-card-foreground rounded-md border border-border p-4">
-			<div className="flex flex-col sm:flex-row gap-4">
-				<MediaArtwork src={proxiedArtworkUrl} />
-
-				<div className="flex-1">
-					<div className="flex items-center mb-2">
-						{media.mediaStatus === "playing" ? (
-							<div className="flex items-center text-green-400 text-sm font-medium">
-								<PlayIcon className="mr-1.5" />
-								<span>Playing</span>
-							</div>
-						) : (
-							<div className="flex items-center text-muted-foreground text-sm font-medium">
-								<PauseIcon className="mr-1.5" />
-								<span>Paused</span>
-							</div>
-						)}
-						{media.contentType && <ContentTypeBadge contentType={media.contentType} />}
-					</div>
-
-					<h3 className="font-semibold text-lg">{displayTitle}</h3>
-
-					{isEpisode && (
-						<p className="text-sm mt-1">
-							Season {media.season} · Episode {media.episode}
-						</p>
-					)}
-
-					{isMovie && media.year && <p className="text-sm mt-1">{media.year}</p>}
-
-					{media.artist && <p className="mt-1">{media.artist}</p>}
-
-					{media.album && <p className="text-sm text-muted-foreground">{media.album}</p>}
-
-					{media.duration && (
-						<ProgressBar position={media.position || 0} duration={media.duration} />
-					)}
-				</div>
-			</div>
-		</div>
+	const lastPresence = useLastPresence()
+	const artworkUrl = usePresenceArtwork(
+		lastPresence.kind === "sent" ? lastPresence.presence.large_image : undefined,
 	)
+
+	if (lastPresence.kind === "unknown") {
+		return (
+			<PresenceCard kind="empty" header="No activity yet" message="Waiting for the first update" />
+		)
+	}
+
+	if (lastPresence.kind === "cleared") {
+		return (
+			<PresenceCard
+				kind="empty"
+				header="No activity"
+				message={CLEARED_BECAUSE[lastPresence.reason]}
+			/>
+		)
+	}
+
+	const { presence } = lastPresence
+
+	const card: PresenceCardLiveProps = {
+		kind: "presence",
+		header: presenceHeader(presence),
+		details: presence.details ?? "",
+		artworkUrl,
+	}
+
+	if (presence.state) {
+		card.state = presence.state
+	}
+	if (presence.large_text) {
+		card.largeText = presence.large_text
+	}
+
+	const progress = presenceProgress(presence)
+	if (progress) {
+		card.progress = progress
+	}
+
+	return <PresenceCard {...card} />
+}
+
+/** Discord's own verbs. An absent name falls back to the application's own. */
+function presenceHeader(presence: DiscordPresenceData): string {
+	if (presence.activity_type === WATCHING) {
+		return "Watching"
+	}
+	if (presence.activity_type === LISTENING) {
+		return `Listening to ${presence.name ?? "VLC"}`
+	}
+	return `Playing ${presence.name ?? "VLC"}`
+}
+
+/**
+ * The timestamps are absolute wall clock seconds, and Discord draws the bar from
+ * them against the viewer's own clock, so this reads them the same way. `sentAt`
+ * is epoch milliseconds and takes no part in the arithmetic. Paused playback
+ * carries no timestamps at all, which is why there is no bar to pause.
+ */
+function presenceProgress(presence: DiscordPresenceData): PresenceProgress | null {
+	const start = presence.start_timestamp
+	const end = presence.end_timestamp
+
+	if (start === undefined || end === undefined || end <= start) {
+		return null
+	}
+
+	const durationSeconds = end - start
+	const elapsed = Date.now() / 1000 - start
+
+	return {
+		elapsedSeconds: Math.min(Math.max(elapsed, 0), durationSeconds),
+		durationSeconds,
+	}
 }

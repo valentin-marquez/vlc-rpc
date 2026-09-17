@@ -1,26 +1,27 @@
 import { cn } from "@renderer/lib/utils"
 import React from "react"
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+export type InputProps = React.InputHTMLAttributes<HTMLInputElement>
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-	({ className, type, ...props }, ref) => {
-		return (
-			<input
-				type={type}
-				className={cn(
-					"flex h-10 w-full rounded-md border border-input bg-background px-3 py-2",
-					"text-sm ring-offset-background file:border-0 file:bg-transparent",
-					"file:text-sm file:font-medium placeholder:text-muted-foreground",
-					"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-					"disabled:cursor-not-allowed disabled:opacity-50",
-					className,
-				)}
-				ref={ref}
-				{...props}
-			/>
-		)
-	},
+	({ className, type = "text", ...props }, ref) => (
+		<input
+			ref={ref}
+			type={type}
+			className={cn(
+				"type-body flex h-10 w-full rounded-sm border border-transparent bg-inset px-3 text-body",
+				"placeholder:text-faint outline-none",
+				// An offset ring on a full width field inside a padded card clips, so focus is a
+				// border colour change plus a 1px inner shadow.
+				"focus-visible:border-brand focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--brand))]",
+				"aria-[invalid=true]:border-danger",
+				"aria-[invalid=true]:shadow-[inset_0_0_0_1px_hsl(var(--danger))]",
+				"disabled:cursor-not-allowed disabled:opacity-60",
+				className,
+			)}
+			{...props}
+		/>
+	),
 )
 
 Input.displayName = "Input"

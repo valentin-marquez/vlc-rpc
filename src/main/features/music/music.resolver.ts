@@ -1,8 +1,9 @@
 import { logger } from "@main/core/logger"
+import type { Override, OverrideTarget } from "@main/features/overrides"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import type { Cache } from "./music.cache"
 import { splitCollaboration } from "./music.credit"
-import { musicKey } from "./music.key"
+import { audioOverrideKey, musicKey, overrideCoversTrack } from "./music.key"
 import { albumMatches, pickBest } from "./music.scorer"
 import type {
 	CandidateRelease,
@@ -106,6 +107,13 @@ function orderReleases(
 		.map((entry) => entry.release)
 }
 
+/** The corrections the user typed by hand. A resolver only ever reads them. */
+export interface OverrideLookup {
+	get(key: string): Override | null
+	/** Whether a save under this key would be taken, asked before offering it. */
+	accepts(key: string): boolean
+}
+
 export class Resolver {
 	private readonly inflight = new Map<string, Promise<MusicResult | null>>()
 
@@ -114,6 +122,7 @@ export class Resolver {
 		private readonly itunes: MusicProvider,
 		private readonly musicbrainz: MusicProvider,
 		private readonly coverArt: CoverArtSource,
+		private readonly overrides: OverrideLookup,
 	) {}
 
 	public async resolve(status: VlcStatus): Promise<MusicResult | null> {
@@ -122,6 +131,13 @@ export class Resolver {
 		}
 
 		const query = buildQuery(status.media)
+
+		const overrideAt = audioOverrideKey(query)
+		const override = this.overrides.get(overrideAt)
+		if (override?.kind === "audio") {
+			return { cover: override.cover, provider: "override", id: overrideAt }
+		}
+
 		const key = musicKey(query)
 
 		const cached = this.cache.get(key)
@@ -142,6 +158,58 @@ export class Resolver {
 		} finally {
 			this.inflight.delete(key)
 		}
+	}
+
+	/**
+	 * The cover the user filed for this record, read from the store and nothing
+	 * else. `resolve` answers this too, but only after the file's own artwork has
+	 * already been preferred, and reaching it means a network round trip for every
+	 * track that carries artwork of its own.
+	 */
+	public overrideCoverFor(status: VlcStatus): string | null {
+		if (status.mediaType !== "audio") {
+			return null
+		}
+
+		const override = this.overrides.get(audioOverrideKey(buildQuery(status.media)))
+		return override?.kind === "audio" ? override.cover : null
+	}
+
+	/**
+	 * Where a correction for this file would be filed, without resolving it. It
+	 * has to come from here: the key is the record's, not the track's, and it is
+	 * built from `buildQuery`, which holds the credit splitting rules and stays
+	 * private to this file so there is only ever one derivation of it.
+	 *
+	 * `null` when the store would turn the key down, which for audio means a file
+	 * with no artist tag: its cover would otherwise become every untagged file's.
+	 */
+	public overrideTargetFor(status: VlcStatus): OverrideTarget | null {
+		if (status.mediaType !== "audio") {
+			return null
+		}
+
+		const key = audioOverrideKey(buildQuery(status.media))
+		if (!this.overrides.accepts(key)) {
+			return null
+		}
+
+		return { key, active: this.overrides.get(key)?.kind === "audio" }
+	}
+
+	/**
+	 * Drops what was cached for the record an audio override names, so removing
+	 * the correction later shows what the app deduces now and not the answer that
+	 * was cached before the correction was typed.
+	 *
+	 * It cannot be the cache's `delete`, the way the catalog's is. An override is
+	 * filed per record, the cache is keyed per track, and that key carries the
+	 * album last, after a credit of unknown length: the track keys of an album
+	 * cannot be derived from the override key, and no prefix of one is a prefix of
+	 * the others. Every cached key has to be tested instead.
+	 */
+	public evictOverride(key: string): void {
+		this.cache.deleteWhere((cached) => overrideCoversTrack(cached, key))
 	}
 
 	private async resolveUncached(query: TrackQuery, key: string): Promise<MusicResult | null> {

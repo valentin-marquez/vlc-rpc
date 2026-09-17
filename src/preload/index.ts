@@ -33,12 +33,18 @@ const api = {
 		startUpdateLoop: typedInvoke("discord:start-loop"),
 		stopUpdateLoop: typedInvoke("discord:stop-loop"),
 		reconnect: typedInvoke("discord:reconnect"),
+		getLastPresence: typedInvoke("discord:presence:last"),
 	},
 	media: {
 		getMediaInfo: typedInvoke("media:get-info"),
 	},
 	image: {
 		getAsDataUrl: typedInvoke("image:proxy"),
+	},
+	overrides: {
+		list: typedInvoke("overrides:list"),
+		save: typedInvoke("overrides:save"),
+		remove: typedInvoke("overrides:delete"),
 	},
 	app: {
 		minimize: typedInvoke("window:minimize"),

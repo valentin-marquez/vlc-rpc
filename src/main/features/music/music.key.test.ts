@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { musicKey } from "./music.key"
+import { audioOverrideKey, musicKey, overrideCoversTrack } from "./music.key"
 
 describe("musicKey", () => {
 	it("ignores case, accents and punctuation", () => {
@@ -80,5 +80,93 @@ describe("musicKey", () => {
 			title: "Probablemente",
 		})
 		expect(duet).not.toBe(solo)
+	})
+})
+
+describe("audioOverrideKey", () => {
+	it("gives every track of a record the same key, so one correction covers it", () => {
+		const first = audioOverrideKey({
+			artists: ["Christian Nodal"],
+			title: "Probablemente",
+			album: "Me Dejé Llevar",
+		})
+		const second = audioOverrideKey({
+			artists: ["Christian Nodal"],
+			title: "De Los Besos Que Te Di",
+			album: "Me Dejé Llevar",
+		})
+		expect(second).toBe(first)
+	})
+
+	it("ignores the collaborators the title's suffix contributed", () => {
+		const solo = audioOverrideKey({
+			artists: ["Christian Nodal"],
+			title: "Probablemente",
+			album: "Me Dejé Llevar",
+		})
+		const duet = audioOverrideKey({
+			artists: ["Christian Nodal", "David Bisbal"],
+			title: "Probablemente",
+			album: "Me Dejé Llevar",
+		})
+		expect(duet).toBe(solo)
+	})
+
+	it("falls back to the title when the file carries no album tag", () => {
+		const untagged = audioOverrideKey({ artists: ["Christian Nodal"], title: "Probablemente" })
+		expect(untagged).toBe("audio:christian nodal|probablemente")
+	})
+})
+
+describe("overrideCoversTrack", () => {
+	const record = {
+		artists: ["Christian Nodal"],
+		title: "Probablemente",
+		album: "Me Dejé Llevar",
+	}
+
+	it("matches another track of the same record, which no prefix of the key would", () => {
+		const sibling = musicKey({
+			artists: ["Christian Nodal"],
+			title: "De Los Besos Que Te Di",
+			album: "Me Dejé Llevar",
+		})
+		expect(overrideCoversTrack(sibling, audioOverrideKey(record))).toBe(true)
+	})
+
+	it("does not match another record by the same artist", () => {
+		const other = musicKey({ artists: ["Christian Nodal"], title: "Adiós Amor", album: "Ahora" })
+		expect(overrideCoversTrack(other, audioOverrideKey(record))).toBe(false)
+	})
+
+	it("does not match the same record credited to somebody else", () => {
+		const other = musicKey({
+			artists: ["David Bisbal"],
+			title: "Probablemente",
+			album: "Me Dejé Llevar",
+		})
+		expect(overrideCoversTrack(other, audioOverrideKey(record))).toBe(false)
+	})
+
+	it("matches a track credited to the artist among collaborators", () => {
+		const duet = musicKey({
+			artists: ["David Bisbal", "Christian Nodal"],
+			title: "Probablemente",
+			album: "Me Dejé Llevar",
+		})
+		expect(overrideCoversTrack(duet, audioOverrideKey(record))).toBe(true)
+	})
+
+	it("matches by title only for the untagged file the override was keyed from", () => {
+		const untagged = musicKey({ artists: ["Christian Nodal"], title: "Probablemente" })
+		const onTheAlbum = musicKey(record)
+		const key = audioOverrideKey({ artists: ["Christian Nodal"], title: "Probablemente" })
+
+		expect(overrideCoversTrack(untagged, key)).toBe(true)
+		expect(overrideCoversTrack(onTheAlbum, key)).toBe(false)
+	})
+
+	it("matches nothing for a key that belongs to the other feature", () => {
+		expect(overrideCoversTrack(musicKey(record), "tv:Red River|1")).toBe(false)
 	})
 })

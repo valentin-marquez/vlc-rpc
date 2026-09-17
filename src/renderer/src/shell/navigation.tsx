@@ -1,47 +1,55 @@
+import logo from "@renderer/assets/logo.png"
 import { cn } from "@renderer/lib/utils"
-import { Gear, House, Layout as LayoutPhosphor } from "phosphor-react"
+import { Gear, House, type Icon, Layout as LayoutIcon } from "phosphor-react"
 import { Link } from "wouter"
 import { useHashLocation } from "wouter/use-hash-location"
+
+interface NavItem {
+	path: string
+	label: string
+	icon: Icon
+}
+
+export const NAV_ITEMS: readonly NavItem[] = [
+	{ path: "/", label: "Home", icon: House },
+	{ path: "/layout", label: "Layout", icon: LayoutIcon },
+	{ path: "/settings", label: "Settings", icon: Gear },
+]
 
 export function Navigation(): JSX.Element {
 	const [location] = useHashLocation()
 
 	return (
-		<header className="sticky top-10 z-[9998] flex-shrink-0 h-14 px-4 border-b border-border flex items-center justify-center bg-card/50 text-card-foreground backdrop-blur-sm">
-			<nav className="flex space-x-2">
-				<NavLink to="/" active={location === "/"}>
-					<House size={18} weight="fill" className="mr-1.5" />
-					Home
-				</NavLink>
-				<NavLink to="/layout" active={location === "/layout"}>
-					<LayoutPhosphor size={18} weight="fill" className="mr-1.5" />
-					Layout
-				</NavLink>
-				<NavLink to="/settings" active={location === "/settings"}>
-					<Gear size={18} weight="fill" className="mr-1.5" />
-					Settings
-				</NavLink>
+		<div className="flex items-center gap-3">
+			<img src={logo} alt="" className="size-6 shrink-0" />
+
+			<nav aria-label="Main" className="no-drag flex items-center gap-1 rounded-md bg-inset p-1">
+				{NAV_ITEMS.map((item) => (
+					<NavTab key={item.path} item={item} active={location === item.path} />
+				))}
 			</nav>
-		</header>
+		</div>
 	)
 }
 
-function NavLink({
-	to,
-	active,
-	children,
-}: { to: string; active: boolean; children: React.ReactNode }): JSX.Element {
+function NavTab({ item, active }: { item: NavItem; active: boolean }): JSX.Element {
+	const Glyph = item.icon
+
 	return (
 		<Link
-			to={to}
+			to={item.path}
+			aria-current={active ? "page" : undefined}
 			className={cn(
-				"flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors",
+				"focus-discord flex h-8 items-center gap-2 rounded-sm px-3",
+				"type-caption font-medium",
+				"transition-colors ease-out-soft [transition-duration:var(--dur-tint)]",
 				active
-					? "bg-primary/10 text-primary"
-					: "text-muted-foreground hover:text-foreground hover:bg-secondary",
+					? "bg-float text-strong shadow-[0_1px_2px_rgb(0_0_0/0.35)]"
+					: "text-muted-foreground hover:text-body",
 			)}
 		>
-			{children}
+			<Glyph size={16} weight={active ? "fill" : "regular"} />
+			{item.label}
 		</Link>
 	)
 }

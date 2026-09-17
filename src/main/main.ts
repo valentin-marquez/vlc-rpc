@@ -9,6 +9,7 @@ import * as Cover from "@main/features/cover"
 import * as Discord from "@main/features/discord"
 import * as Media from "@main/features/media"
 import * as Music from "@main/features/music"
+import * as Overrides from "@main/features/overrides"
 import * as Presence from "@main/features/presence"
 import * as Updates from "@main/features/updates"
 import * as Vlc from "@main/features/vlc"
@@ -89,14 +90,20 @@ if (!gotTheLock) {
 
 		// Services that depend on the above
 		const cover = new Cover.Resolver(vlc, coverStore, coverUploader)
+		const overridesStore = new Overrides.Store(systemClock)
 		const catalogCache = new Catalog.Cache(systemClock)
-		const catalogResolver = new Catalog.Resolver(catalogCache, new Catalog.AniListProvider())
+		const catalogResolver = new Catalog.Resolver(
+			catalogCache,
+			new Catalog.AniListProvider(),
+			overridesStore,
+		)
 		const musicCache = new Music.Cache(systemClock)
 		const musicResolver = new Music.Resolver(
 			musicCache,
 			new Music.ITunesProvider(),
 			new Music.MusicBrainzProvider(),
 			new Music.CoverArtArchive(),
+			overridesStore,
 		)
 		const artwork = new Artwork.Resolver(cover, musicResolver)
 		const presence = new Presence.Service(artwork, catalogResolver)
@@ -109,11 +116,17 @@ if (!gotTheLock) {
 		// Handlers, one per feature
 		new App.AppInfoHandler(startup)
 		new Cover.MetadataHandler(coverStore)
-		new Media.MediaInfoHandler(artwork, catalogResolver, vlc, imageProxy)
+		new Media.MediaInfoHandler(artwork, catalogResolver, musicResolver, vlc, imageProxy)
+		const discordRpcHandler = new Discord.DiscordRpcHandler(discord, vlc, presence, systemClock)
+		// Both resolvers, because the key alone does not say which cache holds what
+		// the correction replaces, and each one answers only for its own keys. The
+		// rpc handler, because evicting a cache does not reach a presence already
+		// on screen: that loop diffs on what VLC reports, which a correction leaves
+		// untouched.
+		new Overrides.Handler(overridesStore, [catalogResolver, musicResolver], discordRpcHandler)
 		new Updates.UpdateHandler(updater)
 		new Vlc.VlcConfigHandler(vlc)
 		new Vlc.VlcStatusHandler(vlc)
-		const discordRpcHandler = new Discord.DiscordRpcHandler(discord, vlc, presence, systemClock)
 
 		const mainWindowPromise = window.createWindow()
 

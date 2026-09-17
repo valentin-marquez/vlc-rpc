@@ -1,4 +1,5 @@
 import { logger } from "@main/core/logger"
+import type { Override, OverrideTarget, VideoOverride } from "@main/features/overrides"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import type { Cache } from "./catalog.cache"
 import { catalogKey } from "./catalog.key"
@@ -12,12 +13,41 @@ import type {
 	ParsedVideo,
 } from "./catalog.types"
 
+/** The corrections the user typed by hand, keyed the way this feature keys. */
+export interface OverrideSource {
+	get(key: string): Override | null
+	/** Whether a save under this key would be taken, asked before offering it. */
+	accepts(key: string): boolean
+}
+
+/**
+ * A partial override composes with the local parse, never with a resolution.
+ * Falling back to the providers for the fields it leaves out would spend the
+ * request the override exists to avoid, and would make the same override answer
+ * differently depending on what the cache happened to hold. The form is
+ * prefilled with what the app deduced, so keeping a deduced cover is a matter of
+ * saving it, not of leaving the field empty.
+ */
+function applyOverride(override: VideoOverride, parsed: ParsedVideo): CachedWork {
+	// The same test `presence.state.ts` applies when there is no catalog result
+	// at all, so an override that omits the kind formats exactly as the filename
+	// alone would have.
+	const parsedKind = parsed.season !== undefined || parsed.episode !== undefined ? "tv" : "movie"
+
+	return {
+		title: override.title || parsed.title,
+		poster: override.cover ?? null,
+		mediaKind: override.mediaKind ?? parsedKind,
+	}
+}
+
 export class Resolver {
 	private readonly inflight = new Map<string, Promise<CatalogResult | null>>()
 
 	constructor(
 		private readonly cache: Cache,
 		private readonly anilist: CatalogProvider,
+		private readonly overrides: OverrideSource,
 	) {}
 
 	public async resolve(status: VlcStatus): Promise<CatalogResult | null> {
@@ -27,6 +57,14 @@ export class Resolver {
 
 		const parsed = parse(status.media.title)
 		const key = catalogKey(parsed)
+
+		// Ahead of the cache on purpose: the user already answered this question,
+		// so there is nothing to look up and no provider worth asking.
+		const override = this.overrides.get(key)
+		if (override?.kind === "video") {
+			const work = applyOverride(override, parsed)
+			return { ...work, season: parsed.season, episode: parsed.episode }
+		}
 
 		const cached = this.cache.get(key)
 		if (cached) {
@@ -49,6 +87,40 @@ export class Resolver {
 		} finally {
 			this.inflight.delete(key)
 		}
+	}
+
+	/**
+	 * Where a correction for this file would be filed, without resolving it. The
+	 * key never leaves this feature otherwise, and the media that most needs a
+	 * correction is the media `resolve` answers `null` for: western film and
+	 * television have no provider, so a key that travelled only with a result
+	 * would reach the renderer for everything except the reason it exists.
+	 *
+	 * `null` when the store would turn the key down, so nothing offers the user a
+	 * form that cannot be saved.
+	 */
+	public overrideTargetFor(status: VlcStatus): OverrideTarget | null {
+		if (status.mediaType !== "video" || !status.media.title) {
+			return null
+		}
+
+		const key = catalogKey(parse(status.media.title))
+		if (!this.overrides.accepts(key)) {
+			return null
+		}
+
+		return { key, active: this.overrides.get(key)?.kind === "video" }
+	}
+
+	/**
+	 * Drops what was cached under the identity an override names, so removing the
+	 * correction later shows what the app deduces now and not the answer that was
+	 * cached before the correction was typed. A video override is filed under the
+	 * very `catalogKey` the cache uses, so one delete is the whole job. A key from
+	 * another feature simply matches nothing here.
+	 */
+	public evictOverride(key: string): void {
+		this.cache.delete(key)
 	}
 
 	private async resolveUncached(parsed: ParsedVideo, key: string): Promise<CatalogResult | null> {

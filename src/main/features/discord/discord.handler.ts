@@ -5,6 +5,7 @@ import { logger } from "@main/core/logger"
 import { Timeline, presenceKey } from "@main/features/presence"
 import type { Service as PresenceService } from "@main/features/presence"
 import type { Client as VlcClient } from "@main/features/vlc"
+import type { LastSentPresence, PresenceClearReason } from "@shared/presence/presence.types"
 import type { Client as DiscordClient } from "./discord.client"
 
 /**
@@ -16,15 +17,28 @@ export class DiscordRpcHandler {
 	private lastSentKey: string | null = null
 	private wasConnected = false
 	private presenceCleared = false
+	private lastPresence: LastSentPresence = { kind: "unknown" }
 
 	constructor(
 		private readonly discord: DiscordClient,
 		private readonly vlc: VlcClient,
 		private readonly presence: PresenceService,
-		clock: Clock,
+		private readonly clock: Clock,
 	) {
 		this.timeline = new Timeline(clock)
 		this.registerHandlers()
+	}
+
+	/**
+	 * Resend on the next tick even though nothing VLC reports has changed.
+	 *
+	 * The poll skips Discord whenever `presenceKey` is unchanged, and that key is
+	 * built from what VLC reports, which a manual correction does not touch. So
+	 * correcting a cover two minutes into an episode would otherwise leave the old
+	 * one on screen for the rest of it, and forever on a track that repeats.
+	 */
+	public forceNextUpdate(): void {
+		this.lastSentKey = null
 	}
 
 	private registerHandlers(): void {
@@ -77,6 +91,18 @@ export class DiscordRpcHandler {
 		registerHandler("discord:rpc:status", () => {
 			return this.discord.isRpcEnabled()
 		})
+
+		registerHandler("discord:presence:last", () => {
+			return this.getLastPresence()
+		})
+	}
+
+	/**
+	 * What Discord was actually given, so the renderer can show the presence
+	 * instead of rebuilding it from the same status and hoping the two agree.
+	 */
+	public getLastPresence(): LastSentPresence {
+		return this.lastPresence
 	}
 
 	private pollIntervalMs(): number {
@@ -124,6 +150,7 @@ export class DiscordRpcHandler {
 		this.lastSentKey = null
 		this.wasConnected = false
 		this.presenceCleared = false
+		this.lastPresence = { kind: "cleared", reason: "loop-stopped" }
 
 		this.discord.clear().catch((error) => {
 			logger.error(`Error clearing Discord presence: ${error}`)
@@ -140,7 +167,7 @@ export class DiscordRpcHandler {
 			if (!this.discord.isRpcEnabled()) {
 				// Skipping the update is not enough: the last activity would stay
 				// pinned on Discord while the user believes they are hidden.
-				return await this.pushClear()
+				return await this.pushClear("rpc-disabled")
 			}
 
 			const isConnected = this.discord.isConnected()
@@ -149,7 +176,7 @@ export class DiscordRpcHandler {
 
 			const vlcStatus = await this.vlc.readStatus(force)
 			if (!vlcStatus) {
-				return this.pushClear()
+				return this.pushClear("vlc-unavailable")
 			}
 
 			const window = this.timeline.update(vlcStatus)
@@ -161,13 +188,20 @@ export class DiscordRpcHandler {
 
 			const presenceData = await this.presence.getDiscordPresence(vlcStatus, window)
 			if (!presenceData) {
-				return this.pushClear()
+				return this.pushClear("playback-stopped")
 			}
 
 			const sent = await this.discord.update(presenceData)
 			if (sent) {
 				this.lastSentKey = key
 				this.presenceCleared = false
+				// Recorded only once Discord accepted it, so a refused update never
+				// shows up as an activity nobody can see.
+				this.lastPresence = {
+					kind: "sent",
+					presence: presenceData,
+					sentAt: this.clock.now(),
+				}
 			}
 			return sent
 		} catch (error) {
@@ -181,8 +215,9 @@ export class DiscordRpcHandler {
 	 * clear is sent once and repeated only if it failed, for example because
 	 * Discord was not connected at the time.
 	 */
-	private async pushClear(): Promise<boolean> {
+	private async pushClear(reason: PresenceClearReason): Promise<boolean> {
 		this.lastSentKey = null
+		this.lastPresence = { kind: "cleared", reason }
 
 		if (this.presenceCleared) {
 			return true

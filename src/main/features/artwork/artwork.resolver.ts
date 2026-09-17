@@ -7,14 +7,20 @@ export interface FileCover {
 	fetch(status: VlcStatus | null): Promise<CoverOutcome>
 }
 
-/** An external catalog, which knows nothing about the file on disk. */
+/** The music feature, which owns both the corrections and the catalogs. */
 export interface MusicCatalog {
 	resolve(status: VlcStatus): Promise<MusicResult | null>
+	/**
+	 * The cover the user typed for this file, or `null`. A narrow question on
+	 * purpose: how a record is keyed stays inside `music`, and the answer is a
+	 * local read, so asking it of every track costs nothing.
+	 */
+	overrideCoverFor(status: VlcStatus): string | null
 }
 
 /**
- * Picks the image to show for an audio track: the file's own artwork when it is
- * up, an external catalog when the file has none.
+ * Picks the image to show for an audio track: the correction the user typed,
+ * then the file's own artwork, then an external catalog.
  *
  * It sits above both features so `cover` never learns that catalogs exist, and
  * so the rule below lives in one place instead of at each of its three call
@@ -27,6 +33,14 @@ export class Resolver {
 	) {}
 
 	public async resolve(status: VlcStatus): Promise<string | null> {
+		// First, and without reading the file: the user already said what this
+		// record looks like, so the embedded artwork has nothing left to win and
+		// uploading it would be work done to be discarded.
+		const corrected = this.music.overrideCoverFor(status)
+		if (corrected !== null) {
+			return corrected
+		}
+
 		const outcome = await this.cover.fetch(status)
 
 		switch (outcome.kind) {
@@ -35,9 +49,10 @@ export class Resolver {
 
 			case "publish-failed":
 				// The file does carry artwork, it just could not be uploaded this
-				// time, and its own artwork beats anything a catalog could supply.
-				// The right answer is to retry the upload on a later poll, which the
-				// cover resolver already arranges by not caching this outcome.
+				// time. Only a correction outranks it, and that was asked for above and
+				// is not there, so a catalog guess does not get to stand in. The right
+				// answer is to retry the upload on a later poll, which the cover
+				// resolver already arranges by not caching this outcome.
 				return null
 
 			case "no-artwork": {

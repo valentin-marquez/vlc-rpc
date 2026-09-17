@@ -73,6 +73,19 @@ export class Cache {
 		this.conf.set("entries", entries)
 	}
 
+	// Saving an override has to evict whatever was cached under its key, or the
+	// user corrects an answer that was already cached, later deletes the
+	// override, and the wrong answer comes back. Resolved entries have no TTL,
+	// so "comes back" can mean until the 200 entry cap pushes it out.
+	public delete(key: string): void {
+		const entries = this.conf.get("entries")
+		// Every `conf.set` is a synchronous full file write, so a delete of a key
+		// that was never there writes nothing.
+		if (!(key in entries)) return
+		delete entries[key]
+		this.conf.set("entries", entries)
+	}
+
 	// Unresolved entries do not count against the resolved cap, so without this
 	// every unmatched video a user ever played would leave a permanent row.
 	private dropExpired(entries: Record<string, CacheEntry>): void {

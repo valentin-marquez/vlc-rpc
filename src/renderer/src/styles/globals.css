@@ -2,157 +2,259 @@
 @import "tailwindcss";
 
 @theme {
+	--color-chrome: hsl(var(--surface-chrome));
+	--color-inset: hsl(var(--surface-inset));
+	--color-canvas: hsl(var(--surface-canvas));
+	--color-float: hsl(var(--surface-float));
+	--color-raised: hsl(var(--surface-raised));
+	--color-divider: hsl(var(--divider));
+
+	--color-strong: hsl(var(--text-strong));
+	--color-body: hsl(var(--text-body));
+	--color-faint: hsl(var(--text-faint));
+
+	--color-brand: hsl(var(--brand));
+	--color-brand-hover: hsl(var(--brand-hover));
+	--color-brand-press: hsl(var(--brand-press));
+	--color-brand-text: hsl(var(--brand-text));
+	--color-brand-wash: hsl(var(--brand) / 0.16);
+
+	--color-ok: hsl(var(--ok));
+	--color-ok-text: hsl(var(--ok-text));
+	--color-warn: hsl(var(--warn));
+	--color-warn-text: hsl(var(--warn-text));
+	--color-danger: hsl(var(--danger));
+	--color-danger-text: hsl(var(--danger-text));
+	--color-danger-wash: hsl(var(--danger) / 0.14);
+
+	/* shadcn names, kept as aliases onto the ladder above so components migrate incrementally */
 	--color-background: hsl(var(--background));
 	--color-foreground: hsl(var(--foreground));
-
 	--color-card: hsl(var(--card));
-	--color-card-foreground: hsl(var(--card-foreground));
-
-	--color-popover: hsl(var(--popover));
-	--color-popover-foreground: hsl(var(--popover-foreground));
-
-	--color-primary: hsl(var(--primary));
-	--color-primary-foreground: hsl(var(--primary-foreground));
-
-	--color-secondary: hsl(var(--secondary));
-	--color-secondary-foreground: hsl(var(--secondary-foreground));
-
 	--color-muted: hsl(var(--muted));
 	--color-muted-foreground: hsl(var(--muted-foreground));
 
-	--color-accent: hsl(var(--accent));
-	--color-accent-foreground: hsl(var(--accent-foreground));
+	--radius-xs: 4px;
+	--radius-sm: 6px;
+	--radius-md: 8px;
+	--radius-lg: 12px;
+	--radius-xl: 16px;
+	--radius-pill: 999px;
 
-	--color-destructive: hsl(var(--destructive));
-	--color-destructive-foreground: hsl(var(--destructive-foreground));
+	--ease-out-soft: var(--ease-out);
+	--ease-spring-press: var(--spring-press);
+	--ease-spring-snap: var(--spring-snap);
+	--ease-spring-enter: var(--spring-enter);
+	--ease-spring-bounce: var(--spring-bounce);
 
-	--color-border: hsl(var(--border));
-	--color-input: hsl(var(--input));
-	--color-ring: hsl(var(--ring));
-
-	--color-chart-1: hsl(var(--chart-1));
-	--color-chart-2: hsl(var(--chart-2));
-	--color-chart-3: hsl(var(--chart-3));
-	--color-chart-4: hsl(var(--chart-4));
-	--color-chart-5: hsl(var(--chart-5));
-
-	--color-sidebar: hsl(var(--sidebar-background));
-	--color-sidebar-foreground: hsl(var(--sidebar-foreground));
-	--color-sidebar-primary: hsl(var(--sidebar-primary));
-	--color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-	--color-sidebar-accent: hsl(var(--sidebar-accent));
-	--color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-	--color-sidebar-border: hsl(var(--sidebar-border));
-	--color-sidebar-ring: hsl(var(--sidebar-ring));
-
-	--radius-lg: var(--radius);
-	--radius-md: calc(var(--radius) - 2px);
-	--radius-sm: calc(var(--radius) - 4px);
 	--font-sans: "Inter Variable", sans-serif;
 }
 
 @layer base {
-	/* Discord-inspired color scheme */
 	:root {
-		/* Main background - Discord dark theme background */
-		--background: 220 8% 7%;
-		--foreground: 210 9% 100%;
+		/* Surfaces. Chrome is darkest, canvas is the lightest large plane, cards recess below it. */
+		--surface-chrome: 0 0% 0%;
+		--surface-inset: 234 14% 12%;
+		--surface-card: 234 12% 17%;
+		--surface-canvas: 234 10% 21%;
+		--surface-float: 234 9% 25%;
+		--surface-raised: 234 8% 30%;
+		--divider: 234 8% 27%;
 
-		/* Card background - Discord embed/card color */
-		--card: 220 8% 10%;
-		--card-foreground: 210 9% 100%;
+		--text-strong: 228 14% 96%;
+		--text-body: 228 9% 88%;
+		--text-muted: 228 8% 64%;
+		--text-faint: 228 7% 50%;
 
-		/* Popover - matching Discord's dropdowns */
-		--popover: 220 8% 10%;
-		--popover-foreground: 210 9% 100%;
+		/* Blurple is a fill, Light Blurple is the text: --brand as a label measures 2.84:1. */
+		--brand: 235 86% 65%;
+		--brand-hover: 235 51% 52%;
+		--brand-press: 235 47% 44%;
+		--brand-text: 234 100% 94%;
 
-		/* Primary - Discord's blurple */
-		--primary: 235 86% 65%;
-		--primary-foreground: 0 0% 100%;
+		--ok: 145 65% 39%;
+		--ok-text: 145 52% 58%;
+		--warn: 38 87% 57%;
+		--warn-text: 38 90% 68%;
+		--danger: 359 71% 54%;
+		--danger-text: 359 90% 76%;
 
-		/* Secondary - Discord's secondary buttons */
-		--secondary: 223 7% 20%;
-		--secondary-foreground: 210 9% 100%;
+		--background: var(--surface-canvas);
+		--foreground: var(--text-body);
+		--card: var(--surface-card);
+		--muted: var(--surface-inset);
+		--muted-foreground: var(--text-muted);
+		--radius: 8px;
 
-		/* Muted - Discord's muted channels/text */
-		--muted: 223 6% 14%;
-		--muted-foreground: 215 8% 75%;
-
-		/* Accent - Discord's mention/highlight */
-		--accent: 235 46% 90%;
-		--accent-foreground: 235 86% 65%;
-
-		/* Destructive - Discord's delete/danger color */
-		--destructive: 359 80% 60%;
-		--destructive-foreground: 0 0% 100%;
-
-		/* Border - Discord's separator lines */
-		--border: 223 7% 18%;
-		--input: 223 7% 18%;
-		--ring: 235 86% 65%;
-
-		/* Chart colors */
-		--chart-1: 235 86% 65%;
-		--chart-2: 223 6% 22%;
-		--chart-3: 359 80% 60%;
-		--chart-4: 142 65% 39%;
-		--chart-5: 0 0% 100%;
-
-		/* Sidebar - Discord's channel list */
-		--sidebar-background: 220 8% 6%;
-		--sidebar-foreground: 210 9% 100%;
-		--sidebar-primary: 235 86% 65%;
-		--sidebar-primary-foreground: 0 0% 100%;
-		--sidebar-accent: 235 86% 97%;
-		--sidebar-accent-foreground: 235 86% 65%;
-		--sidebar-border: 223 7% 15%;
-		--sidebar-ring: 235 86% 65%;
-
-		/* Rounded corners like Discord */
-		--radius: 0.375rem;
+		/* Damped harmonic oscillator sampled to settling, so springs need no runtime library. */
+		--spring-press: linear(
+			0,
+			0.0704,
+			0.2145,
+			0.3719,
+			0.5156,
+			0.6358,
+			0.7313,
+			0.8046,
+			0.8595,
+			0.9,
+			0.9293,
+			0.9504,
+			0.9654,
+			0.976,
+			0.9834,
+			0.9886,
+			0.9921,
+			0.9946,
+			0.9963
+		);
+		--spring-press-duration: 130ms;
+		--spring-snap: linear(
+			0,
+			0.0447,
+			0.1483,
+			0.2772,
+			0.4102,
+			0.5345,
+			0.6437,
+			0.7353,
+			0.8095,
+			0.8675,
+			0.9115,
+			0.944,
+			0.9671,
+			0.9831,
+			0.9936,
+			1.0001,
+			1.0039,
+			1.0057,
+			1.0063,
+			1.0061,
+			1.0055,
+			1.0047,
+			1.0039
+		);
+		--spring-snap-duration: 178ms;
+		--spring-enter: linear(
+			0,
+			0.0238,
+			0.0828,
+			0.1623,
+			0.2517,
+			0.3436,
+			0.4331,
+			0.5171,
+			0.5936,
+			0.662,
+			0.7218,
+			0.7735,
+			0.8175,
+			0.8544,
+			0.8852,
+			0.9105,
+			0.931,
+			0.9476,
+			0.9608,
+			0.9712,
+			0.9793,
+			0.9856,
+			0.9903,
+			0.9939,
+			0.9965
+		);
+		--spring-enter-duration: 201ms;
+		--spring-bounce: linear(
+			0,
+			0.0484,
+			0.1655,
+			0.3166,
+			0.4759,
+			0.6263,
+			0.7572,
+			0.8639,
+			0.9451,
+			1.0026,
+			1.0395,
+			1.0599,
+			1.0676,
+			1.0665,
+			1.0598,
+			1.0501,
+			1.0393,
+			1.0287,
+			1.0193,
+			1.0115,
+			1.0054,
+			1.001,
+			0.998,
+			0.9963,
+			0.9955,
+			0.9954,
+			0.9957,
+			0.9964,
+			0.9971
+		);
+		--spring-bounce-duration: 351ms;
+		--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+		--dur-tint: 120ms;
 	}
-}
 
-@layer base {
-	* {
-		scrollbar-width: thin;
-		scrollbar-color: hsl(var(--primary)) hsl(var(--muted));
-	}
-
-	/* Nicer scrollbars like Discord */
-	*::-webkit-scrollbar {
-		width: 8px;
-		height: 8px;
-	}
-
-	*::-webkit-scrollbar-track {
-		background: hsl(var(--muted));
-		border-radius: 4px;
-	}
-
-	*::-webkit-scrollbar-thumb {
-		background-color: hsl(var(--secondary));
-		border-radius: 4px;
-	}
-
-	*::-webkit-scrollbar-thumb:hover {
-		background-color: hsl(var(--primary) / 0.8);
+	/* The document never scrolls. Scrolling is a property of a leaf region. */
+	html,
+	body,
+	#root {
+		block-size: 100%;
+		overflow: hidden;
 	}
 
 	body {
-		@apply overscroll-y-none bg-background text-foreground font-sans antialiased;
+		@apply bg-background text-foreground font-sans antialiased;
+		font-size: 14px;
+		font-optical-sizing: auto;
 	}
 }
 
-/* Discord-style focus rings */
-@layer utilities {
-	.focus-discord {
-		@apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
-	}
-}
-
-/* Custom styles for the titlebar */
 @layer components {
+	.type-eyebrow {
+		font-size: 11px;
+		font-weight: 700;
+		line-height: 1.2;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.type-caption {
+		font-size: 12px;
+		font-weight: 400;
+		line-height: 1.4;
+	}
+
+	.type-body {
+		font-size: 14px;
+		font-weight: 400;
+		line-height: 1.5;
+	}
+
+	.type-label {
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 1.4;
+	}
+
+	.type-title {
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 1.3;
+		letter-spacing: -0.005em;
+	}
+
+	.type-hero {
+		font-size: 20px;
+		font-weight: 700;
+		line-height: 1.25;
+		letter-spacing: -0.015em;
+	}
+
 	.app-titlebar {
 		-webkit-app-region: drag;
 	}
@@ -166,6 +268,66 @@
 	}
 }
 
-@utility no-scrollbar {
-	@apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+/* A scrollbar inside a region is a different object from one down the edge of the window. */
+@utility scroll-region {
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
+	scrollbar-width: thin;
+	scrollbar-color: hsl(var(--surface-raised)) transparent;
+
+	&::-webkit-scrollbar {
+		width: 10px;
+	}
+
+	&::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	&::-webkit-scrollbar-thumb {
+		background-color: hsl(var(--surface-raised));
+		border-radius: 5px;
+	}
+
+	&::-webkit-scrollbar-thumb:hover {
+		background-color: hsl(var(--text-faint));
+	}
+}
+
+@utility focus-discord {
+	@apply outline-none focus-visible:ring-2 focus-visible:ring-brand-text focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+}
+
+/* Reduced motion means fewer and gentler, not zero: movement goes, tinting stays. */
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--spring-press: var(--ease-out);
+		--spring-press-duration: 0ms;
+		--spring-snap: var(--ease-out);
+		--spring-snap-duration: 0ms;
+		--spring-enter: var(--ease-out);
+		--spring-enter-duration: 0ms;
+		--spring-bounce: var(--ease-out);
+		--spring-bounce-duration: 0ms;
+	}
+
+	/* Tailwind v4 compiles scale-*, translate-* and rotate-* to the standalone
+	   scale, translate and rotate properties, which transform: none does not reach. */
+	.toast,
+	.onboarding-step,
+	.button {
+		transform: none !important;
+		scale: none !important;
+		translate: none !important;
+		rotate: none !important;
+	}
+
+	.spinner {
+		animation: none !important;
+	}
+}
+
+/* Two looping animations exist. Neither should burn GPU while nobody is looking. */
+:root[data-window-idle] .spinner {
+	animation-play-state: paused;
 }

@@ -11,3 +11,6 @@ out
 .agents/
 AGENTS.md
 skills-lock.json
+# Screenshot and browser automation debris. Nothing legitimate is a PNG at the repo root.
+/*.png
+/.playwright-mcp/

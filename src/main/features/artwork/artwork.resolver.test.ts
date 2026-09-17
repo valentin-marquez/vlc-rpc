@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest"
 import { type FileCover, type MusicCatalog, Resolver } from "./artwork.resolver"
 
 const CATALOG_COVER = "https://catalog.example/cover.jpg"
+const OVERRIDE_COVER = "https://corrected.example/right.jpg"
 
 function status(): VlcStatus {
 	return {
@@ -29,13 +30,14 @@ function fakeCover(outcome: CoverOutcome) {
 	return { cover, calls }
 }
 
-function fakeMusic(result: MusicResult | null) {
+function fakeMusic(result: MusicResult | null, override: string | null = null) {
 	const calls = { resolve: 0 }
 	const music: MusicCatalog = {
 		resolve: async () => {
 			calls.resolve++
 			return result
 		},
+		overrideCoverFor: () => override,
 	}
 	return { music, calls }
 }
@@ -67,6 +69,33 @@ describe("Artwork resolver", () => {
 		const resolver = new Resolver(cover.cover, music.music)
 
 		expect(await resolver.resolve(status())).toBeNull()
+		expect(music.calls.resolve).toBe(0)
+	})
+
+	it("shows the correction the user typed over the artwork the file carries", async () => {
+		const cover = fakeCover({ kind: "published", url: "https://uploads.example/local.jpg" })
+		const music = fakeMusic(catalogHit, OVERRIDE_COVER)
+		const resolver = new Resolver(cover.cover, music.music)
+
+		expect(await resolver.resolve(status())).toBe(OVERRIDE_COVER)
+		expect(cover.calls.fetch).toBe(0)
+		expect(music.calls.resolve).toBe(0)
+	})
+
+	it("shows the correction when the file's own artwork could not be published", async () => {
+		const cover = fakeCover({ kind: "publish-failed" })
+		const music = fakeMusic(catalogHit, OVERRIDE_COVER)
+		const resolver = new Resolver(cover.cover, music.music)
+
+		expect(await resolver.resolve(status())).toBe(OVERRIDE_COVER)
+	})
+
+	it("shows the correction over a catalog cover when the file carries no artwork", async () => {
+		const cover = fakeCover({ kind: "no-artwork" })
+		const music = fakeMusic(catalogHit, OVERRIDE_COVER)
+		const resolver = new Resolver(cover.cover, music.music)
+
+		expect(await resolver.resolve(status())).toBe(OVERRIDE_COVER)
 		expect(music.calls.resolve).toBe(0)
 	})
 

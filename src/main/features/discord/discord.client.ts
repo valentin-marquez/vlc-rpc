@@ -216,9 +216,6 @@ export class Client {
 		try {
 			const config = configService.get()
 
-			// Log the presence data for debugging
-			logger.info("Updating Discord Rich Presence with data:", presenceData)
-
 			const activity: SetActivity = {
 				largeImageKey: presenceData.large_image || config.largeImage,
 				largeImageText: presenceData.large_text || "VLC Media Player",
@@ -273,9 +270,6 @@ export class Client {
 			} else {
 				activity.type = 0
 			}
-
-			// Log the final activity object for debugging
-			logger.info("Final activity object sent to Discord:", activity)
 
 			await this.rpc.user.setActivity(activity)
 			logger.info("Updated Discord Rich Presence")

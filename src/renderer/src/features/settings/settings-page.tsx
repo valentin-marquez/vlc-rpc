@@ -1,28 +1,44 @@
 import { useStore } from "@nanostores/react"
 import { configStore } from "@renderer/stores/config.store"
+import { useEffect, useState } from "react"
+import { AboutPanel } from "./components/about-panel"
 import { AppSettingsPanel } from "./components/app-settings-panel"
+import { OverridesPanel } from "./components/overrides-panel"
 import { VlcConfigForm } from "./components/vlc-config-form"
+import { type SystemInfo, readSystemInfo } from "./system-info"
 
 export function SettingsPage(): JSX.Element {
 	const config = useStore(configStore)
+	const [system, setSystem] = useState<SystemInfo>({ kind: "loading" })
+
+	useEffect(() => {
+		let listening = true
+
+		readSystemInfo().then((info) => {
+			if (listening) {
+				setSystem(info)
+			}
+		})
+
+		return () => {
+			listening = false
+		}
+	}, [])
 
 	if (!config) {
-		return <div className="p-6 text-center text-foreground">Loading configuration...</div>
+		return <p className="type-body text-muted-foreground">Loading your settings</p>
 	}
 
 	return (
-		<div className="max-w-6xl mx-auto no-scrollbar">
-			<div className="mb-6">
-				<h1 className="text-2xl font-bold mb-1">Settings</h1>
-				<p className="text-muted-foreground">Configure VLC Discord Rich Presence</p>
-			</div>
-
-			{/* items-start so each card keeps its own height instead of the
-			    shorter one stretching to match its neighbour. */}
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-				<VlcConfigForm initialConfig={config.vlc} />
-				<AppSettingsPanel config={config} />
-			</div>
+		<div className="flex flex-col gap-8">
+			<h1 className="sr-only">Settings</h1>
+			<AppSettingsPanel
+				config={config}
+				canStartWithSystem={system.kind === "ready" && !system.isPortable}
+			/>
+			<VlcConfigForm initialConfig={config.vlc} />
+			<OverridesPanel />
+			<AboutPanel info={system} />
 		</div>
 	)
 }

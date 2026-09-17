@@ -1,11 +1,20 @@
-import {
-	CheckCircledIcon,
-	Cross1Icon,
-	DownloadIcon,
-	ExclamationTriangleIcon,
-	ReloadIcon,
-} from "@radix-ui/react-icons"
+import { Button } from "@renderer/components/ui/button"
+import { cn } from "@renderer/lib/utils"
+import { ArrowClockwise, CheckCircle, DownloadSimple, Warning, X } from "phosphor-react"
+import { useEffect, useState } from "react"
 import { useUpdateListener } from "../hooks/use-update-listener"
+
+type Phase = "closed" | "opening" | "open" | "closing"
+
+const EXIT_DURATION_MS = 140
+
+// The exit is faster because the user has already decided and is only waiting on the system.
+// Opacity rides --dur-tint rather than the spring so that reduced motion, which zeroes the spring
+// duration, drops the travel and keeps the fade. A toast that pops in unannounced is what the
+// setting is meant to prevent.
+const ENTER_MOTION =
+	"[transition:transform_var(--spring-enter-duration)_var(--spring-enter),opacity_var(--dur-tint)_var(--ease-out)]"
+const EXIT_MOTION = "[transition:transform_140ms_var(--ease-out),opacity_140ms_var(--ease-out)]"
 
 export function UpdateNotification(): JSX.Element | null {
 	const {
@@ -19,85 +28,115 @@ export function UpdateNotification(): JSX.Element | null {
 		closeNotification,
 	} = useUpdateListener()
 
-	if (!visible) return null
+	const [phase, setPhase] = useState<Phase>("closed")
+
+	useEffect(() => {
+		if (visible) {
+			setPhase("opening")
+			return
+		}
+		setPhase((current) => (current === "closed" ? "closed" : "closing"))
+	}, [visible])
+
+	useEffect(() => {
+		if (phase === "opening") {
+			const raf = requestAnimationFrame(() => setPhase("open"))
+			return () => cancelAnimationFrame(raf)
+		}
+		if (phase === "closing") {
+			const timeout = setTimeout(() => setPhase("closed"), EXIT_DURATION_MS)
+			return () => clearTimeout(timeout)
+		}
+		return undefined
+	}, [phase])
+
+	if (phase === "closed") return null
+
+	const isError = status === "error"
+	const open = phase === "open"
 
 	return (
-		<div className="fixed bottom-4 right-4 z-50 w-96 bg-card rounded-lg border border-border shadow-lg overflow-hidden">
-			<div className="flex items-center justify-between bg-card p-3 border-b border-border">
-				<div className="flex items-center space-x-2">
-					{status === "error" && <ExclamationTriangleIcon className="h-5 w-5 text-destructive" />}
-					{status === "update-available" && <ReloadIcon className="h-5 w-5 text-primary" />}
-					{status === "download-progress" && <DownloadIcon className="h-5 w-5 text-primary" />}
+		<div
+			role={isError ? "alert" : "status"}
+			aria-live={isError ? "assertive" : "polite"}
+			aria-atomic="true"
+			className={cn(
+				"toast fixed bottom-4 right-4 z-50 w-[360px] overflow-hidden rounded-lg border border-divider bg-float shadow-[0_8px_24px_rgb(0_0_0/0.45)]",
+				phase === "closing" ? EXIT_MOTION : ENTER_MOTION,
+				open ? "opacity-100 [transform:translateY(0)]" : "opacity-0 [transform:translateY(12px)]",
+			)}
+		>
+			<div className="flex items-center justify-between gap-2 border-b border-divider p-3">
+				<div className="flex items-center gap-2">
+					{isError && <Warning className="size-5 text-danger-text" aria-hidden="true" />}
+					{status === "update-available" && (
+						<ArrowClockwise className="size-5 text-brand-text" aria-hidden="true" />
+					)}
+					{status === "download-progress" && (
+						<DownloadSimple className="size-5 text-brand-text" aria-hidden="true" />
+					)}
 					{status === "update-downloaded" && (
-						<CheckCircledIcon className="h-5 w-5 text-green-500" />
+						<CheckCircle className="size-5 text-ok-text" aria-hidden="true" />
 					)}
 
-					<h3 className="font-medium text-card-foreground">
-						{status === "error" && "Update Error"}
-						{status === "update-available" && "Update Available"}
-						{status === "download-progress" && "Downloading Update"}
-						{status === "update-downloaded" && "Update Ready"}
+					<h3 className="type-label text-strong">
+						{isError && "Update error"}
+						{status === "update-available" && "Update available"}
+						{status === "download-progress" && "Downloading update"}
+						{status === "update-downloaded" && "Update ready"}
 					</h3>
 				</div>
 
-				<button
-					type="button"
+				<Button
+					variant="ghost"
+					size="icon"
 					onClick={closeNotification}
-					className="text-muted-foreground hover:text-foreground"
-					aria-label="Close"
+					aria-label="Close notification"
 				>
-					<Cross1Icon className="h-4 w-4" />
-				</button>
+					<X aria-hidden="true" />
+				</Button>
 			</div>
 
 			<div className="p-4">
-				{status === "error" && (
+				{isError && (
 					<div>
-						<p className="text-destructive mb-3">{error}</p>
-						<button
-							type="button"
-							onClick={checkForUpdates}
-							className="w-full bg-primary text-primary-foreground py-1 px-3 rounded-md text-sm hover:bg-primary/90"
-						>
-							Try Again
-						</button>
+						<p className="type-body mb-3 text-danger-text">{error}</p>
+						<Button variant="primary" className="w-full" onClick={checkForUpdates}>
+							Try again
+						</Button>
 					</div>
 				)}
 
 				{status === "update-available" && updateInfo && (
 					<div>
-						<p className="mb-3 text-card-foreground">
+						<p className="type-body mb-3 text-body">
 							Version {updateInfo.version} is available to download.
 						</p>
 						{updateInfo.releaseDate && (
-							<p className="text-xs text-muted-foreground mb-3">
+							<p className="type-caption mb-3 text-muted-foreground">
 								Released: {formatDate(updateInfo.releaseDate)}
 							</p>
 						)}
-						<button
-							type="button"
-							onClick={downloadUpdate}
-							className="w-full bg-primary text-primary-foreground py-1 px-3 rounded-md text-sm hover:bg-primary/90"
-						>
-							Download Update
-						</button>
+						<Button variant="primary" className="w-full" onClick={downloadUpdate}>
+							Download update
+						</Button>
 					</div>
 				)}
 
 				{status === "download-progress" && progressInfo && (
 					<div>
 						<div className="mb-2">
-							<div className="flex justify-between text-xs mb-1">
-								<span>{Math.round(progressInfo.percent)}%</span>
-								<span>
+							<div className="type-caption mb-1 flex justify-between text-muted-foreground">
+								<span className="tabular-nums">{Math.round(progressInfo.percent)}%</span>
+								<span className="tabular-nums">
 									{formatBytes(progressInfo.transferred)} / {formatBytes(progressInfo.total)}
 								</span>
 							</div>
-							<div className="h-2 bg-muted rounded-full overflow-hidden">
-								<div className="h-full bg-primary" style={{ width: `${progressInfo.percent}%` }} />
+							<div aria-hidden="true" className="h-2 overflow-hidden rounded-pill bg-inset">
+								<div className="h-full bg-brand" style={{ width: `${progressInfo.percent}%` }} />
 							</div>
 						</div>
-						<p className="text-xs text-muted-foreground">
+						<p className="type-caption tabular-nums text-muted-foreground">
 							Speed: {formatBytes(progressInfo.bytesPerSecond)}/s
 						</p>
 					</div>
@@ -105,24 +144,16 @@ export function UpdateNotification(): JSX.Element | null {
 
 				{status === "update-downloaded" && updateInfo && (
 					<div>
-						<p className="mb-3 text-card-foreground">
+						<p className="type-body mb-3 text-body">
 							Version {updateInfo.version} has been downloaded and is ready to install.
 						</p>
-						<div className="flex justify-end space-x-2">
-							<button
-								type="button"
-								onClick={closeNotification}
-								className="bg-muted text-muted-foreground py-1 px-3 rounded-md text-sm hover:bg-muted/90"
-							>
+						<div className="flex justify-end gap-2">
+							<Button variant="secondary" onClick={closeNotification}>
 								Later
-							</button>
-							<button
-								type="button"
-								onClick={() => window.api.app.close()}
-								className="bg-primary text-primary-foreground py-1 px-3 rounded-md text-sm hover:bg-primary/90"
-							>
-								Install & Restart
-							</button>
+							</Button>
+							<Button variant="primary" onClick={() => window.api.app.close()}>
+								Install and restart
+							</Button>
 						</div>
 					</div>
 				)}

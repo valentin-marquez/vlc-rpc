@@ -1,7 +1,7 @@
 import { vlcStatusStore } from "@renderer/features/vlc/vlc.store"
 import { logger } from "@renderer/lib/utils"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
-import { mediaStore, resetMediaStore } from "./media.store"
+import { lastPresenceStore, mediaStore, resetMediaStore } from "./media.store"
 
 /**
  * Update media store from VLC status response.
@@ -18,13 +18,45 @@ export function updateFromVlcStatus(status: VlcStatus | null): void {
 			duration: null,
 			position: null,
 			artwork: null,
+			fileTitle: null,
+			mediaType: null,
+			contentType: null,
+			contentImageUrl: null,
+			contentImageSourceUrl: null,
+			season: null,
+			episode: null,
+			year: null,
+			overrideKey: null,
+			overrideActive: false,
 		})
 		return
 	}
 
 	const { media, playback } = status
+	const previous = mediaStore.get()
+	const fileTitle = media.title || null
+
+	// VLC's status arrives well before the enriched fields can be refetched, which
+	// takes a catalog lookup and an image proxy round trip. Carrying the previous
+	// file's fields across that gap would let "Edit correction" open a form keyed
+	// to the file that just finished, and write the correction onto it.
+	const stale =
+		previous.fileTitle !== fileTitle
+			? {
+					contentType: null,
+					contentImageUrl: null,
+					contentImageSourceUrl: null,
+					season: null,
+					episode: null,
+					year: null,
+					overrideKey: null,
+					overrideActive: false,
+				}
+			: {}
+
 	mediaStore.set({
-		...mediaStore.get(),
+		...previous,
+		...stale,
 		mediaStatus: status.status === "playing" ? "playing" : "paused",
 		title: media.title || null,
 		artist: media.artist || null,
@@ -32,6 +64,8 @@ export function updateFromVlcStatus(status: VlcStatus | null): void {
 		duration: playback.duration || null,
 		position: playback.time || null,
 		artwork: media.artworkUrl || null,
+		fileTitle,
+		mediaType: status.mediaType || null,
 	})
 }
 
@@ -52,9 +86,12 @@ export async function refreshMediaInfo(): Promise<void> {
 				...mediaStore.get(),
 				contentType: null,
 				contentImageUrl: null,
+				contentImageSourceUrl: null,
 				season: null,
 				episode: null,
 				year: null,
+				overrideKey: null,
+				overrideActive: false,
 			})
 			return
 		}
@@ -63,6 +100,7 @@ export async function refreshMediaInfo(): Promise<void> {
 			...mediaStore.get(),
 			contentType: mediaInfo.content_type || null,
 			contentImageUrl: mediaInfo.content_image_url || null,
+			contentImageSourceUrl: mediaInfo.content_image_source_url || null,
 			title:
 				mediaInfo.content_metadata?.clean_title ||
 				mediaInfo.content_metadata?.title ||
@@ -71,14 +109,33 @@ export async function refreshMediaInfo(): Promise<void> {
 				mediaInfo.content_metadata?.anime_name ||
 				mediaStore.get().title,
 			artist: mediaInfo.media?.artist || mediaStore.get().artist,
+			fileTitle: mediaInfo.media?.title || mediaStore.get().fileTitle,
+			mediaType: mediaInfo.mediaType || mediaStore.get().mediaType,
 			season: mediaInfo.content_metadata?.season || null,
 			episode: mediaInfo.content_metadata?.episode || null,
 			year: mediaInfo.content_metadata?.year || null,
+			// Written together or not at all by the handler, so an absent key means
+			// the store would refuse this file rather than that nothing is playing.
+			overrideKey: mediaInfo.override_key || null,
+			overrideActive: mediaInfo.override_active === true,
 		})
 
 		logger.info("Media information updated")
 	} catch (error) {
 		logger.error(`Error fetching media info: ${error}`)
+	}
+}
+
+/**
+ * Read back the presence the main process last handed to Discord. Reported
+ * rather than rebuilt here: Home exists to reveal a mismatch between VLC and
+ * Discord, so it must not be able to invent one.
+ */
+export async function refreshLastPresence(): Promise<void> {
+	try {
+		lastPresenceStore.set(await window.api.discord.getLastPresence())
+	} catch (error) {
+		logger.error(`Error fetching the last presence: ${error}`)
 	}
 }
 
