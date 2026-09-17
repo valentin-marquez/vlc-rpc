@@ -17,8 +17,9 @@ export class VlcStatusHandler {
 		})
 
 		registerHandler("vlc:status:check", async () => {
-			logger.info("Checking VLC connection status")
-			return await this.vlc.checkVlcStatus()
+			const status = await this.vlc.checkVlcStatus()
+			logger.info(`Checked VLC connection status: ${status.reason}`)
+			return status
 		})
 	}
 

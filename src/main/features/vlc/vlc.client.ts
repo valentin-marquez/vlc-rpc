@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto"
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
-import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
+import type { VlcConnectionReason, VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 import { detectVideoStream } from "./vlc.mapper"
 import type { VlcMetadata, VlcPlaylistItem, VlcPlaylistResponse, VlcRawStatus } from "./vlc.types"
 
@@ -11,6 +11,33 @@ import type { VlcMetadata, VlcPlaylistItem, VlcPlaylistResponse, VlcRawStatus } 
 /** Drops a trailing media extension, and only that: a dot inside a title stays. */
 function stripExtension(filename: string): string {
 	return filename.replace(/\.[a-z0-9]{2,4}$/i, "")
+}
+
+/**
+ * Node's fetch throws `TypeError: fetch failed` and hangs the socket error off
+ * `cause`, so the refused connection that means "VLC is not open" sits one or
+ * two levels down. Reading only the top level is what made the commonest state
+ * of all classify itself as an unknown error.
+ */
+function reasonForRequestFailure(error: unknown): VlcConnectionReason {
+	const seen = new Set<unknown>()
+	let current = error
+
+	while (typeof current === "object" && current !== null && !seen.has(current)) {
+		seen.add(current)
+		const { name, code, cause } = current as { name?: unknown; code?: unknown; cause?: unknown }
+
+		if (name === "AbortError" || name === "TimeoutError" || code === "UND_ERR_CONNECT_TIMEOUT") {
+			return "timeout"
+		}
+		if (code === "ECONNREFUSED" || code === "ECONNRESET" || code === "ECONNABORTED") {
+			return "not-running"
+		}
+
+		current = cause
+	}
+
+	return "unknown-error"
 }
 
 export class Client {
@@ -387,11 +414,7 @@ export class Client {
 		const vlcConfig = configService.get("vlc")
 
 		if (!vlcConfig.httpEnabled) {
-			return {
-				isRunning: false,
-				reason: "not-configured",
-				message: "VLC HTTP interface is not enabled in configuration",
-			}
+			return { isRunning: false, reason: "not-configured" }
 		}
 
 		try {
@@ -409,55 +432,16 @@ export class Client {
 
 			switch (response.status) {
 				case 200:
-					return {
-						isRunning: true,
-						reason: "running",
-						message: "VLC is running and HTTP interface is accessible",
-					}
+					return { isRunning: true, reason: "running" }
 				case 401:
-					return {
-						isRunning: false,
-						reason: "auth-failed",
-						message: "VLC is running but authentication failed (incorrect password)",
-					}
+					return { isRunning: false, reason: "auth-failed" }
 				case 404:
-					return {
-						isRunning: false,
-						reason: "misconfigured-endpoint",
-						message: "VLC is running but the HTTP interface is not properly configured",
-					}
+					return { isRunning: false, reason: "misconfigured-endpoint" }
 				default:
-					return {
-						isRunning: false,
-						reason: "unexpected-status",
-						message: `VLC returned unexpected status code: ${response.status}`,
-					}
+					return { isRunning: false, reason: "unexpected-status" }
 			}
 		} catch (error: unknown) {
-			const err = error as { name: string; code?: string; message: string }
-			switch (err.name) {
-				case "AbortError":
-					return { isRunning: false, reason: "timeout", message: "Connection to VLC timed out" }
-				case "Error":
-					if (err.code === "ECONNREFUSED" || err.code === "ECONNRESET") {
-						return {
-							isRunning: false,
-							reason: "not-running",
-							message: "VLC is not running or HTTP interface is not enabled",
-						}
-					}
-					return {
-						isRunning: false,
-						reason: "unknown-error",
-						message: `Error checking VLC status: ${err.message}`,
-					}
-				default:
-					return {
-						isRunning: false,
-						reason: "unknown-error",
-						message: `Error checking VLC status: ${err.message}`,
-					}
-			}
+			return { isRunning: false, reason: reasonForRequestFailure(error) }
 		}
 	}
 }

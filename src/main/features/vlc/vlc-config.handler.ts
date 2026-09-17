@@ -271,7 +271,7 @@ export class VlcConfigHandler {
 			} catch (error) {
 				configContent = [
 					"# VLC Configuration File",
-					"# Configured by VLC Discord Rich Presence",
+					"# Configured by VLC Discord RP",
 					"",
 					"[core]",
 					`http-port=${config.httpPort}`,

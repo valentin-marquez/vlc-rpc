@@ -28,26 +28,29 @@ export interface VlcStatus {
 }
 
 /**
- * Why checkVlcStatus reached its isRunning verdict, for callers that need to
- * act on the cause rather than parse the human readable message. Not
- * configured (VLC's own HTTP interface is off) is distinct from not running
- * (VLC just isn't open): the app can fix the first on its own.
+ * Why checkVlcStatus reached its isRunning verdict. Not configured (VLC's own
+ * HTTP interface is off) is distinct from not running (VLC just isn't open):
+ * the app can fix the first on its own, and only one of them is a problem.
  */
-export type VlcConnectionReason =
-	| "running"
-	| "not-configured"
-	| "not-running"
-	| "auth-failed"
-	| "misconfigured-endpoint"
-	| "unexpected-status"
-	| "timeout"
-	| "unknown-error"
+export const VLC_CONNECTION_REASONS = [
+	"running",
+	"not-configured",
+	"not-running",
+	"auth-failed",
+	"misconfigured-endpoint",
+	"unexpected-status",
+	"timeout",
+	"unknown-error",
+] as const
+
+export type VlcConnectionReason = (typeof VLC_CONNECTION_REASONS)[number]
 
 /**
- * VLC connection check result
+ * VLC connection check result. It carries no message: what a person reads is
+ * built from the reason in describeVlcConnection, so a caught error can never
+ * reach the screen as prose.
  */
 export interface VlcConnectionStatus {
 	isRunning: boolean
 	reason: VlcConnectionReason
-	message: string
 }

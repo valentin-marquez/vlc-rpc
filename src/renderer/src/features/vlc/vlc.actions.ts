@@ -3,12 +3,7 @@ import { refreshMediaInfo } from "@renderer/features/media/media.actions"
 import { logger } from "@renderer/lib/utils"
 import type { VlcConfig } from "@shared/config/app-config"
 import { DEFAULT_CONFIG } from "@shared/config/defaults"
-import {
-	vlcConfigStore,
-	vlcConnectionReasonStore,
-	vlcErrorStore,
-	vlcStatusStore,
-} from "./vlc.store"
+import { vlcConfigStore, vlcConnectionReasonStore, vlcStatusStore } from "./vlc.store"
 
 let statusPollingInterval: ReturnType<typeof setInterval> | null = null
 
@@ -22,7 +17,6 @@ export async function loadVlcConfig(): Promise<VlcConfig | null> {
 		return config
 	} catch (error) {
 		logger.error(`Failed to load VLC configuration: ${error}`)
-		vlcErrorStore.set("Failed to load VLC configuration")
 		return null
 	}
 }
@@ -36,19 +30,16 @@ export async function saveVlcConfig(config: VlcConfig): Promise<VlcConfig | null
 			const updatedConfig = await window.api.vlc.getConfig()
 			vlcConfigStore.set(updatedConfig)
 			vlcStatusStore.set("connected")
-			vlcErrorStore.set(null)
 			logger.info("VLC configuration saved and connected")
 
 			startStatusPolling()
 			return updatedConfig
 		}
 		vlcStatusStore.set("error")
-		vlcErrorStore.set("Failed to connect to VLC")
 		logger.error("Failed to save VLC configuration")
 		return null
 	} catch (error) {
 		vlcStatusStore.set("error")
-		vlcErrorStore.set("An error occurred while saving VLC configuration")
 		logger.error(`Error saving VLC configuration: ${error}`)
 		return null
 	}
@@ -61,20 +52,16 @@ export async function checkVlcConnection(): Promise<boolean> {
 
 		if (status.isRunning) {
 			vlcStatusStore.set("connected")
-			vlcErrorStore.set(null)
 			startStatusPolling()
 			return true
 		}
 		vlcStatusStore.set("disconnected")
-		vlcErrorStore.set(status.message)
-
 		updateFromVlcStatus(null)
 
 		return false
 	} catch (error) {
 		vlcStatusStore.set("error")
 		vlcConnectionReasonStore.set(null)
-		vlcErrorStore.set("Failed to check VLC connection status")
 		logger.error(`Error checking VLC connection: ${error}`)
 		return false
 	}
@@ -88,14 +75,7 @@ export async function checkVlcConnection(): Promise<boolean> {
  */
 export async function repairVlcConfig(): Promise<boolean> {
 	const current = vlcConfigStore.get() ?? DEFAULT_CONFIG.vlc
-	const repaired = await saveVlcConfig({ ...current, httpEnabled: true })
-
-	if (!repaired) {
-		return false
-	}
-
-	vlcErrorStore.set("Configuration fixed. Restart VLC for the change to take effect.")
-	return true
+	return (await saveVlcConfig({ ...current, httpEnabled: true })) !== null
 }
 
 export function startStatusPolling(interval = 2000): void {

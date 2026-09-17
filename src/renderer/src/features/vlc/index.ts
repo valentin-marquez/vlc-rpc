@@ -1,9 +1,4 @@
-export {
-	vlcConfigStore,
-	vlcStatusStore,
-	vlcErrorStore,
-	vlcConnectionReasonStore,
-} from "./vlc.store"
+export { vlcConfigStore, vlcStatusStore, vlcConnectionReasonStore } from "./vlc.store"
 export {
 	loadVlcConfig,
 	saveVlcConfig,

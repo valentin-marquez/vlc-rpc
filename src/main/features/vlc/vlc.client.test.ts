@@ -42,6 +42,15 @@ function respondWith(body: string, status = 200): void {
 	)
 }
 
+function throwOnFetch(error: unknown): void {
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async () => {
+			throw error
+		}),
+	)
+}
+
 afterEach(() => {
 	vi.unstubAllGlobals()
 	mockVlcConfig.httpEnabled = true
@@ -177,11 +186,7 @@ describe("checkVlcStatus", () => {
 
 		const status = await vlcStatusService.checkVlcStatus()
 
-		expect(status).toEqual({
-			isRunning: false,
-			reason: "not-configured",
-			message: "VLC HTTP interface is not enabled in configuration",
-		})
+		expect(status).toEqual({ isRunning: false, reason: "not-configured" })
 		expect(fetchSpy).not.toHaveBeenCalled()
 	})
 
@@ -233,6 +238,56 @@ describe("checkVlcStatus", () => {
 		const status = await vlcStatusService.checkVlcStatus()
 
 		expect(status.reason).toBe("timeout")
+	})
+
+	// Node's fetch never throws the socket error itself. It throws
+	// `TypeError: fetch failed` and hangs the real one off `cause`, which is how
+	// the commonest case of all, VLC not being open, reported itself as an
+	// unknown error and put "fetch failed" in front of the user.
+	it.each([
+		["ECONNREFUSED", "not-running"],
+		["ECONNRESET", "not-running"],
+		["UND_ERR_CONNECT_TIMEOUT", "timeout"],
+	])("reads %s out of the cause chain as %s", async (code, reason) => {
+		throwOnFetch(
+			Object.assign(new TypeError("fetch failed"), {
+				cause: Object.assign(new Error("connect failed"), { code }),
+			}),
+		)
+
+		const status = await vlcStatusService.checkVlcStatus()
+
+		expect(status.reason).toBe(reason)
+	})
+
+	it("reads an abort out of the cause chain as a timeout", async () => {
+		throwOnFetch(
+			Object.assign(new TypeError("fetch failed"), {
+				cause: Object.assign(new Error("This operation was aborted"), { name: "AbortError" }),
+			}),
+		)
+
+		const status = await vlcStatusService.checkVlcStatus()
+
+		expect(status.reason).toBe("timeout")
+	})
+
+	it("reports unknown-error when nothing in the chain is recognized", async () => {
+		throwOnFetch(new TypeError("fetch failed"))
+
+		const status = await vlcStatusService.checkVlcStatus()
+
+		expect(status.reason).toBe("unknown-error")
+	})
+
+	it("stops walking a cause chain that points at itself", async () => {
+		const looping: { name: string; cause?: unknown } = { name: "Whatever" }
+		looping.cause = looping
+		throwOnFetch(looping)
+
+		const status = await vlcStatusService.checkVlcStatus()
+
+		expect(status.reason).toBe("unknown-error")
 	})
 })
 
