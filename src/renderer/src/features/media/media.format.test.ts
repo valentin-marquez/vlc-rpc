@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { audioMatchRow, type CorrectionRow, correctionSummary } from "./media.format"
+import { type CorrectionRow, audioMatchRow, correctionSummary } from "./media.format"
 
 const SETTLED = { kind: "settled" } as const
 
