@@ -29,3 +29,6 @@ skills-lock.json
 
 # Vite writes its config here while it builds and leaves it behind when a build dies.
 electron.vite.config.*.mjs
+
+# Bun writes the text lockfile; a CI with an older bun leaves this one behind.
+bun.lockb
