@@ -1,4 +1,4 @@
-import type { LayoutPreset, PresenceLayout } from "@shared/presence/layout"
+import type { MusicPreset, VideoPreset } from "@shared/presence/layout"
 
 /**
  * VLC Configuration schema
@@ -38,7 +38,11 @@ export interface AppConfig {
 	// RPC enable/disable state, including a temporary disable window
 	rpcEnabled: boolean
 	rpcDisabledUntil?: number
-	// Discord Rich Presence layout configuration
-	presenceLayout?: PresenceLayout
-	layoutPreset?: LayoutPreset
+	/**
+	 * How the profile is laid out, one choice per media kind. The music one keeps the
+	 * key it was given before video had a choice of its own. The lines they stand for
+	 * are composed on read rather than stored, so the two can never disagree.
+	 */
+	layoutPreset?: MusicPreset
+	videoLayoutPreset?: VideoPreset
 }

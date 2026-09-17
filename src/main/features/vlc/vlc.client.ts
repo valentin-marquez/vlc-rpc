@@ -324,7 +324,6 @@ export class Client {
 
 		try {
 			const playlistUrl = new URL("playlist.json", this.baseUrl).toString()
-			logger.info(`Fetching VLC playlist from: ${playlistUrl}`)
 
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), this.statusTimeoutMs())
@@ -347,14 +346,16 @@ export class Client {
 			// Find the current playing item
 			const currentItem = this.findCurrentPlayingItem(playlist)
 			if (currentItem?.uri) {
-				logger.info(`Current playing file: ${currentItem.uri}`)
 				return currentItem.uri
 			}
 
 			logger.info("No current playing item found in playlist")
 			return null
 		} catch (error) {
-			logger.error(`Error getting current file URI: ${error}`)
+			// Never the error itself: CONTRIBUTING forbids it because a failed
+			// request carries the address it was made against.
+			const name = error instanceof Error ? error.name : "unknown error"
+			logger.error(`Could not read the VLC playlist: ${name}`)
 			return null
 		}
 	}

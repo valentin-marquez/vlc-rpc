@@ -1,9 +1,15 @@
 import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import type { Resolver as ArtworkResolver } from "@main/features/artwork"
-import type { Resolver as CatalogResolver } from "@main/features/catalog"
+import type {
+	Resolver as CatalogResolver,
+	CatalogResult,
+	ParsedVideo,
+} from "@main/features/catalog"
 import { parse as parseVideo } from "@main/features/catalog"
-import { applyTemplate, getDefaultLayout, getLayoutByPreset } from "@shared/presence/layout"
+import type { AppConfig } from "@shared/config/app-config"
+import type { ResolvedLayout, VideoFacts } from "@shared/presence/layout"
+import { renderLine, resolveLayout, videoVariables } from "@shared/presence/layout"
 import type { DiscordPresenceData } from "@shared/presence/presence.types"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 
@@ -14,6 +20,69 @@ import type { TimelineWindow } from "./presence.timeline"
 // raw VLC title, so empty counts as absent here.
 function firstNonEmpty(...values: (string | undefined)[]): string | undefined {
 	return values.find((value) => value !== undefined && value !== "")
+}
+
+interface PresenceLines {
+	details: string
+	state: string
+	/** Empty when the layout has nothing to name the activity after. */
+	activityName: string
+}
+
+function videoFacts(
+	rawTitle: string,
+	catalogResult: CatalogResult | null,
+	localParse: ParsedVideo | null,
+): VideoFacts {
+	const isTvShow = catalogResult
+		? catalogResult.mediaKind === "tv"
+		: localParse?.season !== undefined || localParse?.episode !== undefined
+
+	return {
+		title: firstNonEmpty(catalogResult?.title, localParse?.title, rawTitle) ?? "",
+		// A film whose filename happens to parse a season must not grow an episode.
+		season: isTvShow ? (catalogResult?.season ?? localParse?.season) : undefined,
+		episode: isTvShow ? (catalogResult?.episode ?? localParse?.episode) : undefined,
+		year: localParse?.year,
+	}
+}
+
+// Both states build the same lines from the same layout, so a preset reads the same
+// whether playback is running or paused.
+function buildLines(
+	layout: ResolvedLayout,
+	mediaInfo: VlcStatus,
+	catalogResult: CatalogResult | null,
+	localParse: ParsedVideo | null,
+): PresenceLines {
+	const media = mediaInfo.media
+
+	if (mediaInfo.mediaType === "video") {
+		const variables = videoVariables(videoFacts(media.title ?? "", catalogResult, localParse))
+		return {
+			details: renderLine(layout.video.details, variables),
+			state: renderLine(layout.video.state, variables),
+			activityName: "",
+		}
+	}
+
+	const variables = {
+		title: media.title ?? "",
+		artist: media.artist ?? "",
+		album: media.album ?? "",
+	}
+
+	return {
+		details: renderLine(layout.music.details, variables),
+		state: renderLine(layout.music.state, variables),
+		activityName: renderLine(layout.music.activityName, variables),
+	}
+}
+
+// The two preset names are the whole of what is stored, so the lines are composed on
+// every read and cannot fall behind the choice they came from.
+function layoutFrom(config: AppConfig): ResolvedLayout {
+	return resolveLayout({ music: config.layoutPreset, video: config.videoLayoutPreset })
 }
 
 /**
@@ -87,63 +156,16 @@ class PlayingState extends MediaState {
 		// concrete file being played, and parsing is pure and local.
 		const localParse = mediaType === "video" ? parseVideo(media.title || "") : null
 
-		// Get the layout configuration
-		const layout =
-			config.presenceLayout ||
-			(config.layoutPreset ? getLayoutByPreset(config.layoutPreset) : getDefaultLayout())
+		const lines = buildLines(layoutFrom(config), mediaInfo, catalogResult, localParse)
 
-		let details = ""
-		let state = ""
-
-		if (activityType === ActivityType.Listening) {
-			// For music, use customizable layout
-			const variables = {
-				title: media.title || "Unknown Song",
-				artist: media.artist || "Unknown Artist",
-				album: media.album || "",
-			}
-
-			details = applyTemplate(layout.musicDetails, variables)
-			state = applyTemplate(layout.musicState, variables)
-		} else {
-			const isTvShow = catalogResult
-				? catalogResult.mediaKind === "tv"
-				: localParse?.season !== undefined || localParse?.episode !== undefined
-
-			let episodeInfo = ""
-			const season = catalogResult?.season ?? localParse?.season
-			const episode = catalogResult?.episode ?? localParse?.episode
-			if (isTvShow) {
-				if (season !== undefined && episode !== undefined) {
-					episodeInfo = `S${season}E${episode}`
-				} else if (season !== undefined) {
-					episodeInfo = `Season ${season}`
-				} else if (episode !== undefined) {
-					episodeInfo = `Episode ${episode}`
-				}
-			}
-
-			const title = firstNonEmpty(catalogResult?.title, localParse?.title, media.title) ?? "Unknown"
-			const year = localParse?.year
-
-			const variables = {
-				title,
-				episodeInfo: episodeInfo || (isTvShow ? "TV Show" : "Movie"),
-				year: year?.toString() ?? "",
-				season: season?.toString() ?? "",
-				episode: episode?.toString() ?? "",
-			}
-
-			details = applyTemplate(layout.videoDetails, variables)
-			state = applyTemplate(layout.videoState, variables)
-		}
-
-		details = this.formatText(details)
-		state = this.formatText(state)
+		const details = this.formatText(lines.details)
+		const state = this.formatText(lines.state)
 
 		const { start: startTimestamp, end: endTimestamp } = window
 
-		let smallText = config.playingImage
+		// Discord shows this on hover over the small image, so it is a word, not the
+		// asset key that picks the image itself.
+		let smallText = "Playing"
 		let largeImage = config.largeImage
 		let largeText = "VLC Media Player"
 
@@ -167,7 +189,7 @@ class PlayingState extends MediaState {
 		const videoInfo = mediaInfo.videoInfo
 		if (mediaType === "video" && videoInfo && videoInfo.width && videoInfo.height) {
 			const resolution = `${videoInfo.width}x${videoInfo.height}`
-			smallText += ` • ${resolution}`
+			smallText += `, ${resolution}`
 		}
 
 		if (mediaType === "audio" && media) {
@@ -189,18 +211,12 @@ class PlayingState extends MediaState {
 			activity_type: activityType,
 		}
 
-		// Set custom activity name based on layout configuration
-		if (activityType === ActivityType.Listening && layout.activityName) {
-			const activityNameVariables = {
-				title: media.title || "Unknown Song",
-				artist: media.artist || "Unknown Artist",
-				album: media.album || "",
-			}
-			presenceData.name = applyTemplate(layout.activityName, activityNameVariables)
+		if (lines.activityName !== "") {
+			presenceData.name = lines.activityName
 		}
 
-		const activityName = activityType === ActivityType.Watching ? "Watching" : "Listening to"
-		logger.info(`Updated presence: ${activityName} ${details} - ${state}`)
+		const verb = activityType === ActivityType.Watching ? "Watching" : "Listening to"
+		logger.info(`Updated presence: ${verb} ${details} - ${state}`)
 
 		return presenceData
 	}
@@ -239,44 +255,10 @@ class PausedState extends MediaState {
 		// concrete file being played, and parsing is pure and local.
 		const localParse = mediaType === "video" ? parseVideo(media.title || "") : null
 
-		let details = ""
-		let state = ""
+		const lines = buildLines(layoutFrom(config), mediaInfo, catalogResult, localParse)
 
-		if (activityType === ActivityType.Listening) {
-			details = media.title || "Unknown Song"
-			state = `by ${media.artist || "Unknown Artist"}`
-		} else {
-			const isTvShow = catalogResult
-				? catalogResult.mediaKind === "tv"
-				: localParse?.season !== undefined || localParse?.episode !== undefined
-
-			const season = catalogResult?.season ?? localParse?.season
-			const episode = catalogResult?.episode ?? localParse?.episode
-			const title = firstNonEmpty(catalogResult?.title, localParse?.title, media.title) ?? "Unknown"
-
-			if (isTvShow) {
-				// TV Show: Show name as details, episode info as state
-				details = title
-
-				let episodeInfo = ""
-				if (season !== undefined && episode !== undefined) {
-					episodeInfo = `S${season}E${episode}`
-				} else if (season !== undefined) {
-					episodeInfo = `Season ${season}`
-				} else if (episode !== undefined) {
-					episodeInfo = `Episode ${episode}`
-				}
-
-				state = episodeInfo || "TV Show"
-			} else {
-				// Movie: Movie title as details, year as state
-				details = title
-				state = localParse?.year ? `(${localParse.year})` : "Movie"
-			}
-		}
-
-		details = this.formatText(details)
-		state = this.formatText(state)
+		const details = this.formatText(lines.details)
+		const state = this.formatText(lines.state)
 
 		let smallText = "Paused"
 		let largeImage = config.largeImage
@@ -302,7 +284,7 @@ class PausedState extends MediaState {
 		const videoInfo = mediaInfo.videoInfo
 		if (mediaType === "video" && videoInfo && videoInfo.width && videoInfo.height) {
 			const resolution = `${videoInfo.width}x${videoInfo.height}`
-			smallText += ` • ${resolution}`
+			smallText += `, ${resolution}`
 		}
 
 		if (mediaType === "audio" && media) {
@@ -322,8 +304,12 @@ class PausedState extends MediaState {
 			activity_type: activityType,
 		}
 
-		const activityName = activityType === ActivityType.Watching ? "Watching" : "Listening to"
-		logger.info(`Updated presence (paused): ${activityName} ${details} - ${state}`)
+		if (lines.activityName !== "") {
+			presenceData.name = lines.activityName
+		}
+
+		const verb = activityType === ActivityType.Watching ? "Watching" : "Listening to"
+		logger.info(`Updated presence (paused): ${verb} ${details} - ${state}`)
 
 		return presenceData
 	}

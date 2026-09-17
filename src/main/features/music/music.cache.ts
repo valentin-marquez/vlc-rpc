@@ -5,7 +5,9 @@ import type { CacheEntry, MusicResult, UnresolvedReason } from "./music.types"
 // Its own counter, never the catalog cache's: the two features share no code
 // path, so a change to the video scorer must not silently wipe every cached
 // music lookup, and vice versa.
-const CACHE_VERSION = 1
+// Bumped to 2 when unresolved entries began recording why: an entry written
+// before that carries no reason, and reading it as one would be a guess.
+const CACHE_VERSION = 2
 const MAX_RESOLVED_ENTRIES = 200
 const TRANSIENT_TTL_MS = 5_000
 const STABLE_TTL_MS = 24 * 60 * 60_000
@@ -68,6 +70,7 @@ export class Cache {
 		entries[key] = {
 			status: "unresolved",
 			version: CACHE_VERSION,
+			reason,
 			expiresAt: this.clock.now() + ttl,
 			lastAccessedAt: this.clock.now(),
 		}

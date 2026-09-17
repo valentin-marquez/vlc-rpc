@@ -7,12 +7,15 @@ vi.mock("@main/core/logger", () => ({
 }))
 
 import type { Cache } from "./music.cache"
-import { audioOverrideKey, musicKey } from "./music.key"
+import { audioOverrideKey, fingerprintKey, musicKey } from "./music.key"
 import { type OverrideLookup, Resolver } from "./music.resolver"
 import type {
+	AudioFileIdentity,
+	AudioIdentifier,
 	CacheEntry,
 	CandidateRelease,
 	CoverArtSource,
+	IdentifyOutcome,
 	MusicProvider,
 	MusicResult,
 	RecordingCandidate,
@@ -43,14 +46,15 @@ function fakeCache() {
 		},
 		setResolved: (key: string, result: MusicResult) => {
 			calls.setResolved++
-			store.set(key, { status: "resolved", version: 1, result, lastAccessedAt: 0 })
+			store.set(key, { status: "resolved", version: 2, result, lastAccessedAt: 0 })
 		},
 		setUnresolved: (key: string, reason: UnresolvedReason) => {
 			calls.setUnresolved++
 			unresolvedReasons.push(reason)
 			store.set(key, {
 				status: "unresolved",
-				version: 1,
+				version: 2,
+				reason,
 				expiresAt: 999_999_999,
 				lastAccessedAt: 0,
 			})
@@ -358,7 +362,7 @@ describe("Resolver.resolve", () => {
 
 		expect(cachedOnSettle).toEqual({
 			status: "resolved",
-			version: 1,
+			version: 2,
 			result,
 			lastAccessedAt: 0,
 		})
@@ -861,5 +865,319 @@ describe("Resolver.overrideCoverFor", () => {
 
 		expect(resolver.overrideCoverFor(status(tagged, "video"))).toBeNull()
 		expect(asked).toEqual([])
+	})
+})
+
+describe("Resolver.resolve, by fingerprint", () => {
+	const untagged: VlcStatus["media"] = { title: "Unknown", artist: "", album: "" }
+
+	const FIRST_FILE: AudioFileIdentity = {
+		path: "C:\\Music\\youtube-rip-01.mp3",
+		size: 5_242_880,
+		modifiedAt: 1_726_500_000_000,
+	}
+	const SECOND_FILE: AudioFileIdentity = {
+		path: "C:\\Music\\youtube-rip-02.mp3",
+		size: 4_100_000,
+		modifiedAt: 1_726_500_000_001,
+	}
+
+	function recording(overrides: Partial<RecordingCandidate> = {}): RecordingCandidate {
+		return {
+			provider: "acoustid",
+			id: "097cfb49-419c-4b00-97f3-cc86ef4d77c2",
+			title: "Probablemente",
+			artists: ["Christian Nodal"],
+			releases: [{ title: "Me dejé llevar", releaseGroupId: "rg-1" }],
+			rank: 0,
+			...overrides,
+		}
+	}
+
+	function fakeIdentifier(
+		files: Record<number, AudioFileIdentity>,
+		answer: (file: AudioFileIdentity) => IdentifyOutcome = () => ({
+			kind: "identified",
+			recording: recording(),
+		}),
+	) {
+		const calls = { fileFor: 0, identify: 0 }
+		const identified: string[] = []
+		const identifier: AudioIdentifier = {
+			fileFor: async (current: VlcStatus) => {
+				calls.fileFor++
+				return files[current.plid ?? -1] ?? null
+			},
+			identify: async (file: AudioFileIdentity) => {
+				calls.identify++
+				identified.push(file.path)
+				return answer(file)
+			},
+		}
+		return { identifier, calls, identified }
+	}
+
+	function playing(media: VlcStatus["media"], plid: number): VlcStatus {
+		return { ...status(media), plid }
+	}
+
+	it("never runs when the tags already produced a cover", async () => {
+		// The limit AcoustID enforces is per application key and shared by every
+		// user, so this step only ever sees what nothing cheaper could identify.
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([candidate()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		const result = await resolver.resolve(playing(tagged, 1))
+
+		expect(result?.provider).toBe("itunes")
+		expect(calls.fileFor).toBe(0)
+		expect(calls.identify).toBe(0)
+	})
+
+	it("identifies a file whose tags say nothing, which no text search can find", async () => {
+		const { cache } = fakeCache()
+		const { provider: itunes, calls: itunesCalls } = fakeProvider([candidate()])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source, asked } = fakeCoverSource({ "Me dejé llevar": "https://example.com/fp.jpg" })
+		const { identifier } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		const result = await resolver.resolve(playing(untagged, 1))
+
+		expect(itunesCalls.search).toBe(0)
+		expect(asked).toEqual(["Me dejé llevar"])
+		expect(result).toEqual({
+			cover: "https://example.com/fp.jpg",
+			provider: "acoustid",
+			id: "097cfb49-419c-4b00-97f3-cc86ef4d77c2",
+		})
+	})
+
+	it("files the answer under the file, not under the tags two files share", async () => {
+		// Both files answer "Unknown" to every tag, so the tag derived key is the
+		// same for both. Keyed that way, the first cover identified would be
+		// served for the second file forever.
+		const { cache, store } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource({
+			"Me dejé llevar": "https://example.com/first.jpg",
+			Ahora: "https://example.com/second.jpg",
+		})
+		const { identifier } = fakeIdentifier({ 1: FIRST_FILE, 2: SECOND_FILE }, (file) => ({
+			kind: "identified",
+			recording:
+				file.path === FIRST_FILE.path
+					? recording()
+					: recording({ id: "other", releases: [{ title: "Ahora", releaseGroupId: "rg-2" }] }),
+		}))
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		const first = await resolver.resolve(playing(untagged, 1))
+		const second = await resolver.resolve(playing(untagged, 2))
+
+		expect(first?.cover).toBe("https://example.com/first.jpg")
+		expect(second?.cover).toBe("https://example.com/second.jpg")
+		expect(store.get(fingerprintKey(FIRST_FILE))).not.toBeUndefined()
+		expect(store.get(fingerprintKey(SECOND_FILE))).not.toBeUndefined()
+	})
+
+	it("reads the audio once, then answers every later poll from the cache", async () => {
+		// Hashing the audio is the most expensive step in the chain locally, and
+		// the presence loop asks again every 1.5 seconds.
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource({ "Me dejé llevar": "https://example.com/fp.jpg" })
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		await resolver.resolve(playing(untagged, 1))
+		const again = await resolver.resolve(playing(untagged, 1))
+
+		expect(again?.cover).toBe("https://example.com/fp.jpg")
+		expect(calls.identify).toBe(1)
+	})
+
+	it("dedupes two concurrent polls of the same file into a single identification", async () => {
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource({ "Me dejé llevar": "https://example.com/fp.jpg" })
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		const [first, second] = await Promise.all([
+			resolver.resolve(playing(untagged, 1)),
+			resolver.resolve(playing(untagged, 1)),
+		])
+
+		expect(first?.cover).toBe("https://example.com/fp.jpg")
+		expect(second?.cover).toBe("https://example.com/fp.jpg")
+		expect(calls.identify).toBe(1)
+	})
+
+	it("identifies a tagged file the catalogs could not match", async () => {
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource({ "Me dejé llevar": "https://example.com/fp.jpg" })
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		const result = await resolver.resolve(playing(tagged, 1))
+
+		expect(calls.identify).toBe(1)
+		expect(result?.provider).toBe("acoustid")
+	})
+
+	it("behaves exactly as before when no key configured the step", async () => {
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides())
+
+		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
+		expect(unresolvedReasons).toEqual(["insufficient-tags"])
+	})
+
+	it("answers nothing when the playing item is not a local file", async () => {
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { identifier, calls } = fakeIdentifier({})
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
+		expect(calls.identify).toBe(0)
+	})
+
+	it("holds a service that could not answer for seconds, not for a day", async () => {
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { identifier } = fakeIdentifier({ 1: FIRST_FILE }, () => ({ kind: "unavailable" }))
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
+		expect(unresolvedReasons).toEqual(["insufficient-tags", "provider-error"])
+	})
+
+	it("holds audio the service does not know for a day, not for seconds", async () => {
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { identifier } = fakeIdentifier({ 1: FIRST_FILE }, () => ({
+			kind: "unidentified",
+			reason: "no-results",
+		}))
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
+		expect(unresolvedReasons).toEqual(["insufficient-tags", "no-results"])
+	})
+
+	it("records an identification the archive has no artwork for as such", async () => {
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { identifier } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
+		expect(unresolvedReasons).toEqual(["insufficient-tags", "no-cover"])
+	})
+
+	it("stays quiet when the step throws instead of letting it reach the poll loop", async () => {
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const identifier: AudioIdentifier = {
+			fileFor: async () => FIRST_FILE,
+			identify: async () => {
+				throw new Error("fpcalc exploded")
+			},
+		}
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
+		expect(unresolvedReasons).toEqual(["insufficient-tags", "provider-error"])
+	})
+
+	it("never reaches the audio when the catalogs could not search at all", async () => {
+		// iTunes and MusicBrainz are keyless and limited per machine, while the
+		// fingerprint spends a budget every user of this app shares. An outage of
+		// the two cheap ones must not move well tagged tracks onto the shared one,
+		// which is the moment it can least absorb them.
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([], true)
+		const { provider: musicbrainz } = fakeProvider([], true)
+		const { source } = fakeCoverSource()
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		expect(await resolver.resolve(playing(tagged, 1))).toBeNull()
+		expect(unresolvedReasons).toEqual(["provider-error"])
+		expect(calls.fileFor).toBe(0)
+		expect(calls.identify).toBe(0)
+	})
+
+	it("never reaches the audio for a catalog outage the cache is still holding", async () => {
+		// The entry lives for seconds so the cheap catalogs are retried soon, and
+		// until then it has to answer the same way the fresh failure did.
+		const { cache } = fakeCache()
+		const { provider: itunes, calls: itunesCalls } = fakeProvider([], true)
+		const { provider: musicbrainz } = fakeProvider([], true)
+		const { source } = fakeCoverSource()
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		await resolver.resolve(playing(tagged, 1))
+		expect(await resolver.resolve(playing(tagged, 1))).toBeNull()
+
+		expect(itunesCalls.search).toBe(1)
+		expect(calls.identify).toBe(0)
+	})
+
+	it("never reaches the audio when the catalogs named the track and only the artwork was missing", async () => {
+		// The recording is identified, so the fingerprint has no name left to add
+		// and would spend a shared request to reach the same archive.
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([
+			candidate({ releases: [{ id: "r1", title: "Me Dejé Llevar" }] }),
+		])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		expect(await resolver.resolve(playing(tagged, 1))).toBeNull()
+		expect(unresolvedReasons).toEqual(["no-cover"])
+		expect(calls.identify).toBe(0)
+	})
+
+	it("never reaches the audio when the user already corrected the record", async () => {
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const { overrides } = fakeOverrides({ "audio:christian nodal|me deje llevar": handPicked })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, overrides, identifier)
+
+		const result = await resolver.resolve(playing(tagged, 1))
+
+		expect(result?.provider).toBe("override")
+		expect(calls.fileFor).toBe(0)
 	})
 })

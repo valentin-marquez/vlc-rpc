@@ -10,10 +10,11 @@ vi.mock("electron", () => ({
 	app: { getVersion: () => "4.1.0" },
 }))
 
+import { AcoustId } from "./music.acoustid"
 import { ITunesProvider } from "./music.itunes"
 import { MusicBrainzProvider } from "./music.musicbrainz"
-import { pickBest } from "./music.scorer"
-import type { RecordingCandidate, TrackQuery } from "./music.types"
+import { pickBest, pickIdentified } from "./music.scorer"
+import type { FingerprintMatch, RecordingCandidate, TrackQuery } from "./music.types"
 
 function query(overrides: Partial<TrackQuery> = {}): TrackQuery {
 	return { artists: ["Christian Nodal"], title: "Probablemente", ...overrides }
@@ -307,5 +308,90 @@ describe("pickBest, against the real normalizers", () => {
 
 		expect(winner?.id).toBe("5697b367-a36c-4b6f-aa0c-ce9e49a9afa7")
 		expect(winner?.artists).toEqual(["Christian Nodal"])
+	})
+})
+
+describe("pickIdentified", () => {
+	function match(overrides: Partial<FingerprintMatch> = {}): FingerprintMatch {
+		return {
+			score: 0.96,
+			id: "mbid-1",
+			title: "Probablemente",
+			artists: ["Christian Nodal"],
+			releases: [{ title: "Me dejé llevar", releaseGroupId: "rg-1" }],
+			rank: 0,
+			...overrides,
+		}
+	}
+
+	it("has nothing to pick from an empty list", () => {
+		expect(pickIdentified([])).toBeNull()
+	})
+
+	it("takes a lone match that clears the floor", () => {
+		expect(pickIdentified([match()])?.id).toBe("mbid-1")
+	})
+
+	it("refuses a match the service is not confident about", () => {
+		// 0.8551 is the score the validated capture gives a different recording
+		// that shares a vocal take, so a floor under it admits a wrong cover.
+		expect(pickIdentified([match({ score: 0.8551 })])).toBeNull()
+		expect(pickIdentified([match({ score: 0.899 })])).toBeNull()
+	})
+
+	it("refuses two close matches that credit different artists", () => {
+		const winner = pickIdentified([
+			match({ score: 0.94, id: "solo" }),
+			match({ score: 0.93, id: "duet", artists: ["Christian Nodal", "David Bisbal"], rank: 1 }),
+		])
+
+		expect(winner).toBeNull()
+	})
+
+	it("takes the top when two close matches credit the same artist", () => {
+		// Both covers belong to the same performer's catalog, and the release
+		// ordering already prefers the album over the single.
+		const winner = pickIdentified([
+			match({ score: 0.94, id: "album-take" }),
+			match({ score: 0.93, id: "single-take", title: "Probablemente (En vivo)", rank: 1 }),
+		])
+
+		expect(winner?.id).toBe("album-take")
+	})
+
+	it("takes the top when it clears the runner up by more than the margin", () => {
+		const winner = pickIdentified([
+			match({ score: 0.97, id: "solo" }),
+			match({ score: 0.91, id: "duet", artists: ["Christian Nodal", "David Bisbal"], rank: 1 }),
+		])
+
+		expect(winner?.id).toBe("solo")
+	})
+
+	it("orders by score rather than by the position the service returned", () => {
+		const winner = pickIdentified([
+			match({ score: 0.91, id: "second-best" }),
+			match({ score: 0.98, id: "best", rank: 1 }),
+		])
+
+		expect(winner?.id).toBe("best")
+	})
+
+	it("picks the solo recording out of the captured AcoustID response", async () => {
+		const body = readFileSync(
+			join(__dirname, "__fixtures__", "acoustid-lookup-response.json"),
+			"utf-8",
+		)
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => ({ ok: true, status: 200, json: async () => JSON.parse(body) })),
+		)
+
+		const outcome = await new AcoustId("test-client-key").lookup("AQADtMqS", 232.97)
+		const winner = outcome.kind === "matched" ? pickIdentified(outcome.matches) : null
+
+		expect(winner?.id).toBe("097cfb49-419c-4b00-97f3-cc86ef4d77c2")
+		expect(winner?.artists).toEqual(["Christian Nodal"])
+		vi.unstubAllGlobals()
 	})
 })

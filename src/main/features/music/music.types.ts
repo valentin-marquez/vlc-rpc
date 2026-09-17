@@ -1,3 +1,5 @@
+import type { VlcStatus } from "@shared/vlc/vlc.types"
+
 export interface TrackQuery {
 	/**
 	 * The credit the file claims: the artist tag verbatim in the first entry,
@@ -26,7 +28,7 @@ export interface CandidateRelease {
 }
 
 export interface RecordingCandidate {
-	provider: "itunes" | "musicbrainz"
+	provider: "itunes" | "musicbrainz" | "acoustid"
 	id: string
 	/** Without the collaboration suffix, which the normalizer moves into artists. */
 	title: string
@@ -72,8 +74,92 @@ export interface CoverArtSource {
 export interface MusicResult {
 	cover: string
 	/** `override` is the user, who outranks both catalogs and is asked first. */
-	provider: "itunes" | "musicbrainz" | "override"
+	provider: "itunes" | "musicbrainz" | "override" | "acoustid"
 	id: string
+}
+
+/** What one run of the fingerprinting binary produced. */
+export type FingerprintOutcome =
+	| { kind: "fingerprinted"; fingerprint: string; duration: number }
+	/** This install has no fpcalc, so the step does not exist here. */
+	| { kind: "absent" }
+	/** The binary ran and could not turn this file into a fingerprint. */
+	| { kind: "failed" }
+
+export interface AudioFingerprinter {
+	/**
+	 * Whether the binary is installed, answered without spawning anything. The
+	 * step reads it before doing any work at all, so a platform with no build
+	 * costs a boolean per poll instead of a process.
+	 */
+	readonly available: boolean
+	fingerprint(filePath: string): Promise<FingerprintOutcome>
+}
+
+/**
+ * One AcoustID result crossed with one of the recordings it names. The service
+ * scores the audio, not the recording, so every recording under one result
+ * carries that result's score.
+ */
+export interface FingerprintMatch {
+	/** The service's own confidence that this is the same audio, 0 to 1. */
+	score: number
+	/** MusicBrainz recording MBID. */
+	id: string
+	title: string
+	artists: string[]
+	/** Release groups, ordered so a proper album outranks a compilation. */
+	releases: CandidateRelease[]
+	/** 0-based position in the order the service returned, lower is better. */
+	rank: number
+}
+
+/**
+ * The same three channels the other providers use, as a union rather than an
+ * empty array standing in for two different things: an empty `matches` is the
+ * service saying it does not know this audio, which is cached for a day, while
+ * `unavailable` is a request that never happened and is retried in seconds.
+ */
+export type LookupOutcome =
+	| { kind: "matched"; matches: FingerprintMatch[] }
+	| { kind: "unavailable" }
+
+export interface AudioIdLookup {
+	/**
+	 * Whether a lookup right now would reach the service, answered without a
+	 * request. Hashing the audio is what the caller pays to be able to ask, so it
+	 * asks this first, and the reasons a lookup cannot happen (a cooldown, a
+	 * rejected key) stay owned by the implementation that set them.
+	 */
+	readonly available: boolean
+	lookup(fingerprint: string, duration: number): Promise<LookupOutcome>
+}
+
+/**
+ * What names a file for this feature. Not the path alone: the cache entry has
+ * to stop answering once the bytes behind the path change.
+ */
+export interface AudioFileIdentity {
+	path: string
+	size: number
+	modifiedAt: number
+}
+
+export type IdentifyOutcome =
+	| { kind: "identified"; recording: RecordingCandidate }
+	/** The audio was read and nothing came back that could be trusted. */
+	| { kind: "unidentified"; reason: "no-results" | "no-match" }
+	/** Nothing was learned about the file, so the answer is worth retrying. */
+	| { kind: "unavailable" }
+
+/**
+ * Identifying a recording from the audio itself, which is the only thing left
+ * for a file whose tags say nothing.
+ */
+export interface AudioIdentifier {
+	/** `null` when the playing item is not a local file, a stream for instance. */
+	fileFor(status: VlcStatus): Promise<AudioFileIdentity | null>
+	identify(file: AudioFileIdentity): Promise<IdentifyOutcome>
 }
 
 export type UnresolvedReason =
@@ -85,4 +171,15 @@ export type UnresolvedReason =
 
 export type CacheEntry =
 	| { status: "resolved"; version: number; result: MusicResult; lastAccessedAt: number }
-	| { status: "unresolved"; version: number; expiresAt: number; lastAccessedAt: number }
+	/**
+	 * The reason is stored, not just the expiry: what comes after a miss depends
+	 * on whether the catalogs ruled on the track or could not answer at all, and a
+	 * cached miss has to answer that question the same way a fresh one does.
+	 */
+	| {
+			status: "unresolved"
+			version: number
+			reason: UnresolvedReason
+			expiresAt: number
+			lastAccessedAt: number
+	  }

@@ -125,6 +125,7 @@ describe("Cache", () => {
 		const stale: CacheEntry = {
 			status: "unresolved",
 			version: 0,
+			reason: "no-match",
 			expiresAt: 1_000_000,
 			lastAccessedAt: 0,
 		}

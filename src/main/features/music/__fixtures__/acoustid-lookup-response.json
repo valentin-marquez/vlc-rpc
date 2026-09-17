@@ -1,0 +1,155 @@
+{
+	"results": [
+		{
+			"id": "375d2059-b765-433f-8e33-5476976f33e5",
+			"recordings": [
+				{
+					"artists": [
+						{
+							"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+							"name": "Christian Nodal"
+						}
+					],
+					"duration": 233.546,
+					"id": "097cfb49-419c-4b00-97f3-cc86ef4d77c2",
+					"releasegroups": [
+						{
+							"artists": [
+								{
+									"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+									"joinphrase": " & ",
+									"name": "Christian Nodal"
+								},
+								{
+									"id": "91e4f95e-9d52-43bf-b26b-b88f4d88e40d",
+									"name": "El Bebeto"
+								}
+							],
+							"id": "c9faff69-c4bd-419d-9494-f1c358e356e6",
+							"secondarytypes": ["Compilation"],
+							"title": "Duelo romántico",
+							"type": "Album"
+						},
+						{
+							"artists": [
+								{
+									"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+									"joinphrase": " & ",
+									"name": "Christian Nodal"
+								},
+								{
+									"id": "1df2e165-15aa-45b3-8bed-278273afe480",
+									"name": "Jorge Medina"
+								}
+							],
+							"id": "e33f4557-95f2-435f-a6fa-c676eac43423",
+							"secondarytypes": ["Compilation"],
+							"title": "Lo mejor de dos grandes",
+							"type": "Album"
+						},
+						{
+							"artists": [
+								{
+									"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+									"name": "Christian Nodal"
+								}
+							],
+							"id": "1a02a523-4d16-43e6-9c99-b56289d09cd7",
+							"title": "Probablemente",
+							"type": "Single"
+						},
+						{
+							"artists": [
+								{
+									"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+									"name": "Christian Nodal"
+								}
+							],
+							"id": "1f9763bf-5ebf-4ecc-b5aa-4d462df0e20a",
+							"title": "Me dejé llevar",
+							"type": "Album"
+						},
+						{
+							"artists": [
+								{
+									"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+									"name": "Christian Nodal"
+								}
+							],
+							"id": "1a93ae84-9087-42f4-8848-0eab47f900b6",
+							"secondarytypes": ["Compilation"],
+							"title": "La voz de México ¡Lo mejor!",
+							"type": "Album"
+						}
+					],
+					"title": "Probablemente"
+				}
+			],
+			"score": 0.9588937
+		},
+		{
+			"id": "7d4cc158-b6b7-4727-8a1d-6d472f9b2f12",
+			"recordings": [
+				{
+					"artists": [
+						{
+							"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+							"joinphrase": " ft. ",
+							"name": "Christian Nodal"
+						},
+						{
+							"id": "95c8b6b7-1e24-4987-804c-024f6b05cd91",
+							"name": "David Bisbal"
+						}
+					],
+					"duration": 233.533,
+					"id": "0a25e4b3-fdf1-4c20-917b-6721a744cfbc",
+					"releasegroups": [
+						{
+							"artists": [
+								{
+									"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+									"name": "Christian Nodal"
+								}
+							],
+							"id": "1f9763bf-5ebf-4ecc-b5aa-4d462df0e20a",
+							"title": "Me dejé llevar",
+							"type": "Album"
+						},
+						{
+							"artists": [
+								{
+									"id": "95c8b6b7-1e24-4987-804c-024f6b05cd91",
+									"name": "David Bisbal"
+								}
+							],
+							"id": "545fe57f-ee51-4895-a7dd-60cb2c021b7a",
+							"secondarytypes": ["Compilation"],
+							"title": "20 años contigo",
+							"type": "Album"
+						},
+						{
+							"artists": [
+								{
+									"id": "7f464f95-2410-4040-a88e-1dbe96f17fcd",
+									"joinphrase": " ft. ",
+									"name": "Christian Nodal"
+								},
+								{
+									"id": "95c8b6b7-1e24-4987-804c-024f6b05cd91",
+									"name": "David Bisbal"
+								}
+							],
+							"id": "fd91af28-bb83-43bc-ba27-7711baf3b8ad",
+							"title": "Probablemente",
+							"type": "Single"
+						}
+					],
+					"title": "Probablemente"
+				}
+			],
+			"score": 0.85508966
+		}
+	],
+	"status": "ok"
+}

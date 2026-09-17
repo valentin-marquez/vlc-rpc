@@ -1,17 +1,38 @@
 import { cn } from "@renderer/lib/utils"
-import { MusicNotes } from "phosphor-react"
+import { MusicNotes, Pause, Play, VideoCamera } from "phosphor-react"
 import React from "react"
 
 export type PresenceCardSize = "sm" | "lg"
+export type PresenceCardIcon = "music" | "video"
 
 export interface PresenceProgress {
 	elapsedSeconds: number
 	durationSeconds: number
 }
 
+export type PresenceBadgeKind = "playing" | "paused"
+
+/**
+ * Discord's small image, the chip overlapping the artwork. The app sends it as an
+ * asset key rather than a URL and only ever sends two of them, so the card draws the
+ * state the key stands for instead of an image it has no address for.
+ */
+export interface PresenceBadge {
+	kind: PresenceBadgeKind
+	/** What Discord shows on hover, its `small_text`. */
+	text?: string | undefined
+}
+
+const BADGE_LABEL: Record<PresenceBadgeKind, string> = {
+	playing: "Playing",
+	paused: "Paused",
+}
+
 interface PresenceCardBase {
 	size?: PresenceCardSize
 	className?: string
+	/** Which glyph stands in while there is no artwork to draw. */
+	icon?: PresenceCardIcon
 }
 
 export interface PresenceCardLiveProps extends PresenceCardBase {
@@ -25,6 +46,8 @@ export interface PresenceCardLiveProps extends PresenceCardBase {
 	/** Hover text on the artwork, which is the only place Discord shows it. */
 	largeText?: string
 	artworkUrl?: string | null
+	/** The small image, drawn over the artwork's trailing bottom corner. */
+	badge?: PresenceBadge
 	progress?: PresenceProgress
 }
 
@@ -43,10 +66,13 @@ const LINE: Record<PresenceCardSize, string> = { sm: "type-caption", lg: "type-b
 // Both kinds hold the same body height at a size, so nothing jumps when playback stops.
 const BODY: Record<PresenceCardSize, string> = { sm: "min-h-14", lg: "min-h-[92px]" }
 
+const BADGE: Record<PresenceCardSize, string> = { sm: "size-4", lg: "size-6" }
+const BADGE_GLYPH: Record<PresenceCardSize, number> = { sm: 8, lg: 12 }
+
 const ART_RING = "shadow-[inset_0_0_0_1px_rgb(255_255_255/0.08)]"
 
 export function PresenceCard(props: PresenceCardProps): JSX.Element {
-	const { size = "lg", className } = props
+	const { size = "lg", className, icon = "music" } = props
 	const isEmpty = props.kind === "empty"
 
 	return (
@@ -57,14 +83,20 @@ export function PresenceCard(props: PresenceCardProps): JSX.Element {
 
 			<div className={cn("flex items-start", GAP[size], BODY[size])}>
 				{isEmpty ? (
-					<ArtworkPlaceholder size={size} />
+					<ArtworkPlaceholder size={size} icon={icon} />
 				) : (
-					<Artwork
-						key={props.artworkUrl ?? "none"}
-						url={props.artworkUrl ?? null}
-						size={size}
-						hoverText={props.largeText}
-					/>
+					// The badge hangs over the artwork's corner, so it sits outside the clip
+					// that keeps the image inside its own rounded box.
+					<div className="relative shrink-0">
+						<Artwork
+							key={props.artworkUrl ?? "none"}
+							url={props.artworkUrl ?? null}
+							size={size}
+							icon={icon}
+							hoverText={props.largeText}
+						/>
+						{props.badge && <SmallImage badge={props.badge} size={size} />}
+					</div>
 				)}
 
 				<div className="flex min-w-0 flex-1 flex-col justify-center self-stretch">
@@ -74,9 +106,13 @@ export function PresenceCard(props: PresenceCardProps): JSX.Element {
 						</p>
 					) : (
 						<>
-							<p className="type-label truncate text-strong" title={props.details}>
-								{props.details}
-							</p>
+							{/* A template that could not fill renders nothing, and Discord drops the
+							    line rather than drawing a blank one. */}
+							{props.details && (
+								<p className="type-label truncate text-strong" title={props.details}>
+									{props.details}
+								</p>
+							)}
 							{props.state && (
 								<p className={cn(LINE[size], "truncate text-body")} title={props.state}>
 									{props.state}
@@ -94,22 +130,24 @@ export function PresenceCard(props: PresenceCardProps): JSX.Element {
 function Artwork({
 	url,
 	size,
+	icon,
 	hoverText,
 }: {
 	url: string | null
 	size: PresenceCardSize
+	icon: PresenceCardIcon
 	hoverText?: string | undefined
 }): JSX.Element {
 	const [loaded, setLoaded] = React.useState(false)
 
-	if (!url) return <ArtworkPlaceholder size={size} />
+	if (!url) return <ArtworkPlaceholder size={size} icon={icon} />
 
 	return (
 		<div
 			title={hoverText}
 			className={cn("relative shrink-0 overflow-hidden rounded-md", ART[size], ART_RING)}
 		>
-			<ArtworkPlaceholder size={size} className="absolute inset-0" />
+			<ArtworkPlaceholder size={size} icon={icon} className="absolute inset-0" />
 			<img
 				src={url}
 				alt=""
@@ -124,13 +162,42 @@ function Artwork({
 	)
 }
 
+function SmallImage({
+	badge,
+	size,
+}: {
+	badge: PresenceBadge
+	size: PresenceCardSize
+}): JSX.Element {
+	const Glyph = badge.kind === "paused" ? Pause : Play
+	const label = BADGE_LABEL[badge.kind]
+
+	return (
+		<span
+			title={badge.text ?? label}
+			className={cn(
+				"absolute -bottom-1 -end-1 grid place-items-center rounded-pill",
+				"bg-raised text-strong ring-2 ring-card",
+				BADGE[size],
+			)}
+		>
+			<Glyph size={BADGE_GLYPH[size]} weight="fill" aria-hidden="true" />
+			<span className="sr-only">{label}</span>
+		</span>
+	)
+}
+
 function ArtworkPlaceholder({
 	size,
+	icon,
 	className,
 }: {
 	size: PresenceCardSize
+	icon: PresenceCardIcon
 	className?: string
 }): JSX.Element {
+	const Glyph = icon === "video" ? VideoCamera : MusicNotes
+
 	return (
 		<div
 			className={cn(
@@ -140,7 +207,7 @@ function ArtworkPlaceholder({
 				className,
 			)}
 		>
-			<MusicNotes size={size === "lg" ? 28 : 20} weight="fill" aria-hidden="true" />
+			<Glyph size={size === "lg" ? 28 : 20} weight="fill" aria-hidden="true" />
 		</div>
 	)
 }

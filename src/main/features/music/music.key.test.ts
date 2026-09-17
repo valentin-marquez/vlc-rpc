@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { audioOverrideKey, musicKey, overrideCoversTrack } from "./music.key"
+import { audioOverrideKey, fingerprintKey, musicKey, overrideCoversTrack } from "./music.key"
 
 describe("musicKey", () => {
 	it("ignores case, accents and punctuation", () => {
@@ -168,5 +168,39 @@ describe("overrideCoversTrack", () => {
 
 	it("matches nothing for a key that belongs to the other feature", () => {
 		expect(overrideCoversTrack(musicKey(record), "tv:Red River|1")).toBe(false)
+	})
+})
+
+describe("fingerprintKey", () => {
+	const file = { path: "C:\\Music\\track-01.mp3", size: 5_242_880, modifiedAt: 1_726_500_000_000 }
+
+	it("is stable for the same file", () => {
+		expect(fingerprintKey({ ...file })).toBe(fingerprintKey({ ...file }))
+	})
+
+	it("tells two untagged files apart, which their tag derived key cannot", () => {
+		// Both files answer the same to every question the tag key asks, so one
+		// key would hand the first one identified its cover to all of them.
+		const untagged = { artists: [], title: "Unknown" }
+		expect(musicKey(untagged)).toBe(musicKey(untagged))
+
+		const other = { ...file, path: "C:\\Music\\track-02.mp3" }
+		expect(fingerprintKey(other)).not.toBe(fingerprintKey(file))
+	})
+
+	it("stops answering for a file whose bytes changed", () => {
+		expect(fingerprintKey({ ...file, size: file.size + 1 })).not.toBe(fingerprintKey(file))
+		expect(fingerprintKey({ ...file, modifiedAt: file.modifiedAt + 1 })).not.toBe(
+			fingerprintKey(file),
+		)
+	})
+
+	it("is out of reach of an override eviction, which only walks track keys", () => {
+		const key = audioOverrideKey({ artists: ["Christian Nodal"], title: "Probablemente" })
+		expect(overrideCoversTrack(fingerprintKey(file), key)).toBe(false)
+	})
+
+	it("carries no part of the path, which would put a filename in the cache file", () => {
+		expect(fingerprintKey(file)).not.toContain("track-01")
 	})
 })

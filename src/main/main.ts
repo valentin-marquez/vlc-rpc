@@ -98,12 +98,32 @@ if (!gotTheLock) {
 			overridesStore,
 		)
 		const musicCache = new Music.Cache(systemClock)
+		// Identifying audio by its sound needs a key of this application's own,
+		// injected at build time. A clone without one keeps every other step of
+		// the cover chain exactly as it was, and is told so here rather than once
+		// per track.
+		//
+		// electron-vite replaces the expression below with a literal before any
+		// module exists, while tsconfig.node.json typechecks this file as
+		// CommonJS, where the syntax is not allowed. The directive is the
+		// expecting kind on purpose: the day that config changes, tsc reports it
+		// as unused and the line goes.
+		// @ts-expect-error TS1470, import.meta under a CommonJS typecheck
+		const acoustIdKey: string = import.meta.env.MAIN_VITE_ACOUSTID_KEY ?? ""
+		if (acoustIdKey.length === 0) {
+			logger.info("Audio identification is off: this build carries no AcoustID key")
+		}
+		const identifier =
+			acoustIdKey.length === 0
+				? undefined
+				: new Music.Identifier(vlc, new Music.Fpcalc(), new Music.AcoustId(acoustIdKey))
 		const musicResolver = new Music.Resolver(
 			musicCache,
 			new Music.ITunesProvider(),
 			new Music.MusicBrainzProvider(),
 			new Music.CoverArtArchive(),
 			overridesStore,
+			identifier,
 		)
 		const artwork = new Artwork.Resolver(cover, musicResolver)
 		const presence = new Presence.Service(artwork, catalogResolver)

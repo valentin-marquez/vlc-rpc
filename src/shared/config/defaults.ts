@@ -1,5 +1,5 @@
 import type { AppConfig } from "@shared/config/app-config"
-import { getDefaultLayout } from "@shared/presence/layout"
+import { DEFAULT_MUSIC_PRESET, DEFAULT_VIDEO_PRESET } from "@shared/presence/layout"
 
 /**
  * Default application configuration
@@ -21,8 +21,8 @@ export const DEFAULT_CONFIG: AppConfig = {
 	version: "3.0.0", // Default version, will be overridden at runtime
 	fileMetadata: {}, // Empty object for file metadata storage
 	rpcEnabled: true,
-	presenceLayout: getDefaultLayout(),
-	layoutPreset: "default",
+	layoutPreset: DEFAULT_MUSIC_PRESET,
+	videoLayoutPreset: DEFAULT_VIDEO_PRESET,
 }
 
 /**
