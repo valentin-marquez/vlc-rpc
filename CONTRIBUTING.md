@@ -142,9 +142,12 @@ fixtures. The suite must run without VLC, without Discord and without network ac
 When refactoring, write characterization tests first: they capture current behavior, bugs included.
 A later diff in those snapshots is the list of behavior changes you actually made.
 
-Four gates run on every push: `lint:check`, `typecheck`, `test`, `build:win`. Run them through the
-package scripts. `npx biome` does not run this repo's linter: the bare name resolves to an unrelated
-package on the registry that exits 0 without checking anything, so green from it means nothing.
+Four gates run on every push: `lint:check`, `typecheck`, `test`, `build:win`. Run them with
+`bun run`, and reach a binary directly with `bunx`, which resolves the one in `node_modules`.
+
+Do not use `npx` here. It resolves a bare name against the registry, so `npx biome` runs an
+unrelated package that exits 0 without checking anything, and `npx tsc` runs one that refuses to
+compile. Both look like a passing gate.
 
 ## Commits
 
