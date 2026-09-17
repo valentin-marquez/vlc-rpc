@@ -61,7 +61,6 @@ const api = {
 	update: {
 		check: typedInvoke("update:check"),
 		download: typedInvoke("update:download"),
-		forceCheck: typedInvoke("update:force-check"),
 		getStatus: typedInvoke("update:status"),
 		getCurrent: typedInvoke("update:current"),
 		getInstallationType: typedInvoke("update:installation-type"),

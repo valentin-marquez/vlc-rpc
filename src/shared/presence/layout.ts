@@ -197,13 +197,21 @@ export interface VideoFacts {
 	year?: string | number | undefined
 }
 
+/**
+ * The year of a file the app worked out to be an episode is the show's year or the
+ * season's, never this episode's, and beside "S1E11" it is noise either way. Western
+ * releases carry it in the name routinely, so the piece has to take itself off the line
+ * the same way it does for a file that never named a year.
+ */
 export function videoVariables(facts: VideoFacts): TemplateVariables {
+	const episodeInfo = episodeMarker(facts.season, facts.episode)
+
 	return {
 		title: facts.title,
-		episodeInfo: episodeMarker(facts.season, facts.episode),
+		episodeInfo,
 		season: facts.season,
 		episode: facts.episode,
-		year: facts.year,
+		year: episodeInfo === "" ? facts.year : undefined,
 	}
 }
 
@@ -222,24 +230,36 @@ export function drawnValue(name: string, variables: TemplateVariables): string {
 }
 
 /**
+ * What each piece of the line puts on the profile, in place, and null for a piece that
+ * took itself off. The builder reads the same answer, so a guard on what a line draws and
+ * the line itself cannot come apart.
+ */
+export function drawnPieces(
+	line: LayoutLine,
+	variables: TemplateVariables,
+): readonly (string | null)[] {
+	const values = line.map((piece) =>
+		piece.kind === "value" ? drawnValue(piece.name, variables) : null,
+	)
+
+	return line.map((piece, index) => {
+		if (piece.kind === "value") {
+			const held = values[index] ?? ""
+			return held === "" ? null : held
+		}
+
+		const words = piece.text.trim()
+		return words === "" || !carried(values, index) ? null : words
+	})
+}
+
+/**
  * A piece with nothing to draw takes itself off the line, and takes the words next to it
  * with it. Leaving the words behind is what used to write "by " onto a profile with no
  * artist, and filling the gap instead is what used to write "Unknown".
  */
 export function renderLine(line: LayoutLine, variables: TemplateVariables): string {
-	const drawn = line.map((piece) =>
-		piece.kind === "value" ? drawnValue(piece.name, variables) : null,
-	)
-
-	const parts = line.flatMap((piece, index) => {
-		if (piece.kind === "value") {
-			const held = drawn[index] ?? ""
-			return held === "" ? [] : [held]
-		}
-
-		const words = piece.text.trim()
-		return words === "" || !carried(drawn, index) ? [] : [words]
-	})
+	const parts = drawnPieces(line, variables).filter((part): part is string => part !== null)
 
 	return join(parts).replace(WHITESPACE_RUN, " ").trim()
 }

@@ -1,7 +1,11 @@
 import type { AppConfig, VlcConfig } from "@shared/config/app-config"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
 import type { LastSentPresence } from "@shared/presence/presence.types"
-import type { UpdateAvailability, UpdateInstallKind } from "@shared/updates/update.types"
+import type {
+	UpdateAvailability,
+	UpdateCheckResult,
+	UpdateInstallKind,
+} from "@shared/updates/update.types"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 
 // ─── Overrides ──────────────────────────────────────────────────────────────
@@ -139,9 +143,9 @@ export interface IpcInvokeChannelMap {
 	"overrides:delete": { request: [key: string]; response: boolean }
 
 	// ── Update ──────────────────────────────────────────────────────────────
-	"update:check": { request: [silent?: boolean]; response: boolean }
+	/** A check somebody asked for, whose answer goes back to the screen they asked from. */
+	"update:check": { request: []; response: UpdateCheckResult }
 	"update:download": { request: []; response: boolean }
-	"update:force-check": { request: []; response: boolean }
 	"update:status": {
 		request: []
 		response: {

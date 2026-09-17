@@ -28,3 +28,8 @@ when there is one.
   to be invisible until the next release came along. Closing the window and
   opening it again builds a new one, and that one is now told about the update
   too, which it never was before.
+- Settings, under About, has a "Check for updates" button for when you want to
+  ask rather than wait. It answers on the spot, next to the version it checked:
+  the version it found, that you are up to date, or that the check could not
+  reach GitHub. No dialog, and no second install button: a release it finds is
+  taken up from the header button like any other.

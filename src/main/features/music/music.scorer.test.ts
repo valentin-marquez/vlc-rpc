@@ -395,7 +395,7 @@ describe("pickIdentified", () => {
 		expect(picked.kind === "named" && picked.match.id).toBe("best")
 	})
 
-	it("names the solo recording out of the captured AcoustID response", async () => {
+	it("names the captured solo, and stops naming it once the duet is confident too", async () => {
 		const body = readFileSync(
 			join(__dirname, "__fixtures__", "acoustid-lookup-response.json"),
 			"utf-8",
@@ -409,13 +409,24 @@ describe("pickIdentified", () => {
 		if (outcome.kind !== "matched") throw new Error("the captured response is a match")
 		const picked = pickIdentified(outcome.matches)
 
-		// 0.9589 against 0.8551 for the duet that reuses the vocal take: the
-		// measured pair a naming floor exists to separate.
+		// The capture scores the solo 0.9589 and the duet that reuses its vocal take
+		// 0.8551, which is under the identity floor: the duet is dropped and the solo
+		// is alone in front of the naming rules.
 		expect(picked.kind).toBe("named")
 		if (picked.kind !== "named") return
 		expect(picked.match.id).toBe("097cfb49-419c-4b00-97f3-cc86ef4d77c2")
 		expect(picked.match.title).toBe("Probablemente")
 		expect(picked.match.artists).toEqual(["Christian Nodal"])
+
+		// A cleaner rip of the same file lifts the duet over that floor, and then the
+		// pair is what has to be told apart. Two credits the service cannot separate
+		// name nothing: the title and the artist would go on a profile, and the duet's
+		// is a record the user is not playing.
+		const closerDuet = outcome.matches.map((match) =>
+			match.artists.length > 1 ? { ...match, score: 0.92 } : match,
+		)
+
+		expect(pickIdentified(closerDuet)).toEqual({ kind: "unidentified" })
 		vi.unstubAllGlobals()
 	})
 })

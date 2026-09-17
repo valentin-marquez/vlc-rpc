@@ -11,7 +11,9 @@ import type { CacheEntry, IdentifiedName, MusicResult, UnresolvedReason } from "
 // An entry written before that holds a cover and no name, and a resolved entry
 // never expires, so without this every file already identified would keep
 // reading as its own file name for as long as the entry survives.
-const CACHE_VERSION = 3
+// Exported so a test double stamps and refuses the same number the real one does:
+// a fake that writes a version the product cannot produce tests a state nobody has.
+export const CACHE_VERSION = 3
 const MAX_RESOLVED_ENTRIES = 200
 const TRANSIENT_TTL_MS = 5_000
 const STABLE_TTL_MS = 24 * 60 * 60_000

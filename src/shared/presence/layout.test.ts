@@ -27,6 +27,9 @@ const NO_ALBUM = { title: "Bohemian Rhapsody", artist: "Queen", album: "" }
 const SERIES = videoVariables({ title: "Breaking Bad", season: 2, episode: 5 })
 const FILM = videoVariables({ title: "The Matrix", year: 1999 })
 const UNIDENTIFIED = videoVariables({ title: "holiday-clip" })
+// The name of a western release routinely carries both, and the parser reads both:
+// "Red River 2026 S01E11 Where My Heart Is 1080p CR WEB-DL AAC2.0 H.264-VARYG".
+const DATED_SERIES = videoVariables({ title: "Red River", season: 1, episode: 11, year: 2026 })
 
 describe("renderLine", () => {
 	it("draws the pieces in the order they were placed", () => {
@@ -96,6 +99,14 @@ describe("videoVariables", () => {
 	it("leaves the episode marker empty for a file with no season or episode", () => {
 		expect(videoVariables({ title: "x" }).episodeInfo).toBe("")
 	})
+
+	it("has no year for a file it worked out to be an episode", () => {
+		// The year in the name of a series file is the show's or the season's, not
+		// this episode's, and beside "S1E11" it is noise either way.
+		expect(DATED_SERIES.year).toBeUndefined()
+		expect(videoVariables({ title: "x", season: 2, year: 2008 }).year).toBeUndefined()
+		expect(videoVariables({ title: "x", year: 1999 }).year).toBe(1999)
+	})
 })
 
 describe("the default arrangement", () => {
@@ -128,6 +139,12 @@ describe("the default arrangement", () => {
 			"The Matrix",
 			"1999",
 		])
+	})
+
+	it("draws the episode alone for a series file whose name also carries a year", () => {
+		expect(
+			toVideoLines(DEFAULT_VIDEO_LAYOUT).map((line) => renderLine(line, DATED_SERIES)),
+		).toEqual(["Red River", "S1E11"])
 	})
 
 	it("leaves nothing but the title for a video file it could not identify", () => {

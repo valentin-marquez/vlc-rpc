@@ -36,8 +36,17 @@ export const UNTAGGED_TRACK = { title: "track01", artist: "", album: "" }
 /**
  * An arrangement only works if it reads for both, so the canvas shows an episode and a
  * film together rather than picking one.
+ *
+ * The episode carries a year because the files people play do: a western release names
+ * the show's year beside the episode marker. It draws no year, and seeing that happen is
+ * the only way to know the arrangement does not write "S2E5 2009" onto a profile.
  */
-export const SAMPLE_EPISODE: VideoFacts = { title: "Breaking Bad", season: 2, episode: 5 }
+export const SAMPLE_EPISODE: VideoFacts = {
+	title: "Breaking Bad",
+	season: 2,
+	episode: 5,
+	year: 2009,
+}
 export const SAMPLE_FILM: VideoFacts = { title: "The Matrix", year: 1999 }
 
 export const MUSIC_SLOTS: readonly SlotLabel[] = [

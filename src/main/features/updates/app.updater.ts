@@ -2,8 +2,12 @@ import { join } from "node:path"
 import { is } from "@electron-toolkit/utils"
 import type { Clock } from "@main/core/clock"
 import { logger } from "@main/core/logger"
-import type { UpdateAvailability, UpdateInstallKind } from "@shared/updates/update.types"
-import { type BrowserWindow, app, dialog, shell } from "electron"
+import type {
+	UpdateAvailability,
+	UpdateCheckResult,
+	UpdateInstallKind,
+} from "@shared/updates/update.types"
+import { type BrowserWindow, app, shell } from "electron"
 import { type UpdateInfo, autoUpdater } from "electron-updater"
 import type { InstallKind } from "./updates.install-kind"
 import { createUpdaterLogger, describeError } from "./updates.log"
@@ -90,11 +94,11 @@ export class Updater {
 
 		this.firstCheckTimer = setTimeout(() => {
 			this.firstCheckTimer = null
-			void this.checkForUpdates(true)
+			void this.checkForUpdates()
 		}, FIRST_CHECK_DELAY_MS)
 
 		this.periodicTimer = setInterval(() => {
-			void this.checkForUpdates(true)
+			void this.checkForUpdates()
 		}, CHECK_INTERVAL_MS)
 
 		logger.info("Update checks scheduled", {
@@ -204,7 +208,7 @@ export class Updater {
 	private checkOnOpenedWindow(): void {
 		if (this.clock.now() - this.lastCheckAt < OPEN_WINDOW_GAP_MS) return
 
-		void this.checkForUpdates(true)
+		void this.checkForUpdates()
 	}
 
 	/**
@@ -248,7 +252,7 @@ export class Updater {
 
 		this.retryTimer = setTimeout(() => {
 			this.retryTimer = null
-			void this.checkForUpdates(true)
+			void this.checkForUpdates()
 		}, delay)
 	}
 
@@ -287,22 +291,29 @@ export class Updater {
 		return this.availability
 	}
 
-	/**
-	 * @param silent If true, won't show a dialog when the check itself fails
-	 */
-	public async checkForUpdates(silent = true): Promise<void> {
-		return this.runCheck(silent, false)
-	}
-
-	private async runCheck(silent: boolean, force: boolean): Promise<void> {
-		if (is.dev && !force && !process.env.FORCE_UPDATE_CHECK) {
+	/** The scheduled check. Its answer is the announcement, so nothing reads the result. */
+	public async checkForUpdates(): Promise<void> {
+		if (is.dev && !process.env.FORCE_UPDATE_CHECK) {
 			logger.info("Skip update check in development mode (set FORCE_UPDATE_CHECK=1 to override)")
 			return
 		}
 
+		await this.runCheck()
+	}
+
+	/**
+	 * A check a person asked for, answered back to them. It runs in development
+	 * too, and it raises no dialog: the screen the press came from is where the
+	 * answer belongs, including the answer that the check itself failed.
+	 */
+	public async checkNow(): Promise<UpdateCheckResult> {
+		return this.runCheck()
+	}
+
+	private async runCheck(): Promise<UpdateCheckResult> {
 		if (this.phase.kind !== "idle") {
 			logger.info("Updater is busy, skipping this check", { phase: this.phase.kind })
-			return
+			return { kind: "busy" }
 		}
 
 		this.phase = { kind: "checking" }
@@ -311,28 +322,20 @@ export class Updater {
 		logger.info("Checking for updates", {
 			currentVersion: app.getVersion(),
 			installedAs: this.install.kind,
-			silent,
 			retryAttempt: this.retryAttempt,
 		})
 
 		try {
 			await autoUpdater.checkForUpdates()
+
+			// The feed answered through an event while this was in flight, so what
+			// stands now is what this check found.
+			return this.availability.kind === "none"
+				? { kind: "up-to-date" }
+				: { kind: "found", version: this.availability.version }
 		} catch (error) {
 			logger.error("Error checking for updates", describeError(error))
-
-			const window = this.liveWindow()
-			if (!silent && window !== null) {
-				dialog
-					.showMessageBox(window, {
-						type: "error",
-						title: "Update Error",
-						message: "Failed to check for updates.",
-						detail: "Please check your internet connection and try again.",
-					})
-					.catch((dialogError) => {
-						logger.error("Error showing update error dialog", describeError(dialogError))
-					})
-			}
+			return { kind: "failed" }
 		} finally {
 			// A download started from the header button while this was in flight
 			// keeps the phase it set.
@@ -393,13 +396,6 @@ export class Updater {
 	 */
 	public getInstallationType(): UpdateInstallKind {
 		return this.install.kind === "portable" ? "portable" : "setup"
-	}
-
-	/**
-	 * Force check for updates (ignores dev mode)
-	 */
-	public async forceCheckForUpdates(): Promise<void> {
-		return this.runCheck(false, true)
 	}
 
 	/**

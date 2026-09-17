@@ -212,7 +212,7 @@ export function LayoutCanvas({
 						<Note
 							key={`${stray.lineId}-${stray.text}`}
 							tone="problem"
-							words={`"${stray.text}" has no value to travel with, so it would sit on your profile on its own.`}
+							words={`"${stray.text}" would be drawn with nothing to separate, so it would sit on your profile as a stray mark.`}
 						/>
 					))}
 					{repeats.map((repeat) => (

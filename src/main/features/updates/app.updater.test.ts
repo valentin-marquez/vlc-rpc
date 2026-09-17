@@ -113,12 +113,12 @@ import { Updater } from "./app.updater"
 
 type WindowEvent = "show" | "focus"
 
-function makeWindow(visible = true) {
+function makeWindow() {
 	const handlers = new Map<string, Array<() => void>>()
+	let destroyed = false
 
 	const window = {
-		isVisible: () => visible,
-		isDestroyed: () => false,
+		isDestroyed: () => destroyed,
 		on(event: string, handler: () => void) {
 			const list = handlers.get(event) ?? []
 			list.push(handler)
@@ -139,14 +139,18 @@ function makeWindow(visible = true) {
 		emit(event: WindowEvent): void {
 			for (const handler of handlers.get(event) ?? []) handler()
 		},
+		/** The user closed the window. The updater keeps running in the tray. */
+		close(): void {
+			destroyed = true
+		},
 	}
 }
 
-function makeUpdater(options: { portable?: boolean; visible?: boolean } = {}) {
+function makeUpdater(options: { portable?: boolean } = {}) {
 	// Start from the wrong value so the assertions on it mean something.
 	updaterMock.autoUpdater.autoInstallOnAppQuit = options.portable === true
 
-	const fakeWindow = makeWindow(options.visible ?? true)
+	const fakeWindow = makeWindow()
 	const updater = new Updater(new SystemClock(), options.portable === true ? PORTABLE : INSTALLED)
 	updater.setMainWindow(fakeWindow.window)
 
@@ -208,7 +212,7 @@ describe("A long running install noticing a release", () => {
 		await vi.advanceTimersByTimeAsync(3000)
 		expect(checks()).toBe(1)
 
-		await updater.checkForUpdates(true)
+		expect(await updater.checkNow()).toEqual({ kind: "busy" })
 		await vi.advanceTimersByTimeAsync(12 * HOUR_MS)
 
 		expect(checks()).toBe(1)
@@ -291,18 +295,28 @@ describe("GitHub being unreachable", () => {
 		updater.stop()
 	})
 
-	it("tells a user who asked for the check, without quoting the error back", async () => {
+	it("answers a user who asked for the check, without quoting the error back", async () => {
 		const { updater } = makeUpdater()
 		state.checkBehavior = "fails"
 
-		await updater.forceCheckForUpdates()
+		const answer = await updater.checkNow()
 		await vi.advanceTimersByTimeAsync(0)
 
-		expect(electronMock.showMessageBox).toHaveBeenCalledTimes(1)
-		const options = JSON.stringify(electronMock.showMessageBox.mock.calls[0]?.[1])
-		expect(options).toContain("Update Error")
-		expect(options).not.toContain("github.com")
-		expect(options).not.toContain("net::ERR")
+		// The panel that asked gets the failure to write down, and nothing is put in
+		// front of anybody: the error carries the feed url and a url can carry a key.
+		expect(answer).toEqual({ kind: "failed" })
+		expect(JSON.stringify(answer)).not.toContain("github.com")
+		expect(JSON.stringify(answer)).not.toContain("net::ERR")
+		expect(electronMock.showMessageBox).not.toHaveBeenCalled()
+	})
+
+	it("answers the same user that the release is there, or that nothing is", async () => {
+		const { updater } = makeUpdater()
+
+		expect(await updater.checkNow()).toEqual({ kind: "found", version: "5.0.0" })
+
+		state.checkBehavior = "none"
+		expect(await updater.checkNow()).toEqual({ kind: "up-to-date" })
 	})
 
 	it("logs the name of a failure, never the error and never a url", async () => {
@@ -336,11 +350,10 @@ describe("Announcing a release", () => {
 		updater.stop()
 	})
 
-	it("interrupts nobody: the release is state the window can come and ask for", async () => {
-		// The check runs three seconds after the app starts, which is before the
-		// window has finished loading, and the push is made once. A renderer that
-		// mounts later reads this instead of missing the release entirely.
-		const updater = new Updater(new SystemClock(), INSTALLED)
+	it("interrupts nobody: a release in front of a live window opens no dialog", async () => {
+		// A window is attached and alive, so every dialog the updater could raise is
+		// reachable. The release is state the renderer comes and asks for instead.
+		const { updater } = makeUpdater()
 
 		updater.start()
 		await vi.advanceTimersByTimeAsync(3000)
@@ -351,12 +364,14 @@ describe("Announcing a release", () => {
 		updater.stop()
 	})
 
-	it("keeps the release while the window is closed", async () => {
-		const { updater } = makeUpdater({ visible: false })
+	it("keeps the release while the window is closed, with nowhere to push it", async () => {
+		const { updater, close, announced } = makeUpdater()
+		close()
 
 		updater.start()
 		await vi.advanceTimersByTimeAsync(3000)
 
+		expect(announced()).toEqual([])
 		expect(updater.getCurrentUpdate()).toEqual({ kind: "available", version: "5.0.0" })
 
 		updater.stop()

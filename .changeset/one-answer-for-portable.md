@@ -13,5 +13,6 @@ both directions. A portable copy in a folder that does not happen to say so was
 offered start at login, which writes a registry entry pointing at a file the user
 is free to move; an ordinary install under a folder like C:\PortableApps lost
 start at login for no reason. Both now come from the one answer the build gives,
-so the header, the "Installed as" line in Settings and the start at login switch
+so the header, the "Installed as" line in Settings, the "Start with System" item
+the tray menu shows only to an installed copy and the start at login switch
 cannot contradict each other.

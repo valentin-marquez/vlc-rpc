@@ -21,16 +21,26 @@ export function useUpdateOffer(): UpdateOfferState {
 	const [install, setInstall] = useState<UpdateInstallKind | null>(null)
 
 	useEffect(() => {
+		// The snapshot was taken before any push that lands while it is in flight, so
+		// writing it afterwards would put the window back on a state the updater has
+		// already moved off, until the next event happens to correct it.
+		let pushed = false
+
+		const stopListening = window.api.update.onAvailability((next) => {
+			pushed = true
+			setAvailability(next)
+		})
+
 		Promise.all([window.api.update.getInstallationType(), window.api.update.getCurrent()])
 			.then(([kind, current]) => {
 				setInstall(kind)
-				setAvailability(current)
+				if (!pushed) setAvailability(current)
 			})
 			.catch((error) => {
 				logger.error(`Failed to read the update state: ${error}`)
 			})
 
-		return window.api.update.onAvailability(setAvailability)
+		return stopListening
 	}, [])
 
 	const offer = describeUpdateOffer(install, availability)

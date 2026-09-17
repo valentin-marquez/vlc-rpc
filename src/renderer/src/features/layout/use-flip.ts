@@ -9,8 +9,10 @@ export interface Flip {
  * beside it and the lines under it, and moving them with a transform is what keeps that
  * push off the layout: animating height or margin would relayout the card on every frame.
  *
- * Under reduced motion the transform is cleared by globals.css, so every element simply
- * appears where it belongs. Nothing here is the only way to learn where a piece went.
+ * Under reduced motion the transition below lasts 0ms, because globals.css sets
+ * --spring-enter-duration to zero, so the displacement is undone on the next frame and
+ * every element appears where it belongs. Nothing here is the only way to learn where a
+ * piece went.
  */
 export function useFlip(): Flip {
 	const nodes = useRef(new Map<string, HTMLElement>())

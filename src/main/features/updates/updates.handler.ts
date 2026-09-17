@@ -11,21 +11,14 @@ export class UpdateHandler {
 	}
 
 	private registerHandlers(): void {
-		registerHandler("update:check", async (silent = true) => {
-			logger.info(`Requested update check (silent: ${silent})`)
-			await this.updater.checkForUpdates(silent)
-			return true
+		registerHandler("update:check", async () => {
+			logger.info("Requested update check")
+			return this.updater.checkNow()
 		})
 
 		registerHandler("update:download", async () => {
 			logger.info("Requested update download")
 			this.updater.downloadUpdate()
-			return true
-		})
-
-		registerHandler("update:force-check", async () => {
-			logger.info("Requested force update check")
-			await this.updater.forceCheckForUpdates()
 			return true
 		})
 

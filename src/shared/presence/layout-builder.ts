@@ -7,7 +7,7 @@
  */
 
 import type { LayoutLine, TemplateVariables } from "./layout"
-import { drawnValue, renderLine } from "./layout"
+import { drawnPieces, drawnValue, renderLine } from "./layout"
 
 export interface BuilderLine {
 	id: string
@@ -54,7 +54,7 @@ export interface RepeatGroup {
 	sameText: boolean
 }
 
-/** Words with no value to travel with and no letters of their own, which would sit alone. */
+/** A separator an example would draw with nothing on one side of it. */
 export interface StrandedText {
 	lineId: string
 	text: string
@@ -66,8 +66,6 @@ export interface LayoutReport {
 	stranded: readonly StrandedText[]
 }
 
-const HAS_WORD = /[\p{L}\p{N}]/u
-
 export function inspectLayout(
 	lines: readonly BuilderLine[],
 	samples: readonly BuilderSample[],
@@ -75,7 +73,7 @@ export function inspectLayout(
 	return {
 		lines: lines.map((line) => inspectLine(line, samples)),
 		repeats: findRepeats(lines, samples),
-		stranded: findStranded(lines),
+		stranded: findStranded(lines, samples),
 	}
 }
 
@@ -148,18 +146,71 @@ function findRepeats(
 }
 
 /**
- * The engine drops words whose value is missing, but words on a line with no value at all
- * have nothing to be dropped with. A separator alone is the one way to put a stray mark on
- * a profile, so it is the one thing the builder refuses to save.
+ * A stray mark on a profile is the one thing the builder refuses to save, so what counts
+ * as drawn is asked of the engine rather than worked out again here: the engine binds
+ * words to the value after them and falls back to the one before, and a guard that read
+ * the pieces alone would call the dash in [Artist, "-", Title] clean for a file with no
+ * artist, where the profile says "- track01".
+ *
+ * Stray is narrow on purpose. A mark between two value pieces is a separator, and it is
+ * stray when either of them draws nothing, because then it separates one thing from
+ * nothing. A mark with a value on one side only was put there to sit beside that value,
+ * and a line holding no value pieces at all cannot lose anything, so what it holds stands
+ * alone by construction.
  */
-function findStranded(lines: readonly BuilderLine[]): readonly StrandedText[] {
-	return lines.flatMap(({ id, line }) => {
-		if (line.some((piece) => piece.kind === "value")) return []
+function findStranded(
+	lines: readonly BuilderLine[],
+	samples: readonly BuilderSample[],
+): readonly StrandedText[] {
+	// One mistake, said once, however many examples draw it.
+	const found = new Map<string, StrandedText>()
 
-		return line
-			.filter((piece) => piece.kind === "text" && !HAS_WORD.test(piece.text))
-			.map((piece) => ({ lineId: id, text: piece.kind === "text" ? piece.text : "" }))
+	for (const { id, line } of lines) {
+		for (const sample of samples) {
+			for (const stray of straysIn(line, sample.variables)) {
+				found.set(`${id}|${stray}`, { lineId: id, text: stray })
+			}
+		}
+	}
+
+	return [...found.values()]
+}
+
+function straysIn(line: LayoutLine, variables: TemplateVariables): readonly string[] {
+	const drawn = drawnPieces(line, variables)
+	const holdsValue = line.some((piece) => piece.kind === "value")
+
+	return line.flatMap((piece, index) => {
+		const text = drawn[index]
+		if (piece.kind !== "text" || text === undefined || text === null || !isMark(text)) return []
+		if (!holdsValue) return [text]
+
+		const before = nearestValue(line, index, -1)
+		const after = nearestValue(line, index, 1)
+		if (before === null || after === null) return []
+
+		const separates = drawnValue(before, variables) !== "" && drawnValue(after, variables) !== ""
+		return separates ? [] : [text]
 	})
+}
+
+function nearestValue(line: LayoutLine, index: number, step: number): string | null {
+	for (let at = index + step; at >= 0 && at < line.length; at += step) {
+		const piece = line[at]
+		if (piece?.kind === "value") return piece.name
+	}
+
+	return null
+}
+
+/**
+ * What a removed value leaves behind is what people type as separators: a dash, a slash, a
+ * pipe, a colon, a bracket. An emoji is never a leftover, so it is not a mark.
+ */
+const MARK_CHARACTERS = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+
+function isMark(text: string): boolean {
+	return [...text].every((character) => MARK_CHARACTERS.includes(character))
 }
 
 /**

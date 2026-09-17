@@ -6,7 +6,11 @@ vi.mock("@main/core/logger", () => ({
 	logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
 }))
 
-import type { Cache } from "./music.cache"
+// Nothing here builds a Conf, but reading the cache's version number loads the
+// module that would, and electron is not there to be loaded under vitest.
+vi.mock("electron-conf/main", () => ({ Conf: vi.fn() }))
+
+import { CACHE_VERSION, type Cache } from "./music.cache"
 import { audioOverrideKey, fingerprintKey, musicKey } from "./music.key"
 import { type OverrideLookup, Resolver } from "./music.resolver"
 import type {
@@ -42,20 +46,24 @@ function fakeCache() {
 	const calls = { get: 0, setResolved: 0, setUnresolved: 0, deleteWhere: 0 }
 	const unresolvedReasons: UnresolvedReason[] = []
 	const cache = {
+		// The version is the real cache's whole rule for an entry an older release
+		// wrote, so the fake keeps it: a double that reads back what the product
+		// would throw away lets a test rest on a state no user can be in.
 		get: (key: string) => {
 			calls.get++
-			return store.get(key) ?? null
+			const entry = store.get(key)
+			return entry === undefined || entry.version !== CACHE_VERSION ? null : entry
 		},
 		setResolved: (key: string, result: MusicResult) => {
 			calls.setResolved++
-			store.set(key, { status: "resolved", version: 2, result, lastAccessedAt: 0 })
+			store.set(key, { status: "resolved", version: CACHE_VERSION, result, lastAccessedAt: 0 })
 		},
 		setUnresolved: (key: string, reason: UnresolvedReason, name?: IdentifiedName) => {
 			calls.setUnresolved++
 			unresolvedReasons.push(reason)
 			store.set(key, {
 				status: "unresolved",
-				version: 2,
+				version: CACHE_VERSION,
 				reason,
 				expiresAt: 999_999_999,
 				lastAccessedAt: 0,
@@ -398,7 +406,7 @@ describe("Resolver.resolve", () => {
 
 		expect(cachedOnSettle).toEqual({
 			status: "resolved",
-			version: 2,
+			version: CACHE_VERSION,
 			result,
 			lastAccessedAt: 0,
 		})
@@ -1190,7 +1198,7 @@ describe("Resolver.correctedTagsFor", () => {
 		const { resolver, store } = asking({}, REFUSED)
 		store.set(fingerprintKey(RIPPED), {
 			status: "resolved",
-			version: 2,
+			version: CACHE_VERSION,
 			result: {
 				cover: "https://example.com/fp.jpg",
 				provider: "acoustid",
@@ -1212,7 +1220,7 @@ describe("Resolver.correctedTagsFor", () => {
 		const { resolver, store } = asking({}, REFUSED)
 		store.set(fingerprintKey(RIPPED), {
 			status: "unresolved",
-			version: 2,
+			version: CACHE_VERSION,
 			reason: "no-cover",
 			expiresAt: 999_999_999,
 			lastAccessedAt: 0,
@@ -1229,7 +1237,7 @@ describe("Resolver.correctedTagsFor", () => {
 		const { resolver, store } = asking({}, REFUSED)
 		store.set(fingerprintKey(RIPPED), {
 			status: "resolved",
-			version: 2,
+			version: CACHE_VERSION,
 			result: { cover: "https://example.com/fp.jpg", provider: "acoustid", id: "mbid" },
 			lastAccessedAt: 0,
 		})
@@ -1254,7 +1262,7 @@ describe("Resolver.correctedTagsFor", () => {
 		)
 		store.set(fingerprintKey(RIPPED), {
 			status: "resolved",
-			version: 2,
+			version: CACHE_VERSION,
 			result: {
 				cover: "https://example.com/fp.jpg",
 				provider: "acoustid",
@@ -1277,7 +1285,7 @@ describe("Resolver.correctedTagsFor", () => {
 		)
 		store.set(fingerprintKey(RIPPED), {
 			status: "resolved",
-			version: 2,
+			version: CACHE_VERSION,
 			result: {
 				cover: "https://example.com/fp.jpg",
 				provider: "acoustid",

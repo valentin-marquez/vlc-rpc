@@ -134,6 +134,69 @@ describe("inspectLayout", () => {
 		).toEqual([])
 	})
 
+	it("catches a separator the value after it keeps alive, which the pieces alone do not show", () => {
+		// The engine binds words to the value that follows them, so the dash outlives the
+		// artist it was placed beside and the profile reads "- track01".
+		const report = inspectLayout(
+			lines(["state", valuePiece("artist"), textPiece("-"), valuePiece("title")]),
+			[UNTAGGED],
+		)
+		expect(report.lines[0]?.draws[0]?.text).toBe("- track01")
+		expect(report.stranded).toEqual([{ lineId: "state", text: "-" }])
+	})
+
+	it("leaves a separator alone while it has a value on either side of it", () => {
+		expect(
+			inspectLayout(lines(["state", valuePiece("artist"), textPiece("-"), valuePiece("title")]), [
+				TAGGED,
+			]).stranded,
+		).toEqual([])
+	})
+
+	it("says nothing about brackets the engine takes off with the value inside them", () => {
+		// A bracket does sit between two values with one of them empty, and the line
+		// still draws "Breaking Bad": the guard asks the engine what it drew.
+		const report = inspectLayout(
+			lines(["state", valuePiece("title"), textPiece("("), valuePiece("year"), textPiece(")")]),
+			[SERIES, FILM],
+		)
+
+		expect(report.lines[0]?.draws.map((draw) => draw.text)).toEqual([
+			"Breaking Bad",
+			"The Matrix (1999)",
+		])
+		expect(report.stranded).toEqual([])
+	})
+
+	it("leaves an emoji alone, which no missing value can strand", () => {
+		// Nothing a person types for its own sake is a leftover. A mark is what a
+		// removed value leaves behind, which is the punctuation people separate with.
+		const report = inspectLayout(lines(["state", valuePiece("title"), textPiece("🎵")]), [TAGGED])
+
+		expect(report.lines[0]?.draws[0]?.text).toBe("15 Step 🎵")
+		expect(report.stranded).toEqual([])
+	})
+
+	it("leaves an emoji alone even where a dash in its place would be stray", () => {
+		// Same position, same missing artist: a dash there separates one thing from
+		// nothing, and an emoji is not separating anything to begin with.
+		const report = inspectLayout(
+			lines(["state", valuePiece("artist"), textPiece("🎵"), valuePiece("title")]),
+			[UNTAGGED],
+		)
+
+		expect(report.lines[0]?.draws[0]?.text).toBe("🎵 track01")
+		expect(report.stranded).toEqual([])
+	})
+
+	it("says a stray mark once however many examples draw it", () => {
+		const report = inspectLayout(
+			lines(["state", valuePiece("artist"), textPiece("-"), valuePiece("title")]),
+			[UNTAGGED, { ...UNTAGGED, id: "other" }],
+		)
+		expect(report.stranded).toEqual([{ lineId: "state", text: "-" }])
+	})
+
 	it("leaves a line of real words alone, which is a caption somebody meant to write", () => {
 		expect(
 			inspectLayout(lines(["state", textPiece("Listening to music")]), [TAGGED]).stranded,

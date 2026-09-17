@@ -20,3 +20,20 @@ export type UpdateAvailability =
 	| { kind: "downloading"; version: string; percent: number }
 	| { kind: "ready"; version: string }
 	| { kind: "failed"; version: string }
+
+/**
+ * The answer to a check a person asked for. The scheduled checks announce a
+ * release and say nothing else, which is right for something nobody asked for
+ * and wrong for something somebody did: this goes back to whoever pressed, so
+ * the screen they pressed on can say what happened, a failure included.
+ */
+export type UpdateCheckResult =
+	| { kind: "found"; version: string }
+	| { kind: "up-to-date" }
+	/** A check or a download was already running, so this one asked nothing. */
+	| { kind: "busy" }
+	/**
+	 * The feed could not be read. What went wrong stays in the log: the error
+	 * carries the url it was made against, and a url can carry a credential.
+	 */
+	| { kind: "failed" }
