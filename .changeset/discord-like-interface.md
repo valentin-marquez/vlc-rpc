@@ -2,15 +2,27 @@
 "vlc-rpc": major
 ---
 
-La interfaz se rehizo entera para parecerse a Discord.
+The whole interface was rebuilt to look like Discord.
 
-Es un cambio mayor porque lo que se opera es otra cosa: quien vuelva a abrir la app no la reconoce.
+It is a major change because what you operate is a different thing: anyone who
+opens the app again will not know it.
 
-- La navegacion vive en la barra superior, y el estado de conexion de VLC y de Discord ahora se ve desde cualquier pantalla, no solo desde la principal.
-- Se recupero alto util: desaparecieron el pie de ventana y la barra de navegacion que ocupaba una franja aparte.
-- La pantalla principal ahora muestra lado a lado lo que reporta VLC y lo que se le envio a Discord, que es el trabajo entero de esta app, asi que una portada o un titulo equivocado se ven de una.
-- Los colores, los tamaños de texto y los espaciados se rehicieron sobre una escala unica calibrada contra Discord. El texto dejo de ser blanco puro, que era lo que daba ese aspecto duro.
-- El foco de teclado ahora se ve en todos lados. Antes el anillo de foco era del mismo color que el boton principal, o sea invisible.
-- La pantalla de configuracion inicial ya no se salia de la ventana, y ademas se acorto para que no haga falta scrollear.
-- Las animaciones se basan en curvas de resorte. Con "reducir movimiento" activado se quita el desplazamiento pero se mantienen los fundidos, asi que nada aparece de golpe sin explicacion.
-- Elegir un formato de presencia ahora funciona con el teclado y se anuncia correctamente.
+- Navigation lives in the top bar, and the connection status of VLC and of
+  Discord can now be seen from any screen, not only from Home.
+- Usable height came back: the window footer is gone, and so is the navigation
+  bar that took up a strip of its own.
+- Home now shows, side by side, what VLC reports and what was sent to Discord,
+  which is this app's whole job, so a wrong cover or a wrong title is visible
+  at once.
+- Colours, text sizes and spacing were rebuilt on a single scale calibrated
+  against Discord. Text is no longer pure white, which was what gave it that
+  hard look.
+- Keyboard focus is now visible everywhere. The focus ring used to be the same
+  colour as the primary button, which is to say invisible.
+- The first run setup screen no longer runs off the window, and it was
+  shortened so there is nothing to scroll.
+- Animations are built on spring curves. With "reduce motion" on, the movement
+  is dropped but the fades stay, so nothing appears abruptly with no
+  explanation.
+- Choosing what the presence shows now works with the keyboard and is
+  announced properly.

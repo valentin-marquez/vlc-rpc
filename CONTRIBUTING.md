@@ -138,7 +138,9 @@ package on the registry that exits 0 without checking anything, so green from it
 
 ## Commits
 
-Use [changesets](./docs/CHANGESETS.md) for anything user facing.
+Use [changesets](./docs/CHANGESETS.md) for anything user facing. Write them in English, in the
+same voice as the ones already there: what changed, what a person sees differently, and the reason
+when the reason is the interesting part.
 
 Conventional commit prefixes: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`.
 

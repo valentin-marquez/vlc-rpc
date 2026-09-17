@@ -2,10 +2,22 @@
 "vlc-rpc": minor
 ---
 
-Los audios sin tags utiles, tipicamente lo que se baja de YouTube, ahora tambien consiguen portada.
+Audio with no useful tags, typically what you download from YouTube, now gets a
+cover too.
 
-- Antes, un archivo sin artista y con un titulo que en realidad es el nombre del archivo no tenia como buscarse: ninguna busqueda por texto puede acertar con eso. Ahora se identifica la cancion por el sonido mismo, calculando una huella acustica del audio y preguntandole a AcoustID que grabacion es.
-- Corre ultimo, solo cuando la correccion manual, la caratula incrustada en el archivo y la busqueda por tags ya fallaron. Es el paso mas caro de la cadena y el unico cuyo limite de uso comparten todos los usuarios de la app.
-- Si la respuesta no es clara no se muestra nada: hace falta que el servicio este seguro de la coincidencia y que la segunda candidata no le pise los talones con otro artista. Entre varias ediciones se prefiere el album de estudio antes que un recopilatorio.
-- Lo que responde se guarda por archivo, no por tags, asi que dos archivos sin tags nunca comparten portada y el audio se lee una sola vez.
-- Requiere una clave de aplicacion incluida al compilar. Una copia del repo sin esa clave se comporta exactamente como antes.
+- Before, a file with no artist and a title that is really just the file name
+  had no way of being looked up: no text search can hit that. The song is now
+  identified by the sound itself, by working out an acoustic fingerprint of the
+  audio and asking AcoustID which recording it is.
+- It runs last, only once the manual correction, the artwork embedded in the
+  file and the search by tags have all failed. It is the most expensive step in
+  the chain and the only one whose usage limit is shared by everyone using the
+  app.
+- If the answer is not clear, nothing is shown: the service has to be sure of
+  the match, and the runner up must not be right behind it with a different
+  artist. Among several releases, the studio album is preferred over a
+  compilation.
+- What comes back is cached per file, not per tags, so two files with no tags
+  never share a cover and the audio is read only once.
+- It needs an application key built in at compile time. A copy of the repo
+  without that key behaves exactly as it did before.

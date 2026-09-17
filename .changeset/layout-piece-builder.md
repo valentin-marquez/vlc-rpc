@@ -2,13 +2,36 @@
 "vlc-rpc": minor
 ---
 
-La pantalla Layout es un armador: se arrastran piezas a las lineas de la tarjeta de Discord para decidir que muestra el perfil.
+The Layout screen is a builder: you drag pieces onto the lines of the Discord
+card to decide what your profile shows.
 
-- A la izquierda hay una lista de piezas nombradas como las nombra una persona: Titulo, Artista, Album, Tus propias palabras, y para video Titulo, Episodio, Año, Numero de temporada y Numero de episodio. Debajo de cada nombre se ve lo que esa pieza vale ahora mismo, asi que no hace falta adivinar.
-- A la derecha esta la tarjeta de Discord de verdad, la misma que se dibuja en Inicio, y sus lineas son las zonas donde se sueltan las piezas. No hay una vista previa aparte: lo que se arma es lo que se mira. Cada pieza colocada muestra lo que dibuja, no el nombre del campo.
-- Arrastrar y soltar con el puntero: la pieza se levanta con sombra, se inclina apenas y queda exactamente bajo el dedo, en el lugar de origen queda su fantasma gris y en la linea de destino se abre un hueco del tamaño de la pieza antes de soltarla. Al aterrizar asienta con un resorte. Si se suelta fuera de una zona vuelve sola a su lugar en vez de desaparecer.
-- Tambien funciona sin arrastrar: se elige una linea y se presiona una pieza. Con el teclado, las flechas mueven una pieza entre posiciones y entre lineas, y la tecla de borrar la saca.
-- Las lineas ya no son una lista de plantillas alternativas. Ahora cada pieza se saca sola de la linea cuando el archivo no tiene ese dato, y se lleva con ella las palabras que la acompañan. Por eso una sola linea sirve igual para una serie y para una pelicula: el Episodio aparece en una y el Año en la otra, sin escribir "Unknown" ni dejar un parentesis vacio.
-- El armador avisa cuando dos lineas dibujan el mismo valor, que es el error mas facil de cometer y el que menos se nota mirando el perfil propio. Tambien avisa cuando una linea tiene piezas pero no dibuja nada en ningun ejemplo.
-- El arreglo con el que abre la pantalla dibuja tres valores distintos: el titulo en negrita, el artista debajo y el album al final.
-- La pestaña Video deja de decir "Soon" y se arma igual que la de musica, con sus propias piezas. Y una pausa respeta el arreglo elegido en vez de escribir su propio formato.
+- On the left there is a list of pieces named the way a person names them:
+  Title, Artist, Album, Your own words, and for video Title, Episode, Year,
+  Season number and Episode number. Under each name you see what that piece is
+  worth right now, so there is nothing to guess.
+- On the right is the real Discord card, the same one drawn on Home, and its
+  lines are the zones where the pieces are dropped. There is no separate
+  preview: what you build is what you are looking at. Each piece you place
+  shows what it draws, not the name of the field.
+- Drag and drop with the pointer: the piece lifts with a shadow, tilts a little
+  and sits exactly under your finger, a grey ghost of it stays where it came
+  from, and a gap the size of the piece opens in the target line before you let
+  go. It settles with a spring when it lands. Dropped outside a zone, it goes
+  back to its place on its own instead of disappearing.
+- It also works without dragging: pick a line, then press a piece. With the
+  keyboard, the arrow keys move a piece between positions and between lines,
+  and the delete key takes it out.
+- The lines are no longer a list of alternative templates. Each piece now takes
+  itself out of the line when the file does not have that detail, and takes the
+  words around it with it. That is why a single line works just as well for a
+  series as for a film: Episode shows up in one and Year in the other, with no
+  "Unknown" written out and no empty parentheses left behind.
+- The builder warns you when two lines draw the same value, which is the
+  easiest mistake to make and the hardest to notice when you are looking at
+  your own profile. It also warns when a line has pieces but draws nothing in
+  any of the examples.
+- The arrangement the screen opens with draws three different values: the title
+  in bold, the artist below it and the album last.
+- The Video tab no longer says "Soon" and is built the same way as the music
+  one, with pieces of its own. And a pause respects the arrangement you chose
+  instead of writing a format of its own.

@@ -1,157 +1,67 @@
-# Changesets Workflow
+# Changesets
 
-This project uses [Changesets](https://github.com/changesets/changesets) to manage versions and generate changelogs automatically.
+Every user facing change carries a changeset: a small file under `.changeset/` that says how the
+version should move and what a person will see differently. Those files are what writes
+`CHANGELOG.md` and what decides the next version number, so the release notes get written while the
+change is fresh instead of being reconstructed from commit messages months later.
 
-## 🚀 What are Changesets?
-
-Changesets is a tool that helps to:
-
-- Manage versions automatically and semantically
-- Generate detailed changelogs
-- Coordinate releases between multiple contributors
-- Integrate with GitHub to create automatic releases
-
-## 📝 Workflow for Contributors
-
-### 1. After making changes
-
-When you've finished implementing a feature, fix, or breaking change:
+## Writing one
 
 ```bash
 bun run changeset
 ```
 
-This command will ask you:
+It asks for a bump and a summary, then writes a file under `.changeset/`. Commit that file in the
+same change it describes.
 
-1. **Type of change**: `patch`, `minor`, or `major` (following [SemVer](https://semver.org/))
-2. **Summary**: A clear description of the change
+- `patch` for a fix that changes nothing anybody chose.
+- `minor` for something new that breaks nothing.
+- `major` for a change that breaks something someone relied on, a default that moves included.
 
-### 2. Types of changes
+Write them in English, in the voice of the ones already in the folder: what changed, what a person
+sees differently, and the reason when the reason is the interesting part. No em dashes. A changeset
+is for what a user can notice, so a refactor, a CI change or a documentation edit does not get one.
 
-- **🐛 Patch** (`0.0.X`): Bug fixes, small improvements that don't break compatibility
-- **✨ Minor** (`0.X.0`): New features that don't break compatibility
-- **💥 Major** (`X.0.0`): Breaking changes that break compatibility
-
-### 3. Complete workflow example
-
-```bash
-# 1. Make your changes
-git add .
-git commit -m "feat: add RPC control shortcuts in tray menu"
-
-# 2. Create changeset
-bun run changeset
-# Select 'minor' for new feature
-# Write: "Add Discord RPC control shortcuts in system tray menu"
-
-# 3. Commit the changeset
-git add .changeset/
-git commit -m "docs: add changeset for RPC tray controls"
-
-# 4. Push and create PR
-git push origin feature/rpc-tray-controls
-```
-
-## 🤖 Automation with GitHub Actions
-
-The project has three configured workflows that work automatically with Changesets:
-
-### 1. **CI/CD Workflow** (`.github/workflows/build.yml`)
-
-- Runs on every PR and push to `main`
-- Verifies lint, typing, and multiplatform builds
-- **Verifies that a changeset exists** in PRs (with friendly warning if missing)
-
-### 2. **Release Workflow** (`.github/workflows/release.yml`)
-
-- Runs when merged to `main`
-- **If there are pending changesets**: Creates a "Version Packages" PR with updated versions
-- **If that PR is merged**: Builds and publishes release automatically with binaries
-
-### 3. **Changeset Bot** (`.github/workflows/changeset-bot.yml`)
-
-- Automatically comments on PRs about changeset status
-- Provides useful guides on when to create changesets
-- Updates comments dynamically
-
-### Complete automated flow:
-
-```mermaid
-graph TD
-    A[PR with changeset] --> B[Merge to main]
-    B --> C[Workflow creates 'Version Packages' PR]
-    C --> D[Review and merge version PR]
-    D --> E[Automatic release with binaries]
-    E --> F[GitHub Release published]
-```
-
-## 🔧 Available scripts
-
-```bash
-# Create a new changeset
-bun run changeset
-
-# View status of pending changesets
-bun run changeset:status
-
-# Apply changesets and update versions (maintainers only)
-bun run changeset:version
-
-# Publish release (maintainers only)
-bun run changeset:publish
-```
-
-## 📋 Best practices
-
-### Writing good changesets
-
-**✅ Good:**
+Good:
 
 ```markdown
-Add Discord RPC control shortcuts in system tray menu
+Audio files with no embedded artwork now get a cover.
 
-- Add quick RPC toggle for permanent enable/disable
-- Add temporary disable options (15min, 1h, 2h)
-- Add timer persistence setting in Settings page
+- The app looks the track up by its tags and uses the release cover it finds.
+- A lookup that finds nothing leaves the frame empty instead of risking the wrong one.
 ```
 
-**❌ Bad:**
+Bad:
 
 ```markdown
 Fixed stuff
 ```
 
-### When to create changesets
+## What ships them
 
-- **DO create** for: new features, bug fixes, breaking changes
-- **DON'T create** for: documentation changes, internal refactoring without API changes, CI/CD changes
+Two workflows, and neither one publishes by itself.
 
-### The bot helps you
+`ci.yml` runs on every push and pull request to `main`: `lint:check`, both typechecks, the suite and
+a Windows build. It does not check whether a changeset exists, so that part is on the author.
 
-Don't worry if you forget to create a changeset - our bot will automatically comment on your PR with useful instructions:
+`release.yml` runs only when a maintainer dispatches it by hand from the Actions tab. One run does
+the whole thing: it applies the pending changesets with `changeset:version`, commits the new version
+and changelog, builds the Windows binaries, tags the commit and creates the GitHub release with the
+installers attached. There is no Version Packages pull request, and merging to `main` releases
+nothing.
 
-- ⚠️ **Without changeset**: Reminds you when you need one
-- ✅ **With changeset**: Confirms everything is fine and explains what happens next
+## Scripts
 
-## 🎯 For Maintainers
+```bash
+bun run changeset          # write a new changeset
+bun run changeset:version  # apply the pending ones, bump the version, write the changelog
+bun run changeset:publish  # publish, which the release workflow does not use
+```
 
-### Managing releases
+`changeset:version` is what the release workflow runs. Running it locally is useful to see what the
+next version would be, but the version commit belongs to the workflow.
 
-1. **Normal pushes to main**: The workflow creates "Version Packages" PRs automatically
-2. **Merge version PR**: Publishes release automatically
-3. **Emergency releases**: Use `bun run changeset:publish` manually
+## Links
 
-### GitHub configuration
-
-The workflows require these permissions in GitHub Actions:
-
-- `contents: write` - To create releases and modify files
-- `pull-requests: write` - To create version PRs
-- `issues: write` - To comment on PRs
-
-## 📚 Additional resources
-
-- [Changesets Documentation](https://github.com/changesets/changesets)
-- [Semantic Versioning](https://semver.org/)
-- [Conventional Commits](https://www.conventionalcommits.org/)
-
+- [Changesets](https://github.com/changesets/changesets)
+- [Semantic versioning](https://semver.org/)
