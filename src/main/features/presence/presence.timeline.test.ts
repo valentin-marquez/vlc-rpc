@@ -102,14 +102,14 @@ describe("Timeline", () => {
 		timeline.update(status({ playback: { position: 10, time: 10, duration: 200, rate: 1 } }))
 		const epochBeforeSeek = timeline.currentEpoch
 
-		clock.advance(1_000) // 1 segundo real: el reloj ahora marca 1s, no 0
-		// Salto de 10s a 150s: mucho mas que 1s de progreso natural + el umbral de 3s
+		clock.advance(1_000) // One real second, so the clock reads 1s rather than 0
+		// 10s to 150s, far past one second of play plus the 3s threshold
 		const afterSeek = timeline.update(
 			status({ playback: { position: 150, time: 150, duration: 200, rate: 1 } }),
 		)
 
 		expect(timeline.currentEpoch).toBe(epochBeforeSeek + 1)
-		expect(afterSeek.start).toBe(1 - 150) // recalculado en el segundo 1 (el reloj ya avanzo), desde la nueva posicion
+		expect(afterSeek.start).toBe(1 - 150) // recomputed at second 1, from where it landed
 	})
 
 	it("does not treat normal one tick of progress as a seek", () => {

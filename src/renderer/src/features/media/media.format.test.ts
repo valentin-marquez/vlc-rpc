@@ -3,8 +3,10 @@ import { type CorrectionRow, audioMatchRow, correctionSummary } from "./media.fo
 
 const SETTLED = { kind: "settled" } as const
 
+const FILE_KEY = "file:C:\\Music\\Ripped\\track01.mp3"
+
 const BY_FILE: CorrectionRow = {
-	key: "file:C:\\Music\\Ripped\\track01.mp3",
+	key: FILE_KEY,
 	active: false,
 	binding: "file",
 }
@@ -22,7 +24,7 @@ describe("correctionSummary", () => {
 	})
 
 	it("reports the lookup a save sets off, rather than the answer it has not got yet", () => {
-		const applying = { kind: "applying", key: BY_FILE.key, outcome: "saved" } as const
+		const applying = { kind: "applying", key: FILE_KEY, outcome: "saved" } as const
 
 		expect(correctionSummary({ ...BY_FILE, active: true }, applying)).toBe(
 			"Looking the file up again",
@@ -30,7 +32,7 @@ describe("correctionSummary", () => {
 	})
 
 	it("reports a removal as what it goes back to", () => {
-		const applying = { kind: "applying", key: BY_FILE.key, outcome: "removed" } as const
+		const applying = { kind: "applying", key: FILE_KEY, outcome: "removed" } as const
 
 		expect(correctionSummary(BY_FILE, applying)).toBe("Going back to what the app worked out")
 	})

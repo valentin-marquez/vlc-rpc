@@ -99,7 +99,7 @@ export function parse(filename: string): ParsedVideo {
 		const yearMatch = filename.match(YEAR)
 		if (yearMatch) {
 			year = Number(yearMatch[0])
-			title = title.replace(new RegExp(`\s*${yearMatch[0]}\s*$`), "")
+			title = title.replace(new RegExp(String.raw`\s*${yearMatch[0]}\s*$`), "")
 		}
 	}
 
