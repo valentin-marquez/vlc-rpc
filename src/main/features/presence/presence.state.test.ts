@@ -374,13 +374,13 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 			expect(presence?.state).toBe("")
 		})
 
-		it("sends no name at all when the top line has nothing to draw, which Discord reads as VLC", async () => {
+		it("names the activity after the app when the layout has nothing to name it after", async () => {
 			withPresets({ layoutPreset: "album-focused" })
 			const { service } = build({ kind: "no-artwork" }, null)
 
 			const presence = await service.getDiscordPresence(untagged(), timeline)
 
-			expect(presence?.name).toBeUndefined()
+			expect(presence?.name).toBe("VLC")
 		})
 	},
 )
