@@ -1,8 +1,9 @@
-import type { Resolver as CatalogResolver } from "@main/features/catalog"
+import type { Resolver as CatalogResolver, CatalogResult } from "@main/features/catalog"
 import type { CoverOutcome } from "@main/features/cover"
 import type { MusicResult } from "@main/features/music"
+import type { AppConfig } from "@shared/config/app-config"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@main/core/logger", () => ({
 	logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
@@ -10,13 +11,30 @@ vi.mock("@main/core/logger", () => ({
 
 vi.mock("@main/core/ipc", () => ({ registerHandler: () => {} }))
 
+const BASE_CONFIG = { largeImage: "vlc_logo", playingImage: "playing", pausedImage: "paused" }
+
+const config = vi.hoisted(() => ({
+	current: { largeImage: "vlc_logo", playingImage: "playing", pausedImage: "paused" } as Record<
+		string,
+		unknown
+	>,
+}))
+
 vi.mock("@main/core/config", () => ({
 	configService: {
-		get: () => ({ largeImage: "vlc_logo", playingImage: "playing", pausedImage: "paused" }),
+		get: () => config.current,
 		set: () => {},
 		delete: () => {},
 	},
 }))
+
+beforeEach(() => {
+	config.current = { ...BASE_CONFIG }
+})
+
+function withPresets(presets: Pick<AppConfig, "layoutPreset" | "videoLayoutPreset">): void {
+	config.current = { ...BASE_CONFIG, ...presets }
+}
 
 // The catalog barrel, reached from presence.state for the video branch, opens
 // its own Conf store on import.
@@ -129,6 +147,185 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 
 			expect(calls.resolve).toBe(0)
 			expect(presence?.large_image).not.toBe(CATALOG_COVER)
+		})
+	},
+)
+
+const SERIES: CatalogResult = {
+	title: "Breaking Bad",
+	poster: null,
+	mediaKind: "tv",
+	season: 2,
+	episode: 5,
+}
+const FILM: CatalogResult = { title: "The Matrix", poster: null, mediaKind: "movie" }
+
+function videoStatus(title: string, state: "playing" | "paused" = "playing"): VlcStatus {
+	return {
+		active: true,
+		status: state,
+		timestamp: 0,
+		plid: 1,
+		playback: { position: 30, time: 30, duration: 210, rate: 1 },
+		mediaType: "video",
+		media: { title },
+	}
+}
+
+function videoService(result: CatalogResult | null): Service {
+	const artwork = new ArtworkResolver(
+		{
+			fetch: async () => {
+				throw new Error("a video never publishes local audio artwork")
+			},
+		},
+		{
+			resolve: async () => {
+				throw new Error("the music catalog must not be consulted for video")
+			},
+			overrideCoverFor: () => null,
+		},
+	)
+	const catalog = { resolve: async () => result } as unknown as CatalogResolver
+
+	return new Service(artwork, catalog)
+}
+
+describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
+	"Presence video layout while $state",
+	({ state }) => {
+		it("shows the title with the episode below it by default", async () => {
+			const presence = await videoService(SERIES).getDiscordPresence(
+				videoStatus("Breaking.Bad.S02E05.mkv", state),
+				timeline,
+			)
+
+			expect(presence?.details).toBe("Breaking Bad")
+			expect(presence?.state).toBe("S2E5")
+		})
+
+		it("shows the year below the title for a film", async () => {
+			const presence = await videoService(FILM).getDiscordPresence(
+				videoStatus("The Matrix (1999).mkv", state),
+				timeline,
+			)
+
+			expect(presence?.details).toBe("The Matrix")
+			expect(presence?.state).toBe("1999")
+		})
+
+		it("folds the episode into the title line when the user picks one line", async () => {
+			withPresets({ videoLayoutPreset: "one-line" })
+
+			const presence = await videoService(SERIES).getDiscordPresence(
+				videoStatus("Breaking.Bad.S02E05.mkv", state),
+				timeline,
+			)
+
+			expect(presence?.details).toBe("Breaking Bad S2E5")
+			expect(presence?.state).toBe("")
+		})
+
+		it("hides the episode when the user picks title only", async () => {
+			withPresets({ videoLayoutPreset: "title-only" })
+
+			const presence = await videoService(SERIES).getDiscordPresence(
+				videoStatus("Breaking.Bad.S02E05.mkv", state),
+				timeline,
+			)
+
+			expect(presence?.details).toBe("Breaking Bad")
+			expect(presence?.state).toBe("")
+		})
+
+		it("leaves the second line empty rather than writing Unknown", async () => {
+			const presence = await videoService(null).getDiscordPresence(
+				videoStatus("holiday-clip.mkv", state),
+				timeline,
+			)
+
+			expect(presence?.details).not.toContain("Unknown")
+			expect(presence?.state).toBe("")
+		})
+
+		it("ignores the video choice when the music choice is the one that changed", async () => {
+			withPresets({ layoutPreset: "album-focused" })
+
+			const presence = await videoService(SERIES).getDiscordPresence(
+				videoStatus("Breaking.Bad.S02E05.mkv", state),
+				timeline,
+			)
+
+			expect(presence?.details).toBe("Breaking Bad")
+			expect(presence?.state).toBe("S2E5")
+		})
+	},
+)
+
+describe("Presence small image", () => {
+	it("names the playing indicator in words rather than in its asset key", async () => {
+		const { service } = build({ kind: "no-artwork" }, null)
+
+		const presence = await service.getDiscordPresence(status("playing"), timeline)
+
+		expect(presence?.small_image).toBe("playing")
+		expect(presence?.small_text).toBe("Playing")
+	})
+
+	it("names the paused indicator", async () => {
+		const { service } = build({ kind: "no-artwork" }, null)
+
+		const presence = await service.getDiscordPresence(status("paused"), timeline)
+
+		expect(presence?.small_image).toBe("paused")
+		expect(presence?.small_text).toBe("Paused")
+	})
+
+	it("joins the resolution onto the hover text without a bullet", async () => {
+		const withResolution: VlcStatus = {
+			...videoStatus("holiday-clip.mkv"),
+			videoInfo: { width: 1920, height: 1080 },
+		}
+
+		const presence = await videoService(null).getDiscordPresence(withResolution, timeline)
+
+		expect(presence?.small_text).toBe("Playing, 1920x1080")
+	})
+})
+
+describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
+	"Presence music layout while $state",
+	({ state }) => {
+		function untagged(): VlcStatus {
+			return {
+				active: true,
+				status: state,
+				timestamp: 0,
+				plid: 1,
+				playback: { position: 30, time: 30, duration: 210, rate: 1 },
+				mediaType: "audio",
+				media: { title: "track01" },
+			}
+		}
+
+		it("follows the music preset the user picked", async () => {
+			withPresets({ layoutPreset: "album-focused" })
+			const { service } = build({ kind: "no-artwork" }, null)
+
+			const presence = await service.getDiscordPresence(status(state), timeline)
+
+			expect(presence?.details).toBe("Mi Reflejo")
+			expect(presence?.state).toBe("Probablemente by Christina Aguilera")
+		})
+
+		it("names the activity after the app when the file carries no artist", async () => {
+			const { service } = build({ kind: "no-artwork" }, null)
+
+			const presence = await service.getDiscordPresence(untagged(), timeline)
+
+			expect(presence?.name).toBe("VLC")
+			expect(presence?.details).toBe("track01")
+			expect(presence?.state).toBe("")
 		})
 	},
 )

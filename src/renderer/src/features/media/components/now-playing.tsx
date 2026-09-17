@@ -1,8 +1,11 @@
+import { useStore } from "@nanostores/react"
 import {
+	type PresenceBadge,
 	PresenceCard,
 	type PresenceCardLiveProps,
 	type PresenceProgress,
 } from "@renderer/components/presence-card"
+import { configStore } from "@renderer/stores/config.store"
 import type { DiscordPresenceData, PresenceClearReason } from "@shared/presence/presence.types"
 import type { ActivityType } from "discord-api-types/v10"
 
@@ -30,6 +33,7 @@ const CLEARED_BECAUSE: Record<PresenceClearReason, string> = {
  */
 export function NowPlaying(): JSX.Element {
 	const lastPresence = useLastPresence()
+	const config = useStore(configStore)
 	const artworkUrl = usePresenceArtwork(
 		lastPresence.kind === "sent" ? lastPresence.presence.large_image : undefined,
 	)
@@ -66,12 +70,35 @@ export function NowPlaying(): JSX.Element {
 		card.largeText = presence.large_text
 	}
 
+	const badge = presenceBadge(presence, config?.pausedImage)
+	if (badge) {
+		card.badge = badge
+	}
+
 	const progress = presenceProgress(presence)
 	if (progress) {
 		card.progress = progress
 	}
 
 	return <PresenceCard {...card} />
+}
+
+/**
+ * The small image crosses as a Discord asset key, never a URL, so it is read back
+ * against the key the loop picks for a paused file rather than fetched.
+ */
+function presenceBadge(
+	presence: DiscordPresenceData,
+	pausedImage: string | undefined,
+): PresenceBadge | null {
+	if (presence.small_image === undefined) {
+		return null
+	}
+
+	return {
+		kind: presence.small_image === pausedImage ? "paused" : "playing",
+		text: presence.small_text,
+	}
 }
 
 /** Discord's own verbs. An absent name falls back to the application's own. */

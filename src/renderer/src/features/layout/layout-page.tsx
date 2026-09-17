@@ -1,44 +1,72 @@
 import { useStore } from "@nanostores/react"
-import { Badge } from "@renderer/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@renderer/components/ui/tabs"
 import { logger } from "@renderer/lib/utils"
 import { configStore, saveConfig } from "@renderer/stores/config.store"
-import type { LayoutPreset } from "@shared/presence/layout"
-import { LAYOUT_PRESETS } from "@shared/presence/layout"
+import { DEFAULT_MUSIC_PRESET, DEFAULT_VIDEO_PRESET } from "@shared/presence/layout"
 import { MusicNotes, VideoCamera } from "phosphor-react"
 import { useEffect, useId, useState } from "react"
 
-import { LayoutCard } from "./components/layout-card"
-import { LAYOUT_CARDS } from "./layout.constants"
+import { MusicPresetCard } from "./components/music-preset-card"
+import { VideoPresetCard } from "./components/video-preset-card"
+import { MUSIC_CARDS, VIDEO_CARDS } from "./layout.constants"
 
-const VIDEO_REASON_ID = "layout-video-reason"
+// The rail makes viewport widths lie about this pane, so the collapse is a container
+// query. Below two comfortable columns the grid stacks.
+const GRID = "grid grid-cols-1 gap-3 @min-[560px]:grid-cols-2"
 
-export function LayoutPage(): JSX.Element {
-	const config = useStore(configStore)
-	const [selectedPreset, setSelectedPreset] = useState<LayoutPreset>("default")
-	const groupName = useId()
+function usePresetChoice<T extends string>(
+	stored: T | undefined,
+	fallback: T,
+	save: (preset: T) => Promise<void>,
+): [T, (preset: T) => Promise<void>] {
+	const [selected, setSelected] = useState<T>(fallback)
 
 	useEffect(() => {
-		if (config?.layoutPreset) {
-			setSelectedPreset(config.layoutPreset)
+		if (stored !== undefined) {
+			setSelected(stored)
 		}
-	}, [config])
+	}, [stored])
 
-	async function selectPreset(preset: LayoutPreset): Promise<void> {
-		const previousPreset = selectedPreset
-		setSelectedPreset(preset)
+	async function select(preset: T): Promise<void> {
+		const previous = selected
+		setSelected(preset)
 
 		try {
-			await saveConfig("layoutPreset", preset)
-			await saveConfig("presenceLayout", LAYOUT_PRESETS[preset])
-			logger.info(`Layout preset changed to: ${preset}`)
+			await save(preset)
 		} catch (error) {
 			// Nothing was written, so the cards must not keep showing the new preset. A later
 			// choice wins over this revert, otherwise a slow failure would undo it.
-			setSelectedPreset((current) => (current === preset ? previousPreset : current))
+			setSelected((current) => (current === preset ? previous : current))
 			logger.error(`Failed to update layout preset: ${error}`)
 		}
 	}
+
+	return [selected, select]
+}
+
+export function LayoutPage(): JSX.Element {
+	const config = useStore(configStore)
+	const [tab, setTab] = useState<"music" | "video">("music")
+	const musicGroup = useId()
+	const videoGroup = useId()
+
+	const [musicPreset, selectMusicPreset] = usePresetChoice(
+		config?.layoutPreset,
+		DEFAULT_MUSIC_PRESET,
+		async (preset) => {
+			await saveConfig("layoutPreset", preset)
+			logger.info(`Music layout preset changed to: ${preset}`)
+		},
+	)
+
+	const [videoPreset, selectVideoPreset] = usePresetChoice(
+		config?.videoLayoutPreset,
+		DEFAULT_VIDEO_PRESET,
+		async (preset) => {
+			await saveConfig("videoLayoutPreset", preset)
+			logger.info(`Video layout preset changed to: ${preset}`)
+		},
+	)
 
 	if (!config) {
 		return <p className="type-caption text-muted-foreground">Loading</p>
@@ -48,42 +76,45 @@ export function LayoutPage(): JSX.Element {
 		<div className="@container flex flex-col gap-4">
 			<h1 className="sr-only">Layout</h1>
 			<p className="type-caption text-muted-foreground">
-				Choose how your media appears in Discord. A change takes a few seconds to show up.
+				Choose how your media appears in Discord. Music and video are set separately. A change takes
+				a few seconds to show up.
 			</p>
 
-			{/* Video presets do not exist yet, so music is the only value the tabs can hold. */}
-			<Tabs value="music">
+			<Tabs value={tab} onValueChange={(value) => setTab(value === "video" ? "video" : "music")}>
 				<TabsList>
 					<TabsTrigger value="music">
 						<MusicNotes size={16} weight="fill" aria-hidden="true" />
 						Music
 					</TabsTrigger>
-					<TabsTrigger value="video" aria-disabled="true" aria-describedby={VIDEO_REASON_ID}>
+					<TabsTrigger value="video">
 						<VideoCamera size={16} weight="fill" aria-hidden="true" />
 						Video
-						<Badge>Soon</Badge>
 					</TabsTrigger>
 				</TabsList>
 
-				<p id={VIDEO_REASON_ID} className="sr-only">
-					Video layouts are not ready yet. Video playback looks the same under every preset.
-				</p>
-
 				<TabsContent value="music">
-					{/* The rail makes viewport widths lie about this pane, so the collapse is a
-					    container query. Below two comfortable columns the grid stacks. */}
-					<div
-						role="radiogroup"
-						aria-label="Layout preset"
-						className="grid grid-cols-1 gap-3 @min-[560px]:grid-cols-2"
-					>
-						{LAYOUT_CARDS.map((card) => (
-							<LayoutCard
+					<div role="radiogroup" aria-label="Music layout preset" className={GRID}>
+						{MUSIC_CARDS.map((card) => (
+							<MusicPresetCard
 								key={card.preset}
 								card={card}
-								groupName={groupName}
-								isSelected={selectedPreset === card.preset}
-								onSelect={selectPreset}
+								groupName={musicGroup}
+								isSelected={musicPreset === card.preset}
+								onSelect={selectMusicPreset}
+							/>
+						))}
+					</div>
+				</TabsContent>
+
+				<TabsContent value="video">
+					<div role="radiogroup" aria-label="Video layout preset" className={GRID}>
+						{VIDEO_CARDS.map((card) => (
+							<VideoPresetCard
+								key={card.preset}
+								card={card}
+								groupName={videoGroup}
+								isSelected={videoPreset === card.preset}
+								onSelect={selectVideoPreset}
 							/>
 						))}
 					</div>
