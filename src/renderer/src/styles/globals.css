@@ -31,20 +31,8 @@
 	--color-background: hsl(var(--background));
 	--color-foreground: hsl(var(--foreground));
 	--color-card: hsl(var(--card));
-	--color-card-foreground: hsl(var(--card-foreground));
-	--color-primary: hsl(var(--primary));
-	--color-primary-foreground: hsl(var(--primary-foreground));
-	--color-secondary: hsl(var(--secondary));
-	--color-secondary-foreground: hsl(var(--secondary-foreground));
 	--color-muted: hsl(var(--muted));
 	--color-muted-foreground: hsl(var(--muted-foreground));
-	--color-accent: hsl(var(--brand) / 0.16);
-	--color-accent-foreground: hsl(var(--brand-text));
-	--color-destructive: hsl(var(--danger));
-	--color-destructive-foreground: hsl(var(--primary-foreground));
-	--color-border: hsl(var(--divider));
-	--color-input: hsl(var(--divider));
-	--color-ring: hsl(var(--brand-text));
 
 	--radius-xs: 4px;
 	--radius-sm: 6px;
@@ -94,11 +82,6 @@
 		--background: var(--surface-canvas);
 		--foreground: var(--text-body);
 		--card: var(--surface-card);
-		--card-foreground: var(--text-body);
-		--primary: var(--brand);
-		--primary-foreground: 0 0% 100%;
-		--secondary: var(--surface-float);
-		--secondary-foreground: var(--text-body);
 		--muted: var(--surface-inset);
 		--muted-foreground: var(--text-muted);
 		--radius: 8px;
@@ -311,10 +294,6 @@
 	}
 }
 
-@utility no-scrollbar {
-	@apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
-}
-
 @utility focus-discord {
 	@apply outline-none focus-visible:ring-2 focus-visible:ring-brand-text focus-visible:ring-offset-2 focus-visible:ring-offset-background;
 }
@@ -343,14 +322,12 @@
 		rotate: none !important;
 	}
 
-	.connecting-dot,
 	.spinner {
 		animation: none !important;
 	}
 }
 
 /* Two looping animations exist. Neither should burn GPU while nobody is looking. */
-:root[data-window-idle] .connecting-dot,
 :root[data-window-idle] .spinner {
 	animation-play-state: paused;
 }

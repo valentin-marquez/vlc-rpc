@@ -32,11 +32,6 @@ export function Panel({ label, className, children }: PanelProps): JSX.Element {
 
 interface RowBase {
 	className?: string
-	/**
-	 * Slot on the trailing edge, after the control. Phase 4 hangs its per field override
-	 * control here, one per row, so it stays clear of the row's own control.
-	 */
-	trailing?: React.ReactNode
 }
 
 export interface SettingRowProps extends RowBase {
@@ -53,6 +48,11 @@ export interface ValueRowProps extends RowBase {
 	kind: "value"
 	label: React.ReactNode
 	value: React.ReactNode
+	/**
+	 * Slot on the trailing edge. The correction control hangs here, one per row,
+	 * so it reads as acting on that row's value rather than on the panel.
+	 */
+	trailing?: React.ReactNode
 }
 
 export type RowProps = SettingRowProps | ValueRowProps
@@ -69,7 +69,7 @@ export function Row(props: RowProps): JSX.Element {
 		)
 	}
 
-	const { label, description, control, trailing, htmlFor, className } = props
+	const { label, description, control, htmlFor, className } = props
 
 	return (
 		<div className={cn("flex min-h-14 items-center gap-4 px-4 py-3", className)}>
@@ -85,12 +85,7 @@ export function Row(props: RowProps): JSX.Element {
 					<p className="type-caption text-pretty text-muted-foreground">{description}</p>
 				)}
 			</div>
-			{(control || trailing) && (
-				<div className="flex shrink-0 items-center gap-2">
-					{control}
-					{trailing}
-				</div>
-			)}
+			{control && <div className="flex shrink-0 items-center">{control}</div>}
 		</div>
 	)
 }

@@ -7,7 +7,6 @@ export type PresenceCardSize = "sm" | "lg"
 export interface PresenceProgress {
 	elapsedSeconds: number
 	durationSeconds: number
-	paused?: boolean
 }
 
 interface PresenceCardBase {
@@ -147,7 +146,7 @@ function ArtworkPlaceholder({
 }
 
 function Progress({ progress }: { progress: PresenceProgress }): JSX.Element {
-	const { elapsedSeconds, durationSeconds, paused = false } = progress
+	const { elapsedSeconds, durationSeconds } = progress
 	const fraction =
 		durationSeconds > 0 ? Math.min(Math.max(elapsedSeconds / durationSeconds, 0), 1) : 0
 	const remaining = Math.max(durationSeconds - elapsedSeconds, 0)
@@ -164,10 +163,9 @@ function Progress({ progress }: { progress: PresenceProgress }): JSX.Element {
 			[{ transform: `scaleX(${fraction})` }, { transform: "scaleX(1)" }],
 			{ duration: remaining * 1000, easing: "linear", fill: "forwards" },
 		)
-		if (paused) animation.pause()
 
 		return () => animation.cancel()
-	}, [fraction, remaining, paused])
+	}, [fraction, remaining])
 
 	return (
 		<div className="mt-2">

@@ -9,13 +9,13 @@ import { useState } from "react"
 type CacheState = { kind: "idle" } | { kind: "clearing" } | { kind: "cleared" } | { kind: "failed" }
 
 const CACHE_IDLE =
-	"Cover art the app has already downloaded. Clearing it frees space, and the app fetches what it needs again."
+	"When a file carries its own artwork, the app uploads it so Discord can fetch it, and remembers the link. Clearing that makes it upload again."
 
 const CACHE_DESCRIPTION: Record<CacheState["kind"], string> = {
 	idle: CACHE_IDLE,
 	clearing: CACHE_IDLE,
-	cleared: "Cleared. The app fetches cover art again as it needs it.",
-	failed: "Could not clear the cache. Try again.",
+	cleared: "Cleared. The next file with its own artwork gets uploaded again.",
+	failed: "Could not clear the saved links. Try again.",
 }
 
 interface AppSettingsPanelProps {
@@ -86,7 +86,7 @@ export function AppSettingsPanel({
 			)}
 
 			<Row
-				label="Cover art cache"
+				label="Uploaded cover art"
 				description={
 					<span
 						aria-live="polite"
