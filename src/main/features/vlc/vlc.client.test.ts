@@ -52,7 +52,7 @@ afterEach(() => {
 // language VLC, which is the point: see the mediaType test below.
 
 describe("readStatus", () => {
-	it("maps an untagged mp3 using the filename as the title", async () => {
+	it("maps an untagged mp3 using the filename, without its extension", async () => {
 		respondWith(fixture("audio-untagged.status"))
 		const status = await vlcStatusService.readStatus(true)
 
@@ -60,7 +60,9 @@ describe("readStatus", () => {
 		expect(status?.active).toBe(true)
 		expect(status?.status).toBe("playing")
 		expect(status?.mediaType).toBe("audio")
-		expect(status?.media.title).toBe("Christian Nodal - Probablemente (Official Lyric Video).mp3")
+		// The extension is dropped because this string goes on the user's profile,
+		// and reading the tags exists precisely so a filename does not land there raw.
+		expect(status?.media.title).toBe("Christian Nodal - Probablemente (Official Lyric Video)")
 		expect(status?.media.artist).toBe("")
 		expect(status?.media.album).toBe("")
 		expect(status?.media.artworkUrl).toBeUndefined()

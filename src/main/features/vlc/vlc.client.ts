@@ -8,6 +8,11 @@ import type { VlcMetadata, VlcPlaylistItem, VlcPlaylistResponse, VlcRawStatus } 
 /**
  * Service to read and process VLC media status through HTTP interface
  */
+/** Drops a trailing media extension, and only that: a dot inside a title stays. */
+function stripExtension(filename: string): string {
+	return filename.replace(/\.[a-z0-9]{2,4}$/i, "")
+}
+
 export class Client {
 	private lastStatusHash = ""
 	private lastStatus: VlcStatus | null = null
@@ -251,12 +256,15 @@ export class Client {
 		// Media information extraction
 		if (meta) {
 			// Prioritize specific metadata fields over generic ones
+			// The filename is the last resort, and it arrives with its extension.
+			// Leaving it on puts ".mp3" on the user's profile, which is the exact
+			// thing reading the tags is meant to avoid.
 			status.media.title =
 				meta.title ||
 				meta.showName ||
 				meta.movie_name ||
 				meta.anime_name ||
-				meta.filename ||
+				(meta.filename ? stripExtension(meta.filename) : "") ||
 				"Unknown"
 
 			status.media.artist = meta.artist || ""

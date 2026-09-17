@@ -75,8 +75,9 @@ export class Resolver {
 			return await this.publishLocalArtwork(media.artworkUrl, fileUri)
 		}
 
-		// No cover art available - no more online search
-		logger.info("No local artwork available and online search disabled")
+		// Not the end of the search: the artwork coordinator takes a no-artwork
+		// answer to the catalogs. This feature only ever looks inside the file.
+		logger.info("The file carries no artwork of its own")
 		return { kind: "no-artwork" }
 	}
 
