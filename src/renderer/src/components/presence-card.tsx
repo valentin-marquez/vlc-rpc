@@ -75,8 +75,13 @@ export interface PresenceCardSlotsProps extends PresenceCardBase {
 	details?: ReactNode
 	state?: ReactNode
 	largeText?: ReactNode
-	badge?: PresenceBadge
-	progress?: PresenceProgress
+	/**
+	 * The cover of the file being drawn. An arrangement shown for an example has none, and
+	 * draws the placeholder rather than an image standing in for one.
+	 */
+	artworkUrl?: string | null | undefined
+	badge?: PresenceBadge | undefined
+	progress?: PresenceProgress | undefined
 }
 
 export type PresenceCardProps =
@@ -175,6 +180,7 @@ function SlotsCard({
 	details,
 	state,
 	largeText,
+	artworkUrl,
 	badge,
 	progress,
 }: PresenceCardSlotsProps & { size: PresenceCardSize; icon: PresenceCardIcon }): JSX.Element {
@@ -186,7 +192,7 @@ function SlotsCard({
 
 			<div className={cn("flex items-start", GAP[size], BODY[size])}>
 				<div className="relative shrink-0">
-					<ArtworkPlaceholder size={size} icon={icon} />
+					<Artwork key={artworkUrl ?? "none"} url={artworkUrl ?? null} size={size} icon={icon} />
 					{badge && <SmallImage badge={badge} size={size} />}
 				</div>
 

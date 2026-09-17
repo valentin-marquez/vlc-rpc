@@ -1,18 +1,19 @@
 import { PresenceCard } from "@renderer/components/presence-card"
 import { Button } from "@renderer/components/ui/button"
 import type { ActivityVerb } from "@renderer/features/media"
-import { activityHeader, headerPrefix } from "@renderer/features/media"
+import { activityHeader, headerPrefix, usePresenceArtwork } from "@renderer/features/media"
 import { cn } from "@renderer/lib/utils"
 import type { LayoutPiece, PieceInfo } from "@shared/presence/layout"
 import { drawnValue, pieceLabel, renderLine, textPiece, valuePiece } from "@shared/presence/layout"
 import type { LayoutReport, RepeatGroup } from "@shared/presence/layout-builder"
 import { groupRepeats } from "@shared/presence/layout-builder"
+import type { LastSentPresence } from "@shared/presence/presence.types"
 import { WarningCircle } from "phosphor-react"
 import type { PointerEvent as ReactPointerEvent } from "react"
 import { Fragment, useEffect, useId, useRef, useState } from "react"
 
 import type { PreviewSample, SlotLabel } from "../layout.constants"
-import { PLAYING_BADGE } from "../layout.constants"
+import { EXAMPLE_BADGE, cardDressing } from "../layout.mapper"
 import { useFlip } from "../use-flip"
 import type { LayoutDraft } from "../use-layout-draft"
 import type { DragOrigin, DragState, DragTarget } from "../use-piece-drag"
@@ -29,11 +30,15 @@ interface LayoutCanvasProps {
 	/** The word the header opens with, before whatever the activity is called. */
 	verb: ActivityVerb
 	/**
-	 * What Discord calls the app, for the header of an arrangement that names nothing. Null
-	 * until Discord has answered with it, and then the header is drawn as the verb alone
-	 * rather than as a guess.
+	 * What the app last handed to Discord. The card drawing the live file takes its cover,
+	 * its small image and its times from there rather than working any of them out again,
+	 * so it cannot show a profile something the loop never sent. It also carries what
+	 * Discord calls the app, which is the header of an arrangement that names nothing and
+	 * which nothing here could guess.
 	 */
-	applicationName: string | null
+	presence: LastSentPresence
+	/** The asset key the loop sends for a paused file, which is how a paused card is known. */
+	pausedImage: string
 	icon: "music" | "video"
 	onReset: () => void
 }
@@ -47,7 +52,8 @@ export function LayoutCanvas({
 	samples,
 	report,
 	verb,
-	applicationName,
+	presence,
+	pausedImage,
 	icon,
 	onReset,
 }: LayoutCanvasProps): JSX.Element {
@@ -77,8 +83,13 @@ export function LayoutCanvas({
 		}
 	}, [drag.state])
 
+	// The live file is always the first sample, so it is the only card with a cover to
+	// fetch. The ones under it are examples, and an example has none.
 	const primary = samples[0]
 	const others = samples.slice(1)
+	const dressing = cardDressing(primary, presence, pausedImage)
+	const artworkUrl = usePresenceArtwork(dressing.largeImage)
+	const applicationName = presence.kind === "sent" ? presence.applicationName : null
 	const repeats = groupRepeats(report.repeats)
 	const canSave = draft.isDirty && report.stranded.length === 0
 
@@ -199,18 +210,27 @@ export function LayoutCanvas({
 						<span className="type-caption text-faint">{primary.label}</span>
 					)}
 					<div className="rounded-lg border border-divider bg-inset p-4">
-						<PresenceCard kind="slots" icon={icon} badge={PLAYING_BADGE} {...slotNodes()} />
+						<PresenceCard
+							kind="slots"
+							icon={icon}
+							artworkUrl={artworkUrl}
+							badge={dressing.badge}
+							progress={dressing.progress}
+							{...slotNodes()}
+						/>
 					</div>
 				</div>
 
 				{others.map((sample) => (
 					<div key={sample.id} className="flex flex-col gap-2">
 						<span className="type-caption text-faint">The same pieces for {sample.inSentence}</span>
+						{/* No cover and no times: this file is not playing, and an example that
+						    drew either would be showing something nobody could check. */}
 						<PresenceCard
 							kind="presence"
 							size="sm"
 							icon={icon}
-							badge={PLAYING_BADGE}
+							badge={EXAMPLE_BADGE}
 							{...drawnCard(sample)}
 							artworkUrl={null}
 						/>

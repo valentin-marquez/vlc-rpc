@@ -30,9 +30,16 @@ const FIXTURES: readonly PreviewSample[] = [
 		id: "series",
 		label: "A TV show",
 		inSentence: "a TV show",
+		isLive: false,
 		variables: videoVariables(SAMPLE_EPISODE),
 	},
-	{ id: "film", label: "A film", inSentence: "a film", variables: videoVariables(SAMPLE_FILM) },
+	{
+		id: "film",
+		label: "A film",
+		inSentence: "a film",
+		isLive: false,
+		variables: videoVariables(SAMPLE_FILM),
+	},
 ]
 
 export function VideoCanvas({ config }: { config: AppConfig }): JSX.Element {
@@ -56,6 +63,7 @@ export function VideoCanvas({ config }: { config: AppConfig }): JSX.Element {
 						id: "playing",
 						label: "What is playing",
 						inSentence: "what is playing",
+						isLive: true,
 						variables: videoVariables(playing),
 					},
 					...FIXTURES,
@@ -78,7 +86,8 @@ export function VideoCanvas({ config }: { config: AppConfig }): JSX.Element {
 			samples={samples}
 			report={report}
 			verb="Watching"
-			applicationName={lastPresence.kind === "sent" ? lastPresence.applicationName : null}
+			presence={lastPresence}
+			pausedImage={config.pausedImage}
 			icon="video"
 			onReset={() => draft.replaceAll(toVideoLines(DEFAULT_VIDEO_LAYOUT))}
 		/>

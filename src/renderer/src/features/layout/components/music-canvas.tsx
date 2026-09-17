@@ -35,6 +35,7 @@ export function MusicCanvas({ config }: { config: AppConfig }): JSX.Element {
 			id: "track",
 			label: isLive ? "What is playing" : "An example track",
 			inSentence: isLive ? "what is playing" : "the example track",
+			isLive,
 			variables: isLive
 				? { title: media.title ?? "", artist: media.artist ?? "", album: media.album ?? "" }
 				: SAMPLE_TRACK,
@@ -43,6 +44,7 @@ export function MusicCanvas({ config }: { config: AppConfig }): JSX.Element {
 			id: "untagged",
 			label: "A file with no tags",
 			inSentence: "a file with no tags",
+			isLive: false,
 			variables: UNTAGGED_TRACK,
 		},
 	]
@@ -64,7 +66,8 @@ export function MusicCanvas({ config }: { config: AppConfig }): JSX.Element {
 			samples={samples}
 			report={report}
 			verb="Listening"
-			applicationName={lastPresence.kind === "sent" ? lastPresence.applicationName : null}
+			presence={lastPresence}
+			pausedImage={config.pausedImage}
 			icon="music"
 			onReset={() => draft.replaceAll(toMusicLines(DEFAULT_MUSIC_LAYOUT))}
 		/>

@@ -1,4 +1,3 @@
-import type { PresenceBadge } from "@renderer/components/presence-card"
 import type { VideoFacts } from "@shared/presence/layout"
 import type { BuilderSample } from "@shared/presence/layout-builder"
 
@@ -19,10 +18,12 @@ export interface SlotLabel {
 /** A sample the canvas both draws and writes notes about, so it needs two spellings. */
 export interface PreviewSample extends BuilderSample {
 	inSentence: string
+	/**
+	 * The file VLC has open right now, rather than one of the examples beside it. Only this
+	 * card may draw the cover, the badge and the times of the presence that was sent.
+	 */
+	isLive: boolean
 }
-
-/** An arrangement is only ever on a profile while something plays, so every card says so. */
-export const PLAYING_BADGE: PresenceBadge = { kind: "playing", text: "Playing" }
 
 /** Stands in for the live track so the canvas stays readable before VLC reports one. */
 export const SAMPLE_TRACK = {
