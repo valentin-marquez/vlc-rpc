@@ -44,8 +44,11 @@ export function AppSettingsPanel({
 	async function handleClearMetadataCache(): Promise<void> {
 		setCache({ kind: "clearing" })
 		try {
-			await window.api.metadata.clearCache()
-			setCache({ kind: "cleared" })
+			// The handler resolves with success false when it could not clear, and
+			// only throws when the call itself failed. Reading one and not the other
+			// is how a locked file reported "Cleared."
+			const result = await window.api.metadata.clearCache()
+			setCache(result.success ? { kind: "cleared" } : { kind: "failed" })
 		} catch (error) {
 			logger.error(`Failed to clear the cover art cache: ${error}`)
 			setCache({ kind: "failed" })

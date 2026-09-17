@@ -29,6 +29,18 @@ export class DiscordRpcHandler {
 		this.registerHandlers()
 	}
 
+	/**
+	 * Resend on the next tick even though nothing VLC reports has changed.
+	 *
+	 * The poll skips Discord whenever `presenceKey` is unchanged, and that key is
+	 * built from what VLC reports, which a manual correction does not touch. So
+	 * correcting a cover two minutes into an episode would otherwise leave the old
+	 * one on screen for the rest of it, and forever on a track that repeats.
+	 */
+	public forceNextUpdate(): void {
+		this.lastSentKey = null
+	}
+
 	private registerHandlers(): void {
 		registerHandler("discord:connect", async () => {
 			return await this.discord.connect()

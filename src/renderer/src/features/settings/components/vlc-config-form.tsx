@@ -101,12 +101,12 @@ export function VlcConfigForm({ initialConfig }: VlcConfigFormProps): JSX.Elemen
 				<div className="flex items-center justify-end gap-4 px-4 py-3">
 					{save.kind === "saved" && (
 						<p className="type-caption text-pretty text-muted-foreground">
-							Saved. The app is reading VLC.
+							Saved to VLC's settings file. Restart VLC to apply it.
 						</p>
 					)}
 					{save.kind === "failed" && (
 						<p className="type-caption text-pretty text-danger-text">
-							Could not reach VLC with these settings. Check the port and the password.
+							Could not write VLC's settings file. Close VLC and try again.
 						</p>
 					)}
 					<Button type="submit" isLoading={save.kind === "saving"}>

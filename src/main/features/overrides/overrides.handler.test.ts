@@ -102,6 +102,7 @@ function fakeEvictor() {
 let store: FakeStore
 let catalogEvictions: string[]
 let musicEvictions: string[]
+let forcedUpdates: number
 
 beforeEach(() => {
 	ipc.handlers.clear()
@@ -110,7 +111,12 @@ beforeEach(() => {
 	const music = fakeEvictor()
 	catalogEvictions = catalog.evicted
 	musicEvictions = music.evicted
-	new Handler(store, [catalog.evictor, music.evictor])
+	forcedUpdates = 0
+	new Handler(store, [catalog.evictor, music.evictor], {
+		forceNextUpdate: () => {
+			forcedUpdates += 1
+		},
+	})
 })
 
 afterEach(() => {
@@ -364,5 +370,39 @@ describe("overrides:delete", () => {
 
 		expect(catalogEvictions).toEqual(["audio:christian nodal|me deje llevar"])
 		expect(musicEvictions).toEqual(["audio:christian nodal|me deje llevar"])
+	})
+})
+
+describe("keeping Discord in sync", () => {
+	// Evicting a cache does nothing for a presence already on screen. The poll
+	// diffs on what VLC reports, and a correction changes none of it, so without
+	// this the corrected cover waits for the track to end.
+	it("forces the next presence update when a correction is saved", async () => {
+		await invoke("overrides:save", "movie:Heat|1995", {
+			kind: "video",
+			title: "Heat",
+			sourceFilename: "Heat.1995.mkv",
+		})
+
+		expect(forcedUpdates).toBe(1)
+	})
+
+	it("forces the next presence update when a correction is dropped", async () => {
+		await invoke("overrides:delete", "movie:Heat|1995")
+
+		expect(forcedUpdates).toBe(1)
+	})
+
+	it("does not force one when the store refused the key", async () => {
+		store.refuseKey = "video:"
+
+		const result = await invoke("overrides:save", "video:", {
+			kind: "video",
+			title: "Anything",
+			sourceFilename: "unreadable.mkv",
+		})
+
+		expect(result).toEqual({ saved: false, reason: "store-refused" })
+		expect(forcedUpdates).toBe(0)
 	})
 })

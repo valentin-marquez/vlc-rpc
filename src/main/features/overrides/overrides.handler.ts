@@ -28,6 +28,15 @@ export interface OverrideEvictor {
 	evictOverride(key: string): void
 }
 
+/**
+ * Whatever keeps Discord in sync, told that the answer changed underneath it.
+ * Evicting the caches is not enough on its own: the presence loop diffs on what
+ * VLC reports, and a correction changes none of that.
+ */
+export interface PresenceRefresher {
+	forceNextUpdate(): void
+}
+
 // The abort timer has to cover reading the body too: a host can answer with
 // image/png and then stall, and clearing the timer once the headers arrive
 // would leave that unbounded.
@@ -103,6 +112,7 @@ export class Handler {
 	constructor(
 		private readonly store: OverridesStore,
 		private readonly evictors: readonly OverrideEvictor[],
+		private readonly presence: PresenceRefresher,
 	) {
 		this.registerHandlers()
 	}
@@ -119,16 +129,17 @@ export class Handler {
 			// A delete has to evict too, and for the same reason a save does. The
 			// entry cached before the correction has no TTL, so leaving it behind is
 			// what would make the answer the user rejected come back.
-			this.evict(key)
+			this.invalidate(key)
 			logger.info("Deleted an override")
 			return true
 		})
 	}
 
-	private evict(key: string): void {
+	private invalidate(key: string): void {
 		for (const evictor of this.evictors) {
 			evictor.evictOverride(key)
 		}
+		this.presence.forceNextUpdate()
 	}
 
 	private async save(key: string, draft: OverrideDraft): Promise<OverrideSaveResult> {
@@ -151,7 +162,7 @@ export class Handler {
 			return { saved: false, reason: "store-refused" }
 		}
 
-		this.evict(key)
+		this.invalidate(key)
 		logger.info("Saved an override", { kind: draft.kind, hasCover: draft.cover !== undefined })
 		return { saved: true }
 	}

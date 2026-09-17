@@ -117,13 +117,16 @@ if (!gotTheLock) {
 		new App.AppInfoHandler(startup)
 		new Cover.MetadataHandler(coverStore)
 		new Media.MediaInfoHandler(artwork, catalogResolver, musicResolver, vlc, imageProxy)
+		const discordRpcHandler = new Discord.DiscordRpcHandler(discord, vlc, presence, systemClock)
 		// Both resolvers, because the key alone does not say which cache holds what
-		// the correction replaces, and each one answers only for its own keys.
-		new Overrides.Handler(overridesStore, [catalogResolver, musicResolver])
+		// the correction replaces, and each one answers only for its own keys. The
+		// rpc handler, because evicting a cache does not reach a presence already
+		// on screen: that loop diffs on what VLC reports, which a correction leaves
+		// untouched.
+		new Overrides.Handler(overridesStore, [catalogResolver, musicResolver], discordRpcHandler)
 		new Updates.UpdateHandler(updater)
 		new Vlc.VlcConfigHandler(vlc)
 		new Vlc.VlcStatusHandler(vlc)
-		const discordRpcHandler = new Discord.DiscordRpcHandler(discord, vlc, presence, systemClock)
 
 		const mainWindowPromise = window.createWindow()
 

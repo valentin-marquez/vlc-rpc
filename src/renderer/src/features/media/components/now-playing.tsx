@@ -7,7 +7,7 @@ import type { DiscordPresenceData, PresenceClearReason } from "@shared/presence/
 import type { ActivityType } from "discord-api-types/v10"
 
 import { useLastPresence } from "../hooks/use-last-presence"
-import { useProxiedArtwork } from "../hooks/use-proxied-artwork"
+import { usePresenceArtwork } from "../hooks/use-presence-artwork"
 
 // Read as wire numbers: discord-api-types is a transitive dependency of the RPC
 // client and has no business in the renderer bundle.
@@ -30,7 +30,9 @@ const CLEARED_BECAUSE: Record<PresenceClearReason, string> = {
  */
 export function NowPlaying(): JSX.Element {
 	const lastPresence = useLastPresence()
-	const artworkUrl = useProxiedArtwork()
+	const artworkUrl = usePresenceArtwork(
+		lastPresence.kind === "sent" ? lastPresence.presence.large_image : undefined,
+	)
 
 	if (lastPresence.kind === "unknown") {
 		return (

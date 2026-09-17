@@ -129,6 +129,31 @@ describe("DiscordRpcHandler update loop", () => {
 		expect(discord.calls.update).toBe(1)
 	})
 
+	it("resends after forceNextUpdate, even though VLC reports the same thing", async () => {
+		// A manual correction changes the cover without changing anything VLC
+		// reports, so the presenceKey is identical and the diff would skip it. The
+		// user would then watch the old cover for the rest of the episode.
+		vi.useFakeTimers()
+		const discord = fakeDiscord()
+		const vlc = fakeVlc(() => status())
+		const handler = new DiscordRpcHandler(discord.client, vlc, fakePresence(), new FakeClock())
+
+		handler.startUpdateLoop()
+		await vi.advanceTimersByTimeAsync(0)
+		expect(discord.calls.update).toBe(1)
+
+		await vi.advanceTimersByTimeAsync(1500)
+		expect(discord.calls.update).toBe(1)
+
+		handler.forceNextUpdate()
+		await vi.advanceTimersByTimeAsync(1500)
+		expect(discord.calls.update).toBe(2)
+
+		// And only the next one: the forced resend is not a mode it stays in.
+		await vi.advanceTimersByTimeAsync(1500)
+		expect(discord.calls.update).toBe(2)
+	})
+
 	it("sends again when plid changes, a new track", async () => {
 		vi.useFakeTimers()
 		const discord = fakeDiscord()

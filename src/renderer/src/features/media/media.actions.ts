@@ -33,8 +33,30 @@ export function updateFromVlcStatus(status: VlcStatus | null): void {
 	}
 
 	const { media, playback } = status
+	const previous = mediaStore.get()
+	const fileTitle = media.title || null
+
+	// VLC's status arrives well before the enriched fields can be refetched, which
+	// takes a catalog lookup and an image proxy round trip. Carrying the previous
+	// file's fields across that gap would let "Edit correction" open a form keyed
+	// to the file that just finished, and write the correction onto it.
+	const stale =
+		previous.fileTitle !== fileTitle
+			? {
+					contentType: null,
+					contentImageUrl: null,
+					contentImageSourceUrl: null,
+					season: null,
+					episode: null,
+					year: null,
+					overrideKey: null,
+					overrideActive: false,
+				}
+			: {}
+
 	mediaStore.set({
-		...mediaStore.get(),
+		...previous,
+		...stale,
 		mediaStatus: status.status === "playing" ? "playing" : "paused",
 		title: media.title || null,
 		artist: media.artist || null,
@@ -42,7 +64,7 @@ export function updateFromVlcStatus(status: VlcStatus | null): void {
 		duration: playback.duration || null,
 		position: playback.time || null,
 		artwork: media.artworkUrl || null,
-		fileTitle: media.title || null,
+		fileTitle,
 		mediaType: status.mediaType || null,
 	})
 }

@@ -125,7 +125,7 @@ export function OverrideForm({
 			<p className="type-caption text-muted-foreground">
 				{isAudio
 					? "Audio text is built from the file's own tags, so only the cover can be corrected."
-					: "Leave a field empty to keep what the app worked out."}
+					: "These start with what the app worked out. Clearing the title falls back to the file name, and clearing the cover leaves no cover."}
 			</p>
 
 			{!isAudio && (
