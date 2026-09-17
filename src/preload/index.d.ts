@@ -3,6 +3,7 @@ import type { AppConfig, VlcConfig } from "@shared/config/app-config"
 import type { OverrideDraft, OverrideListEntry, OverrideSaveResult } from "@shared/ipc/channels"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
 import type { LastSentPresence } from "@shared/presence/presence.types"
+import type { UpdateAvailability, UpdateInstallKind } from "@shared/updates/update.types"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 
 declare global {
@@ -66,10 +67,11 @@ declare global {
 					retryCount: number
 					currentVersion: string
 				}>
-				getInstallationType: () => Promise<"portable" | "setup">
+				getCurrent: () => Promise<UpdateAvailability>
+				getInstallationType: () => Promise<UpdateInstallKind>
 				install: () => Promise<boolean>
 				openReleasePage: () => Promise<void>
-				onUpdateStatus: (callback: (event: string, data: unknown) => void) => () => void
+				onAvailability: (callback: (availability: UpdateAvailability) => void) => () => void
 			}
 		}
 	}

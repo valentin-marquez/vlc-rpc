@@ -5,7 +5,6 @@ import { HomePage } from "@renderer/features/home"
 import { LayoutPage } from "@renderer/features/layout"
 import { FirstRunPage } from "@renderer/features/onboarding"
 import { SettingsPage } from "@renderer/features/settings"
-import { UpdateNotification } from "@renderer/features/updates"
 import { useAppInit } from "@renderer/hooks/use-app-init"
 import { cn } from "@renderer/lib/utils"
 import { Titlebar } from "@renderer/shell/titlebar"
@@ -111,8 +110,6 @@ function App(): JSX.Element {
 					</div>
 				</main>
 			</div>
-
-			<UpdateNotification />
 		</Router>
 	)
 }

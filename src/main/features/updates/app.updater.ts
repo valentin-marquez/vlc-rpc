@@ -1,13 +1,12 @@
-import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { is } from "@electron-toolkit/utils"
 import type { Clock } from "@main/core/clock"
 import { logger } from "@main/core/logger"
-import type { IpcEvent } from "@shared/ipc"
+import type { UpdateAvailability, UpdateInstallKind } from "@shared/updates/update.types"
 import { type BrowserWindow, app, dialog, shell } from "electron"
 import { type UpdateInfo, autoUpdater } from "electron-updater"
-import { type InstallKind, detectInstallKind, probeInstall } from "./updates.install-kind"
-import { createUpdaterLogger, describeError, redactUrls } from "./updates.log"
+import type { InstallKind } from "./updates.install-kind"
+import { createUpdaterLogger, describeError } from "./updates.log"
 
 /**
  * The app lives in the tray and starts with Windows, so an install can run for
@@ -36,18 +35,24 @@ type Phase = { kind: "idle" } | { kind: "checking" } | { kind: "downloading" }
  */
 export class Updater {
 	private mainWindow: BrowserWindow | null = null
-	private readonly install: InstallKind
 	private phase: Phase = { kind: "idle" }
+	/**
+	 * The announcement itself, rather than a flag saying it was made. A release
+	 * is found again on every check until it is applied, and a window that opens
+	 * later has to be able to ask what stands.
+	 */
+	private availability: UpdateAvailability = { kind: "none" }
 	private firstCheckTimer: NodeJS.Timeout | null = null
 	private periodicTimer: NodeJS.Timeout | null = null
 	private retryTimer: NodeJS.Timeout | null = null
 	private retryAttempt = 0
 	private lastCheckAt = 0
-	private announced: { version: string; dialogShown: boolean } | null = null
 	private lastLoggedPercent = -1
 
-	constructor(private readonly clock: Clock) {
-		this.install = detectInstallKind(probeInstall(process.env, process.resourcesPath, existsSync))
+	constructor(
+		private readonly clock: Clock,
+		private readonly install: InstallKind,
+	) {
 		this.configureUpdater()
 		this.registerAutoUpdateEvents()
 
@@ -124,10 +129,6 @@ export class Updater {
 	}
 
 	private registerAutoUpdateEvents(): void {
-		autoUpdater.on("checking-for-update", () => {
-			this.sendStatusToWindow("checking-for-update")
-		})
-
 		autoUpdater.on("update-available", (info) => {
 			logger.info("Update available", {
 				version: info.version,
@@ -140,7 +141,12 @@ export class Updater {
 		autoUpdater.on("update-not-available", () => {
 			logger.info("No updates available")
 			this.onCheckSucceeded()
-			this.sendStatusToWindow("update-not-available")
+
+			// Four checks a day, and this is the answer to nearly all of them.
+			// Only a release that was pulled is news.
+			if (this.availability.kind !== "none") {
+				this.setAvailability({ kind: "none" })
+			}
 		})
 
 		autoUpdater.on("download-progress", (progress) => {
@@ -149,7 +155,11 @@ export class Updater {
 				this.lastLoggedPercent = percent
 				logger.info(`Download progress: ${percent}%`)
 			}
-			this.sendStatusToWindow("download-progress", progress)
+
+			const version = this.announcedVersion()
+			if (version === null) return
+
+			this.setAvailability({ kind: "downloading", version, percent })
 		})
 
 		autoUpdater.on("update-downloaded", (info) => {
@@ -159,8 +169,12 @@ export class Updater {
 			})
 			this.phase = { kind: "idle" }
 			this.lastLoggedPercent = -1
-			this.sendStatusToWindow("update-downloaded", info)
-			this.showUpdateDownloadedDialog(info)
+			this.setAvailability({ kind: "ready", version: info.version })
+
+			// Nothing downloads on its own: autoDownload is off and the only way
+			// here is the user pressing a button that says the app restarts to
+			// finish. Asking a second time would be asking them to repeat it.
+			this.installNow()
 		})
 
 		autoUpdater.on("error", (error) => {
@@ -168,7 +182,13 @@ export class Updater {
 			logger.error("Auto updater error", { during, ...describeError(error) })
 
 			this.phase = { kind: "idle" }
-			this.sendStatusToWindow("error", this.toErrorPayload(error))
+
+			if (during === "downloading") {
+				const version = this.announcedVersion()
+				if (version !== null) {
+					this.setAvailability({ kind: "failed", version })
+				}
+			}
 
 			// A failed download is not a reason to ask GitHub for the feed again.
 			if (during === "checking") {
@@ -188,91 +208,24 @@ export class Updater {
 	}
 
 	/**
-	 * The same version is found again on every check until the user updates, so
-	 * the announcement is made once, and the modal waits for a visible window
-	 * rather than interrupting whatever is on screen.
+	 * The same release is found again on every check until it is applied, so a
+	 * check that confirms what already stands changes nothing and is not resent.
+	 * A download already under way outranks the feed: it is the same version,
+	 * further along.
 	 */
 	private announce(info: UpdateInfo): void {
-		if (this.announced?.version !== info.version) {
-			this.announced = { version: info.version, dialogShown: false }
-			this.sendStatusToWindow("update-available", info)
-		}
+		if (this.availability.kind !== "none" && this.availability.version === info.version) return
 
-		const announced = this.announced
-		if (announced === null || announced.dialogShown) return
-
-		const window = this.liveWindow()
-		if (window === null || !window.isVisible()) {
-			logger.info("Holding the update dialog until the window is open", { version: info.version })
-			return
-		}
-
-		this.announced = { version: announced.version, dialogShown: true }
-		this.showUpdateAvailableDialog(info)
+		this.setAvailability({ kind: "available", version: info.version })
 	}
 
-	private showUpdateAvailableDialog(info: UpdateInfo): void {
-		const window = this.liveWindow()
-		if (window === null) return
-
-		const portable = this.install.kind === "portable"
-
-		dialog
-			.showMessageBox(window, {
-				type: "info",
-				title: "Update Available",
-				message: `Version ${info.version} is available.`,
-				detail: portable
-					? "This is the portable build. The release page has the new portable executable: download it and replace this one."
-					: "The update downloads in the background and installs when you choose.",
-				buttons: portable ? ["Open Release Page", "Later"] : ["Download", "Later"],
-				defaultId: 0,
-				cancelId: 1,
-			})
-			.then(({ response }) => {
-				if (response !== 0) return
-
-				if (portable) {
-					void this.openReleasePage()
-					return
-				}
-
-				this.downloadUpdate()
-			})
-			.catch((error) => {
-				logger.error("Error showing update dialog", describeError(error))
-			})
+	private setAvailability(next: UpdateAvailability): void {
+		this.availability = next
+		this.sendAvailability()
 	}
 
-	private showUpdateDownloadedDialog(info: UpdateInfo): void {
-		const window = this.liveWindow()
-		if (window === null) return
-
-		// Only an installed copy ever gets here: a portable one is never asked to
-		// download, because the feed carries the installer and nothing else.
-		if (this.install.kind === "portable") {
-			void this.openReleasePage()
-			return
-		}
-
-		dialog
-			.showMessageBox(window, {
-				type: "info",
-				title: "Update Ready",
-				message: `Version ${info.version} has been downloaded and is ready to install.`,
-				detail: "Would you like to install it now? The application will restart automatically.",
-				buttons: ["Install and Restart", "Later"],
-				defaultId: 0,
-				cancelId: 1,
-			})
-			.then(({ response }) => {
-				if (response === 0) {
-					this.installNow()
-				}
-			})
-			.catch((error) => {
-				logger.error("Error showing update dialog", describeError(error))
-			})
+	private announcedVersion(): string | null {
+		return this.availability.kind === "none" ? null : this.availability.version
 	}
 
 	private scheduleRetry(): void {
@@ -311,25 +264,27 @@ export class Updater {
 		this.retryTimer = null
 	}
 
-	private toErrorPayload(error: unknown): { name: string; code?: string; message: string } {
-		return {
-			...describeError(error),
-			message: error instanceof Error ? redactUrls(error.message) : "Unknown error",
-		}
-	}
-
 	/** These events now fire for as long as the app runs, so a window that went away must not throw. */
 	private liveWindow(): BrowserWindow | null {
 		const window = this.mainWindow
 		return window === null || window.isDestroyed() ? null : window
 	}
 
-	private sendStatusToWindow(status: string, data?: unknown): void {
+	/**
+	 * A push for a renderer that is already listening. One that is not, because
+	 * the release was found before the window finished loading, asks for the
+	 * same value through `getCurrentUpdate`.
+	 */
+	private sendAvailability(): void {
 		const window = this.liveWindow()
 		if (window === null) return
 
-		const channel = `update:${status}` as IpcEvent
-		window.webContents.send(channel, data)
+		window.webContents.send("update:availability", this.availability)
+	}
+
+	/** What stands right now, for a renderer that mounted after it was found. */
+	public getCurrentUpdate(): UpdateAvailability {
+		return this.availability
 	}
 
 	/**
@@ -379,8 +334,8 @@ export class Updater {
 					})
 			}
 		} finally {
-			// A download started from the dialog while this was in flight keeps
-			// the phase it set.
+			// A download started from the header button while this was in flight
+			// keeps the phase it set.
 			if (this.phase.kind === "checking") {
 				this.phase = { kind: "idle" }
 			}
@@ -436,7 +391,7 @@ export class Updater {
 	/**
 	 * Get current installation type
 	 */
-	public getInstallationType(): "portable" | "setup" {
+	public getInstallationType(): UpdateInstallKind {
 		return this.install.kind === "portable" ? "portable" : "setup"
 	}
 

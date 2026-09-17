@@ -68,6 +68,28 @@ describe("probeInstall", () => {
 		expect(probe.uninstallerPresent).toBe(true)
 	})
 
+	it("ignores the word in the path, in both directions", () => {
+		// Start at login used to be decided by looking for "portable" in the
+		// executable path, which lost an ordinary install under C:\PortableApps
+		// and handed a renamed portable copy a registry entry pointing at a file
+		// it can move. Neither case is decided by the folder name any more.
+		const underPortableApps = "C:/PortableApps/VLC Discord RP/resources"
+		const anonymous = "D:/Tools/vlc rp/resources"
+
+		expect(detectInstallKind(probeInstall({}, underPortableApps, () => true))).toEqual({
+			kind: "installed",
+		})
+		expect(
+			detectInstallKind(
+				probeInstall(
+					{ PORTABLE_EXECUTABLE_FILE: "D:/Tools/vlc rp/VLC Discord RP.exe" },
+					anonymous,
+					() => false,
+				),
+			),
+		).toEqual({ kind: "portable", reason: "portable-launcher" })
+	})
+
 	it("reads an install placed on the desktop as an install, not as a portable copy", () => {
 		// The installer lets the user choose the directory, so an install
 		// outside Program Files is ordinary. Only the uninstaller answers.

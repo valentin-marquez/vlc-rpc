@@ -34,6 +34,8 @@ export class UpdateHandler {
 			return this.updater.getUpdateStatus()
 		})
 
+		registerHandler("update:current", async () => this.updater.getCurrentUpdate())
+
 		registerHandler("update:installation-type", async () => {
 			logger.info("Requested installation type")
 			return this.updater.getInstallationType()

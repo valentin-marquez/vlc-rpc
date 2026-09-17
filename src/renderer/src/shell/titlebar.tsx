@@ -1,6 +1,7 @@
 import { cn } from "@renderer/lib/utils"
 import { Navigation } from "@renderer/shell/navigation"
 import { StatusChips } from "@renderer/shell/status-chip"
+import { UpdateChip } from "@renderer/shell/update-chip"
 import { CornersOut, Minus, X } from "phosphor-react"
 import { useEffect, useState } from "react"
 
@@ -61,6 +62,7 @@ export function Titlebar({ isMac, scrolled }: TitlebarProps): JSX.Element {
 			<Navigation />
 
 			<div className="flex items-center gap-1">
+				<UpdateChip />
 				<StatusChips />
 
 				{!isMac && (

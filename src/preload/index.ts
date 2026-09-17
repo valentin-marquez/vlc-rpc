@@ -1,4 +1,5 @@
 import { electronAPI } from "@electron-toolkit/preload"
+import type { UpdateAvailability } from "@shared/updates/update.types"
 import { contextBridge } from "electron"
 import { exposeConf } from "electron-conf/preload"
 import { exposeLogger } from "electron-winston/preload"
@@ -62,22 +63,12 @@ const api = {
 		download: typedInvoke("update:download"),
 		forceCheck: typedInvoke("update:force-check"),
 		getStatus: typedInvoke("update:status"),
+		getCurrent: typedInvoke("update:current"),
 		getInstallationType: typedInvoke("update:installation-type"),
 		install: typedInvoke("update:install"),
 		openReleasePage: typedInvoke("update:open-release-page"),
-		onUpdateStatus: (callback: (event: string, data: unknown) => void) => {
-			const unsubs = [
-				onEvent("update:checking-for-update", (data) => callback("checking-for-update", data)),
-				onEvent("update:update-available", (data) => callback("update-available", data)),
-				onEvent("update:update-not-available", (data) => callback("update-not-available", data)),
-				onEvent("update:download-progress", (data) => callback("download-progress", data)),
-				onEvent("update:update-downloaded", (data) => callback("update-downloaded", data)),
-				onEvent("update:error", (data) => callback("error", data)),
-			]
-
-			return () => {
-				for (const unsub of unsubs) unsub()
-			}
+		onAvailability: (callback: (availability: UpdateAvailability) => void) => {
+			return onEvent("update:availability", callback)
 		},
 	},
 }

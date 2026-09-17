@@ -1,4 +1,5 @@
 import { logger } from "@main/core/logger"
+import type { InstallKind } from "@main/features/updates"
 import { app } from "electron"
 
 /**
@@ -6,11 +7,20 @@ import { app } from "electron"
  */
 export class Startup {
 	/**
+	 * The install kind is decided once in the composition root and handed to
+	 * everything that asks. Reading it off the executable path was a guess that
+	 * was wrong in both directions: a portable copy in a folder not named
+	 * "portable" was offered start at login, which writes a registry entry
+	 * pointing at a file the user is free to move, and an install under a folder
+	 * like C:\PortableApps lost start at login for no reason.
+	 */
+	constructor(private readonly install: InstallKind) {}
+
+	/**
 	 * Check if the application is running as portable version
 	 */
 	public isPortable(): boolean {
-		const execPath = process.execPath.toLowerCase()
-		return execPath.includes("portable")
+		return this.install.kind === "portable"
 	}
 
 	/**

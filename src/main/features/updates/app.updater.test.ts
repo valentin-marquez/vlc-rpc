@@ -1,13 +1,17 @@
 import { SystemClock } from "@main/core/clock"
+import type { UpdateAvailability } from "@shared/updates/update.types"
 import type { BrowserWindow } from "electron"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import type { InstallKind } from "./updates.install-kind"
 
 const MINUTE_MS = 60 * 1000
 const HOUR_MS = 60 * MINUTE_MS
 
+const INSTALLED: InstallKind = { kind: "installed" }
+const PORTABLE: InstallKind = { kind: "portable", reason: "portable-launcher" }
+
 const { state, updaterMock, logCalls, electronMock } = vi.hoisted(() => {
 	const state = {
-		uninstallerPresent: true,
 		checkBehavior: "available" as "available" | "none" | "fails" | "hangs",
 		availableVersion: "5.0.0",
 	}
@@ -68,7 +72,6 @@ const { state, updaterMock, logCalls, electronMock } = vi.hoisted(() => {
 			},
 		},
 		electronMock: {
-			dialogResponse: { value: 0 },
 			showMessageBox: vi.fn(),
 			openExternal: vi.fn(async (_url: string) => {}),
 			openPath: vi.fn(async (_path: string) => ""),
@@ -87,8 +90,6 @@ vi.mock("@main/core/logger", () => ({
 
 vi.mock("@electron-toolkit/utils", () => ({ is: { dev: false } }))
 
-vi.mock("node:fs", () => ({ existsSync: () => state.uninstallerPresent }))
-
 vi.mock("electron-updater", () => ({ autoUpdater: updaterMock.autoUpdater }))
 
 vi.mock("electron", () => ({
@@ -99,7 +100,7 @@ vi.mock("electron", () => ({
 	dialog: {
 		showMessageBox: (...args: unknown[]) => {
 			electronMock.showMessageBox(...args)
-			return Promise.resolve({ response: electronMock.dialogResponse.value })
+			return Promise.resolve({ response: 0 })
 		},
 	},
 	shell: {
@@ -130,23 +131,23 @@ function makeWindow(visible = true) {
 	return {
 		window: window as unknown as BrowserWindow,
 		sent: window.webContents.send,
+		announced(): UpdateAvailability[] {
+			return window.webContents.send.mock.calls
+				.filter(([channel]) => channel === "update:availability")
+				.map(([, payload]) => payload as UpdateAvailability)
+		},
 		emit(event: WindowEvent): void {
 			for (const handler of handlers.get(event) ?? []) handler()
 		},
 	}
 }
 
-function setResourcesPath(path: string): void {
-	Object.defineProperty(process, "resourcesPath", { value: path, configurable: true })
-}
-
 function makeUpdater(options: { portable?: boolean; visible?: boolean } = {}) {
-	state.uninstallerPresent = options.portable !== true
 	// Start from the wrong value so the assertions on it mean something.
 	updaterMock.autoUpdater.autoInstallOnAppQuit = options.portable === true
 
 	const fakeWindow = makeWindow(options.visible ?? true)
-	const updater = new Updater(new SystemClock())
+	const updater = new Updater(new SystemClock(), options.portable === true ? PORTABLE : INSTALLED)
 	updater.setMainWindow(fakeWindow.window)
 
 	return { updater, ...fakeWindow }
@@ -158,17 +159,13 @@ beforeEach(() => {
 	electronMock.showMessageBox.mockClear()
 	electronMock.openExternal.mockClear()
 	electronMock.openPath.mockClear()
-	electronMock.dialogResponse.value = 0
 	logCalls.length = 0
 	state.checkBehavior = "available"
 	state.availableVersion = "5.0.0"
-	setResourcesPath("C:/Program Files/VLC Discord RP/resources")
-	vi.stubEnv("PORTABLE_EXECUTABLE_FILE", undefined)
 })
 
 afterEach(() => {
 	vi.useRealTimers()
-	vi.unstubAllEnvs()
 })
 
 const checks = () => updaterMock.autoUpdater.checkForUpdates.mock.calls.length
@@ -284,6 +281,7 @@ describe("GitHub being unreachable", () => {
 
 		updater.start()
 		await vi.advanceTimersByTimeAsync(3000)
+		updater.downloadUpdate()
 		expect(updaterMock.autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1)
 
 		updaterMock.emit("error", new Error("download died"))
@@ -324,66 +322,113 @@ describe("GitHub being unreachable", () => {
 })
 
 describe("Announcing a release", () => {
-	it("asks once per version, not on every check", async () => {
-		const { updater, sent } = makeUpdater()
+	it("says so once per version, not on every check", async () => {
+		const { updater, announced } = makeUpdater()
 
 		updater.start()
 		await vi.advanceTimersByTimeAsync(3000)
-		expect(electronMock.showMessageBox).toHaveBeenCalledTimes(1)
 
 		await vi.advanceTimersByTimeAsync(6 * HOUR_MS)
 		await vi.advanceTimersByTimeAsync(6 * HOUR_MS)
 
-		expect(electronMock.showMessageBox).toHaveBeenCalledTimes(1)
-		expect(
-			sent.mock.calls.filter(([channel]) => channel === "update:update-available"),
-		).toHaveLength(1)
+		expect(announced()).toEqual([{ kind: "available", version: "5.0.0" }])
 
 		updater.stop()
 	})
 
-	it("waits for the window to be open before interrupting", async () => {
-		const { updater, sent } = makeUpdater({ visible: false })
+	it("interrupts nobody: the release is state the window can come and ask for", async () => {
+		// The check runs three seconds after the app starts, which is before the
+		// window has finished loading, and the push is made once. A renderer that
+		// mounts later reads this instead of missing the release entirely.
+		const updater = new Updater(new SystemClock(), INSTALLED)
 
 		updater.start()
 		await vi.advanceTimersByTimeAsync(3000)
 
 		expect(electronMock.showMessageBox).not.toHaveBeenCalled()
-		expect(
-			sent.mock.calls.filter(([channel]) => channel === "update:update-available"),
-		).toHaveLength(1)
+		expect(updater.getCurrentUpdate()).toEqual({ kind: "available", version: "5.0.0" })
+
+		updater.stop()
+	})
+
+	it("keeps the release while the window is closed", async () => {
+		const { updater } = makeUpdater({ visible: false })
+
+		updater.start()
+		await vi.advanceTimersByTimeAsync(3000)
+
+		expect(updater.getCurrentUpdate()).toEqual({ kind: "available", version: "5.0.0" })
+
+		updater.stop()
+	})
+
+	it("forgets it when a later check says the release is gone", async () => {
+		const { updater } = makeUpdater()
+
+		updater.start()
+		await vi.advanceTimersByTimeAsync(3000)
+		expect(updater.getCurrentUpdate().kind).toBe("available")
+
+		state.checkBehavior = "none"
+		await vi.advanceTimersByTimeAsync(6 * HOUR_MS)
+
+		expect(updater.getCurrentUpdate()).toEqual({ kind: "none" })
+
+		updater.stop()
+	})
+
+	it("downloads nothing until it is asked to", async () => {
+		const { updater } = makeUpdater()
+
+		updater.start()
+		await vi.advanceTimersByTimeAsync(3000)
+
+		expect(updaterMock.autoUpdater.autoDownload).toBe(false)
+		expect(updaterMock.autoUpdater.downloadUpdate).not.toHaveBeenCalled()
 
 		updater.stop()
 	})
 })
 
-describe("An installed copy", () => {
-	it("downloads on confirmation and installs when told to", async () => {
-		const { updater } = makeUpdater()
+describe("An installed copy taking the update", () => {
+	it("reports the download as it runs, and restarts once it lands", async () => {
+		const { updater, announced } = makeUpdater()
 
 		expect(updater.getInstallationType()).toBe("setup")
 		expect(updaterMock.autoUpdater.autoInstallOnAppQuit).toBe(true)
-		expect(updaterMock.autoUpdater.autoDownload).toBe(false)
 
 		updater.start()
 		await vi.advanceTimersByTimeAsync(3000)
-		expect(updaterMock.autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1)
 
+		updater.downloadUpdate()
+		updaterMock.emit("download-progress", { percent: 41.7 })
 		updaterMock.emit("update-downloaded", { version: "5.0.0" })
 		await vi.advanceTimersByTimeAsync(10)
 
+		expect(announced()).toEqual([
+			{ kind: "available", version: "5.0.0" },
+			{ kind: "downloading", version: "5.0.0", percent: 42 },
+			{ kind: "ready", version: "5.0.0" },
+		])
+		// The press that started this said the app restarts to finish, so it does.
 		expect(updaterMock.autoUpdater.quitAndInstall).toHaveBeenCalledTimes(1)
+
 		updater.stop()
 	})
 
-	it("leaves the download alone when the answer is Later", async () => {
+	it("names the version again when the download dies, so it can be taken up once more", async () => {
 		const { updater } = makeUpdater()
-		electronMock.dialogResponse.value = 1
 
 		updater.start()
 		await vi.advanceTimersByTimeAsync(3000)
 
-		expect(updaterMock.autoUpdater.downloadUpdate).not.toHaveBeenCalled()
+		updater.downloadUpdate()
+		updaterMock.emit("download-progress", { percent: 12 })
+		updaterMock.emit("error", new Error("download died"))
+
+		expect(updater.getCurrentUpdate()).toEqual({ kind: "failed", version: "5.0.0" })
+		expect(updaterMock.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
+
 		updater.stop()
 	})
 })
@@ -398,11 +443,8 @@ describe("A portable copy", () => {
 		updater.start()
 		await vi.advanceTimersByTimeAsync(3000)
 
+		expect(updater.getCurrentUpdate()).toEqual({ kind: "available", version: "5.0.0" })
 		expect(updaterMock.autoUpdater.downloadUpdate).not.toHaveBeenCalled()
-		expect(electronMock.openExternal).toHaveBeenCalledTimes(1)
-		expect(String(electronMock.openExternal.mock.calls[0]?.[0])).toContain(
-			"github.com/valentin-marquez/vlc-rpc/releases",
-		)
 
 		updater.stop()
 	})
@@ -414,28 +456,19 @@ describe("A portable copy", () => {
 		await vi.advanceTimersByTimeAsync(0)
 
 		expect(updaterMock.autoUpdater.downloadUpdate).not.toHaveBeenCalled()
+		expect(electronMock.openExternal).toHaveBeenCalledTimes(1)
+		expect(String(electronMock.openExternal.mock.calls[0]?.[0])).toContain(
+			"github.com/valentin-marquez/vlc-rpc/releases",
+		)
 	})
 
-	it("is detected by the launcher the portable stub sets, wherever it runs from", () => {
-		state.uninstallerPresent = true
-		updaterMock.autoUpdater.autoInstallOnAppQuit = true
-		vi.stubEnv("PORTABLE_EXECUTABLE_FILE", "D:/Tools/VLC Discord RP.exe")
+	it("refuses to install over itself", async () => {
+		const { updater } = makeUpdater({ portable: true })
 
-		const updater = new Updater(new SystemClock())
+		updater.installNow()
+		await vi.advanceTimersByTimeAsync(0)
 
-		expect(updater.getInstallationType()).toBe("portable")
-	})
-})
-
-describe("An install outside Program Files", () => {
-	it("keeps its automatic install", () => {
-		setResourcesPath("C:/Users/bob/Desktop/VLC Discord RP/resources")
-		state.uninstallerPresent = true
-		updaterMock.autoUpdater.autoInstallOnAppQuit = false
-
-		const updater = new Updater(new SystemClock())
-
-		expect(updater.getInstallationType()).toBe("setup")
-		expect(updaterMock.autoUpdater.autoInstallOnAppQuit).toBe(true)
+		expect(updaterMock.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
+		expect(electronMock.openExternal).toHaveBeenCalledTimes(1)
 	})
 })

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs"
 import { electronApp, optimizer } from "@electron-toolkit/utils"
 import { SystemClock } from "@main/core/clock"
 import { configService } from "@main/core/config"
@@ -71,10 +72,6 @@ if (!gotTheLock) {
 
 		electronApp.setAppUserModelId("com.valentinmarquez.vlcdiscordrp")
 
-		app.on("browser-window-created", (_, browserWindow) => {
-			optimizer.watchWindowShortcuts(browserWindow)
-		})
-
 		configService.set("version", app.getVersion())
 		logger.info(`Set app version in config: ${app.getVersion()}`)
 
@@ -85,8 +82,14 @@ if (!gotTheLock) {
 		const imageProxy = new Media.ImageProxy()
 		const coverStore = new Cover.Store()
 		const coverUploader = new Cover.Uploader()
-		const updater = new Updates.Updater(systemClock)
-		const startup = new App.Startup()
+		// Asked once and answered once: the updater decides what it may offer from
+		// this, and start at login is refused for the same copies, so the header
+		// and the settings screen cannot disagree about what this copy is.
+		const install = Updates.detectInstallKind(
+			Updates.probeInstall(process.env, process.resourcesPath, existsSync),
+		)
+		const updater = new Updates.Updater(systemClock, install)
+		const startup = new App.Startup(install)
 
 		// Services that depend on the above
 		const cover = new Cover.Resolver(vlc, coverStore, coverUploader)
@@ -158,11 +161,16 @@ if (!gotTheLock) {
 		new Vlc.VlcConfigHandler(vlc)
 		new Vlc.VlcStatusHandler(vlc)
 
-		const mainWindowPromise = window.createWindow()
+		app.on("browser-window-created", (_, browserWindow) => {
+			optimizer.watchWindowShortcuts(browserWindow)
 
-		mainWindowPromise.then((mainWindow) => {
-			updater.setMainWindow(mainWindow)
+			// Closing the window destroys it unless it minimizes to the tray, and
+			// opening it again builds another. Handing the updater only the first
+			// one left every later window with no way to hear about a release.
+			updater.setMainWindow(browserWindow)
 		})
+
+		void window.createWindow()
 
 		const startWithSystem = configService.get("startWithSystem")
 		startup.setStartAtLogin(startWithSystem)

@@ -1,2 +1,1 @@
-export { UpdateNotification } from "./components/update-notification"
-export { useUpdateListener } from "./hooks/use-update-listener"
+export { useUpdateOffer } from "./hooks/use-update-offer"

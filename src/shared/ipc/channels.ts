@@ -1,6 +1,7 @@
 import type { AppConfig, VlcConfig } from "@shared/config/app-config"
 import type { DetectedMediaInfo } from "@shared/media/media.types"
 import type { LastSentPresence } from "@shared/presence/presence.types"
+import type { UpdateAvailability, UpdateInstallKind } from "@shared/updates/update.types"
 import type { VlcConnectionStatus, VlcStatus } from "@shared/vlc/vlc.types"
 
 // ─── Overrides ──────────────────────────────────────────────────────────────
@@ -150,7 +151,9 @@ export interface IpcInvokeChannelMap {
 			currentVersion: string
 		}
 	}
-	"update:installation-type": { request: []; response: "portable" | "setup" }
+	/** What the updater knows right now, for a renderer that mounted after it knew. */
+	"update:current": { request: []; response: UpdateAvailability }
+	"update:installation-type": { request: []; response: UpdateInstallKind }
 	"update:install": { request: []; response: boolean }
 	"update:open-release-page": { request: []; response: undefined }
 
@@ -174,10 +177,10 @@ export interface IpcInvokeChannelMap {
  */
 export interface IpcEventMap {
 	"window:maximized-change": boolean
-	"update:checking-for-update": unknown
-	"update:update-available": unknown
-	"update:update-not-available": unknown
-	"update:download-progress": unknown
-	"update:update-downloaded": unknown
-	"update:error": unknown
+	/**
+	 * One event for the whole of what the renderer needs to know about a
+	 * release. Six untyped ones meant the renderer rebuilt the state machine
+	 * from a string and a cast, and lost it entirely if it mounted late.
+	 */
+	"update:availability": UpdateAvailability
 }

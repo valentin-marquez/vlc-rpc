@@ -324,6 +324,7 @@
 	   scale, translate and rotate properties, which transform: none does not reach. */
 	.toast,
 	.onboarding-step,
+	.update-pill,
 	.button {
 		transform: none !important;
 		scale: none !important;
