@@ -9,6 +9,8 @@ export {
 } from "./media.actions"
 export { useProxiedArtwork } from "./hooks/use-proxied-artwork"
 export { useLastPresence } from "./hooks/use-last-presence"
+export { activityHeader, activityVerb, headerPrefix, presenceContent } from "./presence.mapper"
+export type { ActivityVerb, PresenceCardContent } from "./presence.mapper"
 export {
 	contentTypeLabel,
 	correctionSummary,

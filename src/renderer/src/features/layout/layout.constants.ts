@@ -10,6 +10,10 @@ export interface SlotLabel {
 	label: string
 	/** Reads inside a sentence: "added to the <this>". */
 	inSentence: string
+	/** The header line runs on from the verb, the rest are lines of the body. */
+	place: "header" | "body"
+	/** What an empty slot says, when leaving it empty hands the line to Discord. */
+	whenEmpty?: string
 }
 
 /** A sample the canvas both draws and writes notes about, so it needs two spellings. */
@@ -49,13 +53,25 @@ export const SAMPLE_EPISODE: VideoFacts = {
 }
 export const SAMPLE_FILM: VideoFacts = { title: "The Matrix", year: 1999 }
 
+/**
+ * Four slots, because Discord draws four pieces of text for music and the first of them is
+ * not a line of the card at all: it runs on from the verb, which is why the old name for it,
+ * "Top line", sent the song to the header and left the artist in bold under it.
+ */
 export const MUSIC_SLOTS: readonly SlotLabel[] = [
-	{ label: "Top line", inSentence: "top line" },
-	{ label: "Middle line", inSentence: "middle line" },
-	{ label: "Bottom line", inSentence: "bottom line" },
+	{
+		label: "Header",
+		inSentence: "header",
+		place: "header",
+		whenEmpty: "empty, so Discord writes the app's name here",
+	},
+	{ label: "Bold line", inSentence: "bold line", place: "body" },
+	{ label: "Second line", inSentence: "second line", place: "body" },
+	{ label: "Third line", inSentence: "third line", place: "body" },
 ]
 
+/** Video has no header of its own to arrange, and no third line. See `VideoLayout`. */
 export const VIDEO_SLOTS: readonly SlotLabel[] = [
-	{ label: "Top line", inSentence: "top line" },
-	{ label: "Bottom line", inSentence: "bottom line" },
+	{ label: "Bold line", inSentence: "bold line", place: "body" },
+	{ label: "Second line", inSentence: "second line", place: "body" },
 ]

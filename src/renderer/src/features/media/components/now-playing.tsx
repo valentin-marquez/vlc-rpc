@@ -45,7 +45,7 @@ export function NowPlaying(): JSX.Element {
 	}
 
 	const card: PresenceCardLiveProps = {
-		...presenceContent(lastPresence.presence, config?.pausedImage),
+		...presenceContent(lastPresence.presence, config?.pausedImage, lastPresence.applicationName),
 		artworkUrl,
 	}
 

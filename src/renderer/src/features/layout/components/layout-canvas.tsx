@@ -1,5 +1,7 @@
 import { PresenceCard } from "@renderer/components/presence-card"
 import { Button } from "@renderer/components/ui/button"
+import type { ActivityVerb } from "@renderer/features/media"
+import { activityHeader, headerPrefix } from "@renderer/features/media"
 import { cn } from "@renderer/lib/utils"
 import type { LayoutPiece, PieceInfo } from "@shared/presence/layout"
 import { drawnValue, pieceLabel, renderLine, textPiece, valuePiece } from "@shared/presence/layout"
@@ -24,8 +26,14 @@ interface LayoutCanvasProps {
 	pieces: readonly PieceInfo[]
 	samples: readonly PreviewSample[]
 	report: LayoutReport
-	/** The verb Discord draws on its own above the body. */
-	header: string
+	/** The word the header opens with, before whatever the activity is called. */
+	verb: ActivityVerb
+	/**
+	 * What Discord calls the app, for the header of an arrangement that names nothing. Null
+	 * until Discord has answered with it, and then the header is drawn as the verb alone
+	 * rather than as a guess.
+	 */
+	applicationName: string | null
 	icon: "music" | "video"
 	onReset: () => void
 }
@@ -38,7 +46,8 @@ export function LayoutCanvas({
 	pieces,
 	samples,
 	report,
-	header,
+	verb,
+	applicationName,
 	icon,
 	onReset,
 }: LayoutCanvasProps): JSX.Element {
@@ -182,14 +191,16 @@ export function LayoutCanvas({
 			</fieldset>
 
 			<div className="flex min-w-0 flex-col gap-4">
-				<div className="rounded-lg border border-divider bg-inset p-4">
-					<PresenceCard
-						kind="slots"
-						header={header}
-						icon={icon}
-						badge={PLAYING_BADGE}
-						{...slotNodes()}
-					/>
+				<div className="flex flex-col gap-2">
+					{/* Which file the pieces are showing their values for. It says "What is playing"
+					    the moment VLC reports one, which is the whole point of holding this card up
+					    beside the real Discord window. */}
+					{primary !== undefined && (
+						<span className="type-caption text-faint">{primary.label}</span>
+					)}
+					<div className="rounded-lg border border-divider bg-inset p-4">
+						<PresenceCard kind="slots" icon={icon} badge={PLAYING_BADGE} {...slotNodes()} />
+					</div>
 				</div>
 
 				{others.map((sample) => (
@@ -200,8 +211,7 @@ export function LayoutCanvas({
 							size="sm"
 							icon={icon}
 							badge={PLAYING_BADGE}
-							header={header}
-							{...drawnLines(sample)}
+							{...drawnCard(sample)}
 							artworkUrl={null}
 						/>
 					</div>
@@ -279,15 +289,21 @@ export function LayoutCanvas({
 		return "Saved. Discord catches up within a few seconds."
 	}
 
+	/**
+	 * The slots handed to the card where Discord draws each of them: one may run on from
+	 * the verb in the header, and the rest are the body lines, in order.
+	 */
 	function slotNodes(): {
-		name?: JSX.Element | undefined
+		header: JSX.Element
 		details?: JSX.Element | undefined
 		state?: JSX.Element | undefined
+		largeText?: JSX.Element | undefined
 	} {
 		const nodes = slots.map((slot, index) => (
 			<Slot
 				key={slot.label}
 				label={slot.label}
+				whenEmpty={slot.whenEmpty}
 				index={index}
 				line={draft.lines[index] ?? []}
 				pieces={pieces}
@@ -307,22 +323,54 @@ export function LayoutCanvas({
 			/>
 		))
 
-		// Video has no bold line of its own, so its two slots sit where Discord draws them.
-		if (slots.length === 3) return { name: nodes[0], details: nodes[1], state: nodes[2] }
-		return { details: nodes[0], state: nodes[1] }
+		const headerAt = slots.findIndex((slot) => slot.place === "header")
+		const body = nodes.filter((_, index) => slots[index]?.place === "body")
+		const headerSlot = headerAt < 0 ? undefined : nodes[headerAt]
+
+		return {
+			header:
+				headerSlot === undefined ? (
+					<span className="truncate">{activityHeader(verb, applicationName)}</span>
+				) : (
+					<>
+						<span className="shrink-0">{headerPrefix(verb)}</span>
+						{/* The header is drawn in the card's eyebrow type, which is uppercase and
+						    tracked out. The pieces inside it are words, not an eyebrow. */}
+						<span className="min-w-0 flex-1 normal-case tracking-normal">{headerSlot}</span>
+					</>
+				),
+			details: body[0],
+			state: body[1],
+			largeText: body[2],
+		}
 	}
 
-	function drawnLines(sample: PreviewSample): { name: string; details: string; state: string } {
-		const drawn = draft.cleaned.map((line) => renderLine(line, sample.variables))
-		if (slots.length === 3) {
-			return { name: drawn[0] ?? "", details: drawn[1] ?? "", state: drawn[2] ?? "" }
+	/** The same arrangement drawn for another example, exactly as the profile would draw it. */
+	function drawnCard(sample: PreviewSample): {
+		header: string
+		details: string
+		state: string
+		largeText: string
+	} {
+		const drawn = slots.map((slot, index) => ({
+			place: slot.place,
+			text: renderLine(draft.cleaned[index] ?? [], sample.variables),
+		}))
+		const named = drawn.find((line) => line.place === "header")?.text ?? ""
+		const body = drawn.filter((line) => line.place === "body")
+
+		return {
+			header: activityHeader(verb, named === "" ? applicationName : named),
+			details: body[0]?.text ?? "",
+			state: body[1]?.text ?? "",
+			largeText: body[2]?.text ?? "",
 		}
-		return { name: "", details: drawn[0] ?? "", state: drawn[1] ?? "" }
 	}
 }
 
 interface SlotProps {
 	label: string
+	whenEmpty?: string | undefined
 	index: number
 	line: LayoutDraft["lines"][number]
 	pieces: readonly PieceInfo[]
@@ -348,6 +396,7 @@ interface SlotProps {
 
 function Slot({
 	label,
+	whenEmpty,
 	index,
 	line,
 	pieces,
@@ -417,7 +466,7 @@ function Slot({
 			</ul>
 
 			{line.length === 0 && opening === null && (
-				<span className="type-caption text-faint">{label}, empty</span>
+				<span className="type-caption text-faint">{whenEmpty ?? `${label}, empty`}</span>
 			)}
 		</div>
 	)

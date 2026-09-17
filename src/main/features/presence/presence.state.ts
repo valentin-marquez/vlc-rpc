@@ -28,6 +28,8 @@ interface PresenceLines {
 	state: string
 	/** Empty when the layout has nothing to name the activity after. */
 	activityName: string
+	/** Empty when the layout put nothing on Discord's last line. */
+	largeText: string
 }
 
 function videoFacts(
@@ -74,6 +76,7 @@ function buildLines(
 			details: renderLine(layout.video.details, variables),
 			state: renderLine(layout.video.state, variables),
 			activityName: "",
+			largeText: "",
 		}
 	}
 
@@ -90,6 +93,7 @@ function buildLines(
 		details: renderLine(layout.music.details, variables),
 		state: renderLine(layout.music.state, variables),
 		activityName: renderLine(layout.music.activityName, variables),
+		largeText: renderLine(layout.music.largeText, variables),
 	}
 }
 
@@ -190,19 +194,10 @@ class PlayingState extends MediaState {
 		// asset key that picks the image itself.
 		let smallText = "Playing"
 		let largeImage = config.largeImage
-		let largeText = "VLC Media Player"
 
 		// Use artwork from VLC if available
 		if (media.artworkUrl) {
 			largeImage = media.artworkUrl
-		}
-
-		// Set appropriate large text based on media type
-		if (activityType === ActivityType.Listening) {
-			// Use album name if available, otherwise fallback to "Listening to Music"
-			largeText = media.album || "Listening to Music"
-		} else {
-			largeText = "Watching Video"
 		}
 
 		if (mediaType === "video" && catalogResult?.poster) {
@@ -223,7 +218,6 @@ class PlayingState extends MediaState {
 			details,
 			state,
 			large_image: largeImage,
-			large_text: largeText,
 			small_image: config.playingImage,
 			small_text: smallText,
 			start_timestamp: startTimestamp,
@@ -233,6 +227,14 @@ class PlayingState extends MediaState {
 
 		if (lines.activityName !== "") {
 			presenceData.name = lines.activityName
+		}
+
+		// A line the arrangement did not fill is a line Discord must not draw. It used to
+		// carry the album or, failing that, words this app made up, and those words were
+		// read on a profile as a line of their own.
+		const largeText = this.formatText(lines.largeText)
+		if (largeText !== "") {
+			presenceData.large_text = largeText
 		}
 
 		const verb = activityType === ActivityType.Watching ? "Watching" : "Listening to"
@@ -291,19 +293,10 @@ class PausedState extends MediaState {
 
 		let smallText = "Paused"
 		let largeImage = config.largeImage
-		let largeText = "VLC Media Player"
 
 		// Use artwork from VLC if available
 		if (media.artworkUrl) {
 			largeImage = media.artworkUrl
-		}
-
-		// Set appropriate large text based on media type
-		if (activityType === ActivityType.Listening) {
-			// Use album name if available, otherwise fallback to "Listening to Music"
-			largeText = media.album || "Listening to Music"
-		} else {
-			largeText = "Watching Video"
 		}
 
 		if (mediaType === "video" && catalogResult?.poster) {
@@ -324,7 +317,6 @@ class PausedState extends MediaState {
 			details,
 			state,
 			large_image: largeImage,
-			large_text: largeText,
 			small_image: config.pausedImage,
 			small_text: smallText,
 			activity_type: activityType,
@@ -332,6 +324,11 @@ class PausedState extends MediaState {
 
 		if (lines.activityName !== "") {
 			presenceData.name = lines.activityName
+		}
+
+		const largeText = this.formatText(lines.largeText)
+		if (largeText !== "") {
+			presenceData.large_text = largeText
 		}
 
 		const verb = activityType === ActivityType.Watching ? "Watching" : "Listening to"

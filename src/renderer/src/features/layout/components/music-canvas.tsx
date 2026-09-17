@@ -1,5 +1,5 @@
 import { useStore } from "@nanostores/react"
-import { mediaStore } from "@renderer/features/media"
+import { mediaStore, useLastPresence } from "@renderer/features/media"
 import { logger } from "@renderer/lib/utils"
 import { saveConfig } from "@renderer/stores/config.store"
 import type { AppConfig } from "@shared/config/app-config"
@@ -20,6 +20,7 @@ import { LayoutCanvas } from "./layout-canvas"
 
 export function MusicCanvas({ config }: { config: AppConfig }): JSX.Element {
 	const media = useStore(mediaStore)
+	const lastPresence = useLastPresence()
 
 	const stored = toMusicLines(resolveMusicLayout(config.layoutPreset))
 	const draft = useLayoutDraft(stored, async (lines) => {
@@ -62,7 +63,8 @@ export function MusicCanvas({ config }: { config: AppConfig }): JSX.Element {
 			pieces={MUSIC_PIECES}
 			samples={samples}
 			report={report}
-			header="Listening"
+			verb="Listening"
+			applicationName={lastPresence.kind === "sent" ? lastPresence.applicationName : null}
 			icon="music"
 			onReset={() => draft.replaceAll(toMusicLines(DEFAULT_MUSIC_LAYOUT))}
 		/>

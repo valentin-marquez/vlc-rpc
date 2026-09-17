@@ -16,15 +16,37 @@ export type LayoutPiece = { kind: "value"; name: string } | { kind: "text"; text
 /** The pieces of one line, in the order Discord draws them. */
 export type LayoutLine = readonly LayoutPiece[]
 
+/**
+ * The four pieces of text Discord draws for a Listening activity, in the order it draws
+ * them, measured on a real profile. Each one is arranged here, so nothing reaches a profile
+ * that this screen did not put there.
+ */
 export interface MusicLayout {
-	/** What Discord draws in bold. Left empty, it names the activity after the app. */
+	/**
+	 * What Discord writes after the verb, on the header line: "Listening to <this>". Left
+	 * empty, Discord names the activity after the application itself.
+	 */
 	activityName: LayoutLine
+	/** The first body line, the one Discord draws in bold. */
 	details: LayoutLine
+	/** The second body line. */
 	state: LayoutLine
+	/** The third body line. It crosses to Discord as the artwork's text. */
+	largeText: LayoutLine
 }
 
+/**
+ * A Watching activity has two lines and no header of its own: the app names none, so the
+ * header reads as whatever Discord calls this application.
+ *
+ * There is no third line here. The one Listening draws is the artwork text, seen drawn on a
+ * real profile, and nothing measured says Watching does the same. The app sends none rather
+ * than promise a line that may never appear.
+ */
 export interface VideoLayout {
+	/** The first body line, the one Discord draws in bold. */
 	details: LayoutLine
+	/** The second body line. */
 	state: LayoutLine
 }
 
@@ -39,14 +61,19 @@ export const textPiece = (words: string): LayoutPiece => ({ kind: "text", text: 
 /**
  * What the builder opens on, and what almost everyone will keep.
  *
- * Three lines, three different values: the song in bold, then who plays it, then where it
- * came from. The arrangements it replaces each drew one of their values twice, which is
- * invisible in a preview that hides the first line and obvious in one that does not.
+ * The shape of a Spotify card, which is the one everybody has already read a hundred times:
+ * the song in bold, who plays it under that, the album last. The header is left to Discord,
+ * which writes the application's name there, exactly as it writes "Listening to Spotify".
+ *
+ * The arrangement it replaces put the song in the header, so a profile read "Listening to
+ * Probablemente" with "by Christian Nodal" in bold under it, the song and the artist the
+ * wrong way round. It was picked against a preview that drew the header as the verb alone.
  */
 export const DEFAULT_MUSIC_LAYOUT: MusicLayout = {
-	activityName: [valuePiece("title")],
-	details: [textPiece("by"), valuePiece("artist")],
-	state: [textPiece("on"), valuePiece("album")],
+	activityName: [],
+	details: [valuePiece("title")],
+	state: [textPiece("by"), valuePiece("artist")],
+	largeText: [valuePiece("album")],
 }
 
 /**
@@ -111,6 +138,7 @@ function musicLayoutFrom(candidate: unknown): MusicLayout {
 		activityName: cleanLine(record.activityName),
 		details: cleanLine(record.details),
 		state: cleanLine(record.state),
+		largeText: cleanLine(record.largeText),
 	}
 }
 
@@ -142,11 +170,16 @@ function isPiece(candidate: unknown): candidate is LayoutPiece {
  * arranges them in. Going through a plain list is what lets one canvas serve both kinds.
  */
 export function toMusicLines(layout: MusicLayout): readonly LayoutLine[] {
-	return [layout.activityName, layout.details, layout.state]
+	return [layout.activityName, layout.details, layout.state, layout.largeText]
 }
 
 export function fromMusicLines(lines: readonly LayoutLine[]): MusicLayout {
-	return { activityName: lines[0] ?? [], details: lines[1] ?? [], state: lines[2] ?? [] }
+	return {
+		activityName: lines[0] ?? [],
+		details: lines[1] ?? [],
+		state: lines[2] ?? [],
+		largeText: lines[3] ?? [],
+	}
 }
 
 export function toVideoLines(layout: VideoLayout): readonly LayoutLine[] {

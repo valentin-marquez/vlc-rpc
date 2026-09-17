@@ -118,16 +118,41 @@ describe("the default arrangement", () => {
 		expect(new Set(drawn).size).toBe(3)
 	})
 
-	it("draws the song, then who plays it, then where it came from", () => {
-		expect(renderLine(DEFAULT_MUSIC_LAYOUT.activityName, FULL_TRACK)).toBe("Bohemian Rhapsody")
-		expect(renderLine(DEFAULT_MUSIC_LAYOUT.details, FULL_TRACK)).toBe("by Queen")
-		expect(renderLine(DEFAULT_MUSIC_LAYOUT.state, FULL_TRACK)).toBe("on A Night at the Opera")
+	it("leaves the header to Discord and draws the song in bold, the artist under it", () => {
+		// The header runs on from the verb, so a song there reads "Listening to Bohemian
+		// Rhapsody" with the artist in bold below, which is the song and the artist the
+		// wrong way round. Left empty, Discord names the activity after the app itself.
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.activityName, FULL_TRACK)).toBe("")
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.details, FULL_TRACK)).toBe("Bohemian Rhapsody")
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.state, FULL_TRACK)).toBe("by Queen")
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.largeText, FULL_TRACK)).toBe("A Night at the Opera")
+	})
+
+	it("draws the album once, on the line it was arranged onto", () => {
+		// It used to be sent as the artwork text as well as drawn on a line, and Discord
+		// draws both, so the same album was read twice off one card.
+		const drawn = toMusicLines(DEFAULT_MUSIC_LAYOUT).map((line) => renderLine(line, FULL_TRACK))
+		expect(drawn.filter((line) => line.includes("A Night at the Opera"))).toHaveLength(1)
 	})
 
 	it("keeps a track with no tags readable, and drops the lines it cannot fill", () => {
-		expect(renderLine(DEFAULT_MUSIC_LAYOUT.activityName, UNTAGGED_TRACK)).toBe("track01")
-		expect(renderLine(DEFAULT_MUSIC_LAYOUT.details, UNTAGGED_TRACK)).toBe("")
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.activityName, UNTAGGED_TRACK)).toBe("")
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.details, UNTAGGED_TRACK)).toBe("track01")
 		expect(renderLine(DEFAULT_MUSIC_LAYOUT.state, UNTAGGED_TRACK)).toBe("")
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.largeText, UNTAGGED_TRACK)).toBe("")
+	})
+
+	it("draws the measured file the way a person reads it: song, then who sings it", () => {
+		// The file the whole correction was measured against: identified by its sound, no
+		// album anywhere in the tags.
+		const nodal = { title: "Probablemente", artist: "Christian Nodal", album: "" }
+
+		expect(toMusicLines(DEFAULT_MUSIC_LAYOUT).map((line) => renderLine(line, nodal))).toEqual([
+			"",
+			"Probablemente",
+			"by Christian Nodal",
+			"",
+		])
 	})
 
 	it("reads differently for a series than for a film", () => {
@@ -173,6 +198,7 @@ describe("resolveLayout", () => {
 					activityName: [valuePiece("album")],
 					details: [valuePiece("title")],
 					state: [valuePiece("artist")],
+					largeText: [],
 				},
 			},
 			video: {
@@ -188,7 +214,7 @@ describe("resolveLayout", () => {
 		const layout = resolveLayout({
 			music: {
 				kind: "custom",
-				layout: { activityName: [valuePiece("album")], details: [], state: [] },
+				layout: { activityName: [valuePiece("album")], details: [], state: [], largeText: [] },
 			},
 			video: { kind: "default" },
 		})
@@ -227,6 +253,7 @@ describe("resolveLayout", () => {
 		expect(layout.music.activityName).toEqual([valuePiece("title")])
 		expect(layout.music.details).toEqual([])
 		expect(layout.music.state).toEqual([])
+		expect(layout.music.largeText).toEqual([])
 		expect(layout.video.details).toEqual([])
 	})
 })
@@ -245,6 +272,7 @@ describe("lines and layouts", () => {
 			activityName: [valuePiece("title")],
 			details: [],
 			state: [],
+			largeText: [],
 		})
 	})
 
@@ -271,7 +299,7 @@ describe("choosing what to store", () => {
 	})
 
 	it("stores an arrangement of its own as pieces", () => {
-		const own = { activityName: [valuePiece("album")], details: [], state: [] }
+		const own = { activityName: [valuePiece("album")], details: [], state: [], largeText: [] }
 		expect(musicChoiceFor(own)).toEqual({ kind: "custom", layout: own })
 	})
 })

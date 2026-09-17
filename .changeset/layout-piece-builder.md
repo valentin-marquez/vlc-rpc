@@ -30,8 +30,6 @@ card to decide what your profile shows.
   easiest mistake to make and the hardest to notice when you are looking at
   your own profile. It also warns when a line has pieces but draws nothing in
   any of the examples.
-- The arrangement the screen opens with draws three different values: the title
-  in bold, the artist below it and the album last.
 - The Video tab no longer says "Soon" and is built the same way as the music
   one, with pieces of its own. And a pause respects the arrangement you chose
   instead of writing a format of its own.

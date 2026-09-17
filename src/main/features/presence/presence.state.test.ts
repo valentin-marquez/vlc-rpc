@@ -179,8 +179,8 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 
 			const presence = await service.getDiscordPresence(untaggedStatus(state), timeline)
 
-			expect(presence?.name).toBe("José Arnero")
-			expect(presence?.details).toBe("by El Baucha")
+			expect(presence?.details).toBe("José Arnero")
+			expect(presence?.state).toBe("by El Baucha")
 		})
 
 		it("keeps the file's own tags when nothing was corrected", async () => {
@@ -188,12 +188,49 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 
 			const presence = await service.getDiscordPresence(status(state), timeline)
 
-			expect(presence?.name).toBe("Probablemente")
-			expect(presence?.details).toBe("by Christina Aguilera")
-			expect(presence?.state).toBe("on Mi Reflejo")
+			expect(presence?.details).toBe("Probablemente")
+			expect(presence?.state).toBe("by Christina Aguilera")
+			expect(presence?.large_text).toBe("Mi Reflejo")
 		})
 	},
 )
+
+/**
+ * The file the whole model was measured against: identified by its sound, so it has a
+ * title and an artist and no album anywhere. What Discord drew from these exact fields
+ * was "Escuchando Probablemente" on the header, "by Christian Nodal" in bold and
+ * "Listening to Music" under that, which is the app's own words on somebody's profile.
+ */
+describe("Presence for the measured file", () => {
+	function nodal(): VlcStatus {
+		return {
+			active: true,
+			status: "playing",
+			timestamp: 0,
+			plid: 1,
+			playback: { position: 84, time: 84, duration: 233, rate: 1 },
+			mediaType: "audio",
+			media: { title: "Probablemente", artist: "Christian Nodal" },
+		}
+	}
+
+	it("sends the song in bold, the artist under it, and nothing else", async () => {
+		const { service } = build({ kind: "no-artwork" }, null)
+
+		const presence = await service.getDiscordPresence(nodal(), timeline)
+
+		expect(presence).toEqual({
+			details: "Probablemente",
+			state: "by Christian Nodal",
+			large_image: "vlc_logo",
+			small_image: "playing",
+			small_text: "Playing",
+			start_timestamp: 1000,
+			end_timestamp: 1180,
+			activity_type: 2,
+		})
+	})
+})
 
 const SERIES: CatalogResult = {
 	title: "Breaking Bad",
@@ -314,6 +351,7 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 						activityName: [valuePiece("album")],
 						details: [valuePiece("album")],
 						state: [],
+						largeText: [],
 					},
 				},
 			})
@@ -383,6 +421,7 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 						activityName: [valuePiece("album")],
 						details: [valuePiece("album")],
 						state: [valuePiece("title"), textPiece("by"), valuePiece("artist")],
+						largeText: [],
 					},
 				},
 			})
@@ -390,25 +429,28 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 
 			const presence = await service.getDiscordPresence(status(state), timeline)
 
+			expect(presence?.name).toBe("Mi Reflejo")
 			expect(presence?.details).toBe("Mi Reflejo")
 			expect(presence?.state).toBe("Probablemente by Christina Aguilera")
+			expect(presence?.large_text).toBeUndefined()
 		})
 
-		it("shows the file name alone when the file carries no tags", async () => {
+		it("shows the file name in bold when the file carries no tags", async () => {
 			const { service } = build({ kind: "no-artwork" }, null)
 
 			const presence = await service.getDiscordPresence(untagged(), timeline)
 
-			expect(presence?.name).toBe("track01")
-			expect(presence?.details).toBe("")
+			expect(presence?.name).toBeUndefined()
+			expect(presence?.details).toBe("track01")
 			expect(presence?.state).toBe("")
+			expect(presence?.large_text).toBeUndefined()
 		})
 
-		it("sends no name at all when the top line has nothing to draw, which Discord reads as VLC", async () => {
+		it("sends no name at all when the header has nothing to draw, which Discord names itself", async () => {
 			withPresets({
 				layoutPreset: {
 					kind: "custom",
-					layout: { activityName: [valuePiece("album")], details: [], state: [] },
+					layout: { activityName: [valuePiece("album")], details: [], state: [], largeText: [] },
 				},
 			})
 			const { service } = build({ kind: "no-artwork" }, null)
@@ -416,6 +458,16 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 			const presence = await service.getDiscordPresence(untagged(), timeline)
 
 			expect(presence?.name).toBeUndefined()
+		})
+
+		it("sends the album as the last line and never invents one", async () => {
+			const { service } = build({ kind: "no-artwork" }, null)
+
+			const tagged = await service.getDiscordPresence(status(state), timeline)
+			expect(tagged?.large_text).toBe("Mi Reflejo")
+
+			const bare = await service.getDiscordPresence(untagged(), timeline)
+			expect(bare?.large_text).toBeUndefined()
 		})
 	},
 )

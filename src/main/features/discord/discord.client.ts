@@ -3,7 +3,12 @@ import { configService } from "@main/core/config"
 import { logger } from "@main/core/logger"
 import type { DiscordPresenceData } from "@shared/presence/presence.types"
 
-import { Client as RpcClient, type SetActivity, StatusDisplayType } from "@xhayper/discord-rpc"
+import {
+	Client as RpcClient,
+	type SetActivity,
+	type SetActivityResponse,
+	StatusDisplayType,
+} from "@xhayper/discord-rpc"
 
 /**
  * Service for Discord Rich Presence integration
@@ -17,6 +22,7 @@ export class Client {
 	private reconnectAttempts = 0
 	private maxReconnectAttempts = 10
 	private reconnectDelay = 5000 // 5 seconds
+	private appName: string | null = null
 
 	constructor(private readonly clock: Clock) {
 		logger.info("Discord RPC service initialized")
@@ -86,6 +92,16 @@ export class Client {
 	 */
 	public isConnected(): boolean {
 		return this.connected
+	}
+
+	/**
+	 * What Discord calls this application, learned from its reply to an update that named
+	 * no activity. It is the header line of every presence the arrangement leaves unnamed,
+	 * so the preview needs it to draw the header the profile draws. Null until Discord has
+	 * accepted one such update.
+	 */
+	public applicationName(): string | null {
+		return this.appName
 	}
 
 	/**
@@ -218,9 +234,14 @@ export class Client {
 
 			const activity: SetActivity = {
 				largeImageKey: presenceData.large_image || config.largeImage,
-				largeImageText: presenceData.large_text || "VLC Media Player",
 				instance: presenceData.instance !== undefined ? presenceData.instance : false,
 				statusDisplayType: StatusDisplayType.DETAILS,
+			}
+
+			// Discord draws this as a line of the activity, not only as hover text, so a
+			// default here would be words nobody asked for sitting on a profile.
+			if (presenceData.large_text) {
+				activity.largeImageText = presenceData.large_text
 			}
 
 			if (presenceData.details !== undefined) {
@@ -271,7 +292,15 @@ export class Client {
 				activity.type = 0
 			}
 
-			await this.rpc.user.setActivity(activity)
+			const drawn: SetActivityResponse | undefined = await this.rpc.user.setActivity(activity)
+
+			// Discord answers with the activity as it registered it, and its name is the
+			// header line. When the arrangement names nothing, that name is whatever this
+			// application is called on Discord, which no code here can work out.
+			if (activity.name === undefined) {
+				this.appName = typeof drawn?.name === "string" && drawn.name !== "" ? drawn.name : null
+			}
+
 			logger.info("Updated Discord Rich Presence")
 			return true
 		} catch (error) {

@@ -36,21 +36,20 @@ interface PresenceCardBase {
 	icon?: PresenceCardIcon
 }
 
+/**
+ * The body lines are Discord's own fields, in the order Discord draws them: `details` in
+ * bold, `state` under it, `large_text` last. The activity's name is not among them, it is
+ * the second half of the header line.
+ */
 export interface PresenceCardLiveProps extends PresenceCardBase {
 	kind: "presence"
-	/** The verb on its own, above the body: "Listening", "Watching", "Playing". */
+	/** The whole header line: the verb and the activity's name, "Listening to Blue Rev". */
 	header: string
-	/**
-	 * The activity's name, which Discord draws as the first body line and in bold.
-	 * The app names an audio activity and nothing else, so a card without one closes
-	 * up rather than holding the line open.
-	 */
-	name?: string
-	/** Body line two. */
+	/** The first body line, drawn in bold. */
 	details?: string
-	/** Body line three. Discord draws no fourth one for a third party presence. */
+	/** The second body line. */
 	state?: string
-	/** Hover text on the artwork, which is the only place Discord shows it. */
+	/** The third body line, which crosses to Discord as the artwork's text. */
 	largeText?: string
 	artworkUrl?: string | null
 	/** The small image, drawn over the artwork's trailing bottom corner. */
@@ -71,10 +70,11 @@ export interface PresenceCardEmptyProps extends PresenceCardBase {
  */
 export interface PresenceCardSlotsProps extends PresenceCardBase {
 	kind: "slots"
-	header: string
-	name?: ReactNode
+	/** A node, because the header line is half verb and half a slot of its own. */
+	header: ReactNode
 	details?: ReactNode
 	state?: ReactNode
+	largeText?: ReactNode
 	badge?: PresenceBadge
 	progress?: PresenceProgress
 }
@@ -122,7 +122,6 @@ export function PresenceCard(props: PresenceCardProps): JSX.Element {
 							url={props.artworkUrl ?? null}
 							size={size}
 							icon={icon}
-							hoverText={props.largeText}
 						/>
 						{props.badge && <SmallImage badge={props.badge} size={size} />}
 					</div>
@@ -137,19 +136,22 @@ export function PresenceCard(props: PresenceCardProps): JSX.Element {
 						<>
 							{/* A template that could not fill renders nothing, and Discord drops the
 							    line rather than drawing a blank one. */}
-							{props.name && (
-								<p className="type-label truncate text-strong" title={props.name}>
-									{props.name}
-								</p>
-							)}
 							{props.details && (
-								<p className={cn(LINE[size], "truncate text-body")} title={props.details}>
+								<p className="type-label truncate text-strong" title={props.details}>
 									{props.details}
 								</p>
 							)}
 							{props.state && (
-								<p className={cn(LINE[size], "truncate text-muted-foreground")} title={props.state}>
+								<p className={cn(LINE[size], "truncate text-body")} title={props.state}>
 									{props.state}
+								</p>
+							)}
+							{props.largeText && (
+								<p
+									className={cn(LINE[size], "truncate text-muted-foreground")}
+									title={props.largeText}
+								>
+									{props.largeText}
 								</p>
 							)}
 							{/* No timestamps are sent for a paused file, so a bar at all means playback
@@ -170,15 +172,17 @@ function SlotsCard({
 	icon,
 	className,
 	header,
-	name,
 	details,
 	state,
+	largeText,
 	badge,
 	progress,
 }: PresenceCardSlotsProps & { size: PresenceCardSize; icon: PresenceCardIcon }): JSX.Element {
 	return (
 		<div className={cn("rounded-md border border-divider bg-card", PADDING[size], className)}>
-			<p className="type-eyebrow mb-2 truncate text-muted-foreground">{header}</p>
+			<div className="type-eyebrow mb-2 flex min-w-0 items-center gap-2 text-muted-foreground">
+				{header}
+			</div>
 
 			<div className={cn("flex items-start", GAP[size], BODY[size])}>
 				<div className="relative shrink-0">
@@ -187,10 +191,10 @@ function SlotsCard({
 				</div>
 
 				<div className="flex min-w-0 flex-1 flex-col justify-center gap-1 self-stretch">
-					{name !== undefined && <div className="type-label text-strong">{name}</div>}
-					{details !== undefined && <div className={cn(LINE[size], "text-body")}>{details}</div>}
-					{state !== undefined && (
-						<div className={cn(LINE[size], "text-muted-foreground")}>{state}</div>
+					{details !== undefined && <div className="type-label text-strong">{details}</div>}
+					{state !== undefined && <div className={cn(LINE[size], "text-body")}>{state}</div>}
+					{largeText !== undefined && (
+						<div className={cn(LINE[size], "text-muted-foreground")}>{largeText}</div>
 					)}
 					{progress && <Progress progress={progress} playback={badge?.kind ?? "playing"} />}
 				</div>
@@ -203,22 +207,17 @@ function Artwork({
 	url,
 	size,
 	icon,
-	hoverText,
 }: {
 	url: string | null
 	size: PresenceCardSize
 	icon: PresenceCardIcon
-	hoverText?: string | undefined
 }): JSX.Element {
 	const [loaded, setLoaded] = React.useState(false)
 
 	if (!url) return <ArtworkPlaceholder size={size} icon={icon} />
 
 	return (
-		<div
-			title={hoverText}
-			className={cn("relative shrink-0 overflow-hidden rounded-md", ART[size], ART_RING)}
-		>
+		<div className={cn("relative shrink-0 overflow-hidden rounded-md", ART[size], ART_RING)}>
 			<ArtworkPlaceholder size={size} icon={icon} className="absolute inset-0" />
 			<img
 				src={url}

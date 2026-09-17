@@ -67,6 +67,9 @@ function status(overrides: Partial<VlcStatus> = {}): VlcStatus {
 	}
 }
 
+/** What Discord answers with when the arrangement names no activity of its own. */
+const APPLICATION_NAME = "VLC"
+
 function fakeDiscord(connected = true) {
 	const calls = { update: 0, clear: 0, connect: 0 }
 	let isConnected = connected
@@ -84,6 +87,7 @@ function fakeDiscord(connected = true) {
 			calls.update++
 			return updateAccepted
 		},
+		applicationName: () => APPLICATION_NAME,
 		clear: async () => {
 			calls.clear++
 			return true
@@ -291,6 +295,7 @@ describe("DiscordRpcHandler last sent presence", () => {
 			kind: "sent",
 			presence: PRESENCE,
 			sentAt: 4200,
+			applicationName: APPLICATION_NAME,
 		})
 	})
 
@@ -307,7 +312,12 @@ describe("DiscordRpcHandler last sent presence", () => {
 		await vi.advanceTimersByTimeAsync(1500)
 
 		expect(discord.calls.update).toBe(1)
-		expect(handler.getLastPresence()).toEqual({ kind: "sent", presence: PRESENCE, sentAt: 0 })
+		expect(handler.getLastPresence()).toEqual({
+			kind: "sent",
+			presence: PRESENCE,
+			sentAt: 0,
+			applicationName: APPLICATION_NAME,
+		})
 	})
 
 	it("reports nothing sent when Discord refused the update", async () => {
@@ -393,6 +403,11 @@ describe("DiscordRpcHandler last sent presence", () => {
 		clock.advance(1500)
 		await vi.advanceTimersByTimeAsync(1500)
 
-		expect(handler.getLastPresence()).toEqual({ kind: "sent", presence: PRESENCE, sentAt: 3000 })
+		expect(handler.getLastPresence()).toEqual({
+			kind: "sent",
+			presence: PRESENCE,
+			sentAt: 3000,
+			applicationName: APPLICATION_NAME,
+		})
 	})
 })

@@ -15,24 +15,30 @@ const WATCHING: ActivityType = 3
 export type PresenceCardContent = Omit<PresenceCardLiveProps, "artworkUrl">
 
 /**
- * One presence, read the way Discord reads it. The header carries the verb alone,
- * the name is the first body line, and `large_text` stays off the body entirely
- * because Discord only shows it on hover over the artwork.
+ * One presence, read the way Discord draws it.
+ *
+ * Measured on a profile playing a file with no album: the app sent name "Probablemente",
+ * details "by Christian Nodal", state "" and large_text "Listening to Music", and Discord
+ * drew "Escuchando Probablemente" as the header, "by Christian Nodal" in bold under it,
+ * then "Listening to Music". So the verb and the name share the header line, `details` is
+ * the bold line below it, `state` the next one and `large_text` the last, and a field with
+ * no text is left out while the ones under it move up. It is the shape of a Spotify card.
+ *
+ * `applicationName` is the header's other half: a presence that carries no name of its own
+ * is named after the application, and only Discord knows that name.
  */
 export function presenceContent(
 	presence: DiscordPresenceData,
 	pausedImage: string | undefined,
+	applicationName: string | null,
 ): PresenceCardContent {
 	const content: PresenceCardContent = {
 		kind: "presence",
-		header: activityVerb(presence.activity_type),
+		header: activityHeader(activityVerb(presence.activity_type), presence.name ?? applicationName),
 		icon: presence.activity_type === WATCHING ? "video" : "music",
 	}
 
 	// Discord drops a line it was given no text for rather than drawing a blank one.
-	if (presence.name) {
-		content.name = presence.name
-	}
 	if (presence.details) {
 		content.details = presence.details
 	}
@@ -56,12 +62,10 @@ export function presenceContent(
 	return content
 }
 
-/**
- * Discord's own verb, and nothing else. The name that follows it on a Discord
- * profile is a body line, not part of this, so folding one into the other would
- * name the activity twice for audio and lose the bold line for video.
- */
-export function activityVerb(activityType: ActivityType | undefined): string {
+/** The word Discord opens the header with, before the name of the activity. */
+export type ActivityVerb = "Listening" | "Watching" | "Playing"
+
+export function activityVerb(activityType: ActivityType | undefined): ActivityVerb {
 	if (activityType === WATCHING) {
 		return "Watching"
 	}
@@ -69,6 +73,25 @@ export function activityVerb(activityType: ActivityType | undefined): string {
 		return "Listening"
 	}
 	return "Playing"
+}
+
+/** What the header reads before the name: "Listening to", "Watching", "Playing". */
+export function headerPrefix(verb: ActivityVerb): string {
+	return verb === "Listening" ? `${verb} to` : verb
+}
+
+/**
+ * The header Discord draws: the verb and the activity's name, on one line. Nothing is
+ * written after the verb when the name is unknown, because the name Discord falls back to
+ * belongs to Discord and inventing one here is how the preview came to disagree with the
+ * profile in the first place.
+ */
+export function activityHeader(verb: ActivityVerb, name: string | null | undefined): string {
+	if (name === null || name === undefined || name === "") {
+		return verb
+	}
+
+	return `${headerPrefix(verb)} ${name}`
 }
 
 /**

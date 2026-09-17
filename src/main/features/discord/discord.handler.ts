@@ -201,6 +201,7 @@ export class DiscordRpcHandler {
 					kind: "sent",
 					presence: presenceData,
 					sentAt: this.clock.now(),
+					applicationName: this.discord.applicationName(),
 				}
 			}
 			return sent

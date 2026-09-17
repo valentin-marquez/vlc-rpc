@@ -44,4 +44,15 @@ export type PresenceClearReason =
 export type LastSentPresence =
 	| { kind: "unknown" }
 	| { kind: "cleared"; reason: PresenceClearReason }
-	| { kind: "sent"; presence: DiscordPresenceData; sentAt: number }
+	| {
+			kind: "sent"
+			presence: DiscordPresenceData
+			sentAt: number
+			/**
+			 * What Discord calls this application, as Discord itself answered. It is the
+			 * name on the header line whenever the presence carries none of its own, and
+			 * nothing else in the app can work it out, so a preview that guessed it would
+			 * be guessing the one line every profile shows.
+			 */
+			applicationName: string | null
+	  }
