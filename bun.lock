@@ -5,7 +5,7 @@
     "": {
       "name": "vlc-rpc",
       "dependencies": {
-        "@ctrl/video-filename-parser": "^5.4.1",
+        "@ctrl/video-filename-parser": "5.11.4",
         "@electron-toolkit/preload": "^3.0.2",
         "@electron-toolkit/utils": "^4.0.0",
         "@xhayper/discord-rpc": "^1.3.1",
@@ -144,7 +144,7 @@
 
     "@colors/colors": ["@colors/colors@1.6.0", "", {}, "sha512-Ir+AOibqzrIsL6ajt3Rz3LskB7OiMVHqltZmspbW/TJuTVuyOMirVqAkjfY6JISiLHgyNqicAC8AyHHGzNd/dA=="],
 
-    "@ctrl/video-filename-parser": ["@ctrl/video-filename-parser@5.4.1", "", {}, "sha512-NP3LM97WfaxTfsEadKpwleoXk1MPBKqsikA7/HpYo6RO0NcDYYM+01MThhTWICx+mTkJcUSs40Iifr2TG0UnuA=="],
+    "@ctrl/video-filename-parser": ["@ctrl/video-filename-parser@5.11.4", "", {}, "sha512-sctTiOefU3eBIASuk8Gcx8JOFQ5eA+5ZKBzq8/BMSo1VrpOKyXKg8zeTjwWb01hiLOPwucEZPUHsqTAVvgrzAw=="],
 
     "@dabh/diagnostics": ["@dabh/diagnostics@2.0.3", "", { "dependencies": { "colorspace": "1.1.x", "enabled": "2.0.x", "kuler": "^2.0.0" } }, "sha512-hrlQOIi7hAfzsMqlGSFyVucrx38O+j6wiGOf//H2ecvIEqYN4ADBSS2iLMh5UFyDunCNniUIPk/q3riFv45xRA=="],
 

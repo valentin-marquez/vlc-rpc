@@ -43,11 +43,18 @@ function takeTrailingSeason(title: string): { season: number; title: string } | 
 }
 
 function cleanTitle(raw: string): string {
-	return raw
-		.replace(LEADING_DASH, "")
-		.replace(TRAILING_PAREN, "")
-		.replace(TRAILING_OPEN_BRACKET, "")
-		.trim()
+	return (
+		raw
+			// The library stripped the release group itself up to 5.4.1 and stopped
+			// doing it later, so relying on that put "[SubsPlease]" in a title the
+			// moment the range resolved higher. Ours to remove, in one regex we own.
+			.replace(GROUP_TAG_PREFIX, "")
+			.trim()
+			.replace(LEADING_DASH, "")
+			.replace(TRAILING_PAREN, "")
+			.replace(TRAILING_OPEN_BRACKET, "")
+			.trim()
+	)
 }
 
 // A movie mode parse of a fansub name can read a release hash as a year.

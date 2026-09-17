@@ -47,7 +47,7 @@
 		"fetch:fpcalc": "node scripts/fetch-fpcalc.mjs"
 	},
 	"dependencies": {
-		"@ctrl/video-filename-parser": "^5.4.1",
+		"@ctrl/video-filename-parser": "5.11.4",
 		"@electron-toolkit/preload": "^3.0.2",
 		"@electron-toolkit/utils": "^4.0.0",
 		"@xhayper/discord-rpc": "^1.3.1",
