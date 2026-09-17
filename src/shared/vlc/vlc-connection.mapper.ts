@@ -120,5 +120,9 @@ const ADVICE: Record<VlcConnectionReason, VlcConnectionAdvice> = {
 }
 
 export function describeVlcConnection(reason: VlcConnectionReason): VlcConnectionAdvice {
-	return ADVICE[reason]
+	// The Record makes this total at compile time, but the value arrives over IPC
+	// and a renderer can outlive the main process it was built against. An
+	// unmapped string would otherwise destructure to undefined and take the whole
+	// window down, which is a worse answer than saying it does not know.
+	return ADVICE[reason] ?? ADVICE["unknown-error"]
 }

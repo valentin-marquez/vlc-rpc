@@ -6,21 +6,27 @@ export interface TimelineWindow {
 	end?: number
 }
 
+/**
+ * `elapsed` is seconds played, which VLC reports as `time`. Its `position` is a
+ * fraction of the track between 0 and 1, and reading that as seconds put the
+ * start of every window at "now": floor(0.5) is 0, so Discord counted from zero
+ * however far in the track already was.
+ */
 function computeWindow(
 	nowMs: number,
-	position: number,
+	elapsed: number,
 	duration: number,
 	rate: number,
 ): TimelineWindow {
 	const nowSeconds = Math.floor(nowMs / 1000)
 	const safeRate = rate > 0 ? rate : 1
-	const start = nowSeconds - Math.floor(position / safeRate)
+	const start = nowSeconds - Math.floor(elapsed / safeRate)
 
 	if (!(duration > 0) || duration >= 86_400) {
 		return { start }
 	}
 
-	const end = nowSeconds + Math.floor((duration - position) / safeRate)
+	const end = nowSeconds + Math.floor((duration - elapsed) / safeRate)
 	return { start, end }
 }
 
@@ -32,7 +38,7 @@ export class Timeline {
 	private lastPlid: number | null = null
 	private lastPlaying = false
 	private lastRate = 1
-	private lastPosition = 0
+	private lastElapsed = 0
 	private lastPolledAtMs = 0
 
 	constructor(private readonly clock: Clock) {}
@@ -53,32 +59,37 @@ export class Timeline {
 		const now = this.clock.now()
 		const isPlaying = status.status === "playing"
 		const { plid } = status
-		const { position, duration, rate } = status.playback
+		const { time: elapsed, duration, rate } = status.playback
 
 		const trackChanged = plid !== this.lastPlid
 		const resumed = isPlaying && !this.lastPlaying
 		const rateChanged = rate !== this.lastRate
-		const seeked = this.driftedBeyondThreshold(now, position, isPlaying, trackChanged)
+		const seeked = this.driftedBeyondThreshold(now, elapsed, isPlaying, trackChanged)
 
 		if (!isPlaying) {
 			this.window = {}
 		} else if (trackChanged || resumed || rateChanged || seeked) {
 			this.epoch++
-			this.window = computeWindow(now, position, duration, rate)
+			this.window = computeWindow(now, elapsed, duration, rate)
 		}
 
 		this.lastPlid = plid
 		this.lastPlaying = isPlaying
 		this.lastRate = rate
-		this.lastPosition = position
+		this.lastElapsed = elapsed
 		this.lastPolledAtMs = now
 
 		return this.window
 	}
 
+	/**
+	 * Both sides are seconds. Comparing VLC's fractional `position` against a
+	 * prediction in seconds meant a real jump never cleared the threshold, so a
+	 * seek left Discord's bar running from wherever it had been.
+	 */
 	private driftedBeyondThreshold(
 		now: number,
-		position: number,
+		elapsed: number,
 		isPlaying: boolean,
 		trackChanged: boolean,
 	): boolean {
@@ -86,8 +97,8 @@ export class Timeline {
 			return false
 		}
 
-		const elapsedSeconds = (now - this.lastPolledAtMs) / 1000
-		const expected = this.lastPosition + elapsedSeconds * this.lastRate
-		return Math.abs(position - expected) > SEEK_THRESHOLD_SECONDS
+		const sincePoll = (now - this.lastPolledAtMs) / 1000
+		const expected = this.lastElapsed + sincePoll * this.lastRate
+		return Math.abs(elapsed - expected) > SEEK_THRESHOLD_SECONDS
 	}
 }

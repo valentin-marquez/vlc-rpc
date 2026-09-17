@@ -165,9 +165,16 @@ function panelText(description: ChipDescription, repair: RepairState): [string, 
 // Long enough that crossing the chips on the way to the window controls does
 // not pop a panel open behind the pointer.
 const HOVER_DELAY_MS = 140
+// Long enough to survive a pointer that clips a corner on its way to the button.
+const LEAVE_DELAY_MS = 220
+
+/** Positioned shell whose padding is the visual offset, so its hit area reaches
+ * the chip. With the gap as a margin the pointer left the wrapper on its way
+ * down and the panel closed before it arrived at the button inside. */
+const PANEL_ANCHOR = "absolute end-0 top-full z-50 pt-1"
 
 const PANEL = cn(
-	"absolute end-0 top-full z-50 mt-1 flex w-[288px] flex-col gap-2",
+	"flex w-[288px] flex-col gap-2",
 	"rounded-lg border border-divider bg-float p-3 text-start",
 	"shadow-[0_8px_24px_rgb(0_0_0/0.45)]",
 	"opacity-100 transition-opacity ease-out-soft [transition-duration:var(--dur-tint)]",
@@ -186,6 +193,7 @@ function StatusChip({ label, description, onCheck }: StatusChipProps): JSX.Eleme
 	const wrapper = useRef<HTMLDivElement>(null)
 	const trigger = useRef<HTMLButtonElement>(null)
 	const hoverTimer = useRef<number | null>(null)
+	const leaveTimer = useRef<number | null>(null)
 	// Sending focus back to the chip after a close would otherwise reopen the
 	// panel through the same handler that opens it for a keyboard.
 	const ignoreFocus = useRef(false)
@@ -216,6 +224,10 @@ function StatusChip({ label, description, onCheck }: StatusChipProps): JSX.Eleme
 		if (hoverTimer.current !== null) {
 			window.clearTimeout(hoverTimer.current)
 			hoverTimer.current = null
+		}
+		if (leaveTimer.current !== null) {
+			window.clearTimeout(leaveTimer.current)
+			leaveTimer.current = null
 		}
 	}
 
@@ -264,9 +276,13 @@ function StatusChip({ label, description, onCheck }: StatusChipProps): JSX.Eleme
 			ref={wrapper}
 			className="no-drag relative"
 			onPointerEnter={() => {
+				cancelHover()
 				hoverTimer.current = window.setTimeout(() => setOpen(true), HOVER_DELAY_MS)
 			}}
-			onPointerLeave={close}
+			onPointerLeave={() => {
+				cancelHover()
+				leaveTimer.current = window.setTimeout(close, LEAVE_DELAY_MS)
+			}}
 			onFocus={() => {
 				if (ignoreFocus.current) {
 					ignoreFocus.current = false
@@ -312,38 +328,42 @@ function StatusChip({ label, description, onCheck }: StatusChipProps): JSX.Eleme
 			</button>
 
 			{isOpen && (
-				<div id={panelId} className={PANEL}>
-					<p className="type-label text-strong">{headline}</p>
-					<p className="type-caption text-pretty text-muted-foreground">{detail}</p>
+				<div className={PANEL_ANCHOR}>
+					<div id={panelId} className={PANEL}>
+						<p className="type-label text-strong">{headline}</p>
+						<p className="type-caption text-pretty text-muted-foreground">{detail}</p>
 
-					<div className="mt-2 flex items-center gap-2">
-						{remedy.kind === "enable-http" && repair.kind !== "done" && (
+						<div className="mt-1 flex items-stretch gap-2">
+							{remedy.kind === "enable-http" && repair.kind !== "done" && (
+								<Button
+									size="sm"
+									variant="secondary"
+									className="flex-1"
+									isLoading={repair.kind === "working"}
+									onClick={() => {
+										void handleRepair()
+									}}
+								>
+									{remedy.label}
+								</Button>
+							)}
+							{remedy.kind === "open-settings" && (
+								<Button size="sm" variant="secondary" className="flex-1" onClick={handleSettings}>
+									{remedy.label}
+								</Button>
+							)}
 							<Button
 								size="sm"
 								variant="secondary"
-								isLoading={repair.kind === "working"}
+								className="flex-1"
+								isLoading={isChecking}
 								onClick={() => {
-									void handleRepair()
+									void handleCheck()
 								}}
 							>
-								{remedy.label}
+								Check again
 							</Button>
-						)}
-						{remedy.kind === "open-settings" && (
-							<Button size="sm" variant="secondary" onClick={handleSettings}>
-								{remedy.label}
-							</Button>
-						)}
-						<Button
-							size="sm"
-							variant="ghost"
-							isLoading={isChecking}
-							onClick={() => {
-								void handleCheck()
-							}}
-						>
-							Check again
-						</Button>
+						</div>
 					</div>
 				</div>
 			)}
