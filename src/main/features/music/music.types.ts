@@ -125,6 +125,13 @@ export type LookupOutcome =
 	| { kind: "unavailable" }
 
 export interface AudioIdLookup {
+	/**
+	 * Whether a lookup right now would reach the service, answered without a
+	 * request. Hashing the audio is what the caller pays to be able to ask, so it
+	 * asks this first, and the reasons a lookup cannot happen (a cooldown, a
+	 * rejected key) stay owned by the implementation that set them.
+	 */
+	readonly available: boolean
 	lookup(fingerprint: string, duration: number): Promise<LookupOutcome>
 }
 
@@ -164,4 +171,15 @@ export type UnresolvedReason =
 
 export type CacheEntry =
 	| { status: "resolved"; version: number; result: MusicResult; lastAccessedAt: number }
-	| { status: "unresolved"; version: number; expiresAt: number; lastAccessedAt: number }
+	/**
+	 * The reason is stored, not just the expiry: what comes after a miss depends
+	 * on whether the catalogs ruled on the track or could not answer at all, and a
+	 * cached miss has to answer that question the same way a fresh one does.
+	 */
+	| {
+			status: "unresolved"
+			version: number
+			reason: UnresolvedReason
+			expiresAt: number
+			lastAccessedAt: number
+	  }

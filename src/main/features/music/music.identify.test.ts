@@ -19,15 +19,15 @@ import type {
 
 const THIS_FILE = join(__dirname, "music.identify.test.ts")
 
-function status(plid: number | null): VlcStatus {
+function status(plid: number | null, media: { title?: string; duration?: number } = {}): VlcStatus {
 	return {
 		active: true,
 		status: "playing",
 		timestamp: 0,
 		plid,
-		playback: { position: 0, time: 0, duration: 232, rate: 1 },
+		playback: { position: 0, time: 0, duration: media.duration ?? 232, rate: 1 },
 		mediaType: "audio",
-		media: { title: "Unknown", artist: "", album: "" },
+		media: { title: media.title ?? "Unknown", artist: "", album: "" },
 	}
 }
 
@@ -54,9 +54,10 @@ function fakeFingerprinter(outcome: FingerprintOutcome, available = true) {
 	return { fingerprinter, asked }
 }
 
-function fakeLookup(outcome: LookupOutcome) {
+function fakeLookup(outcome: LookupOutcome, available = true) {
 	const calls = { lookup: 0 }
 	const lookup: AudioIdLookup = {
+		available,
 		lookup: async () => {
 			calls.lookup++
 			return outcome
@@ -134,6 +135,26 @@ describe("Identifier.fileFor", () => {
 		expect(calls.asked).toBe(2)
 	})
 
+	it("asks again when the playlist id repeats for a different file", async () => {
+		// VLC numbers playlist items per process, so quitting and reopening it
+		// hands a fresh file the same low id. Answering from the memo there
+		// serves the previous file's cover, and on this path neither file has a
+		// tag that could contradict it.
+		const { playing, calls } = fakePlaying(pathToFileURL(THIS_FILE).href)
+		const { fingerprinter } = fakeFingerprinter(FINGERPRINTED)
+		const identifier = new Identifier(
+			playing,
+			fingerprinter,
+			fakeLookup({ kind: "matched", matches: [] }).lookup,
+		)
+
+		await identifier.fileFor(status(3, { title: "first.mp3", duration: 232 }))
+		expect(calls.asked).toBe(1)
+
+		await identifier.fileFor(status(3, { title: "second.mp3", duration: 190 }))
+		expect(calls.asked).toBe(2)
+	})
+
 	it("asks again for every poll when VLC reports no playlist item", async () => {
 		const { playing, calls } = fakePlaying(pathToFileURL(THIS_FILE).href)
 		const { fingerprinter } = fakeFingerprinter(FINGERPRINTED)
@@ -206,6 +227,20 @@ describe("Identifier.identify", () => {
 		const outcome = await identifier.identify(FILE)
 
 		expect(outcome).toEqual({ kind: "unidentified", reason: "no-results" })
+		expect(calls.lookup).toBe(0)
+	})
+
+	it("does not hash the file while the lookup is holding off", async () => {
+		// The poll loop asks again every 1.5 seconds and the cooldown lasts a
+		// minute, so fingerprinting first would spawn fpcalc some forty times over
+		// audio that nothing is going to be asked about.
+		const { playing } = fakePlaying(null)
+		const { fingerprinter, asked } = fakeFingerprinter(FINGERPRINTED)
+		const { lookup, calls } = fakeLookup({ kind: "matched", matches: [match()] }, false)
+		const identifier = new Identifier(playing, fingerprinter, lookup)
+
+		expect(await identifier.identify(FILE)).toEqual({ kind: "unavailable" })
+		expect(asked).toEqual([])
 		expect(calls.lookup).toBe(0)
 	})
 

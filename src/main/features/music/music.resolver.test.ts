@@ -46,14 +46,15 @@ function fakeCache() {
 		},
 		setResolved: (key: string, result: MusicResult) => {
 			calls.setResolved++
-			store.set(key, { status: "resolved", version: 1, result, lastAccessedAt: 0 })
+			store.set(key, { status: "resolved", version: 2, result, lastAccessedAt: 0 })
 		},
 		setUnresolved: (key: string, reason: UnresolvedReason) => {
 			calls.setUnresolved++
 			unresolvedReasons.push(reason)
 			store.set(key, {
 				status: "unresolved",
-				version: 1,
+				version: 2,
+				reason,
 				expiresAt: 999_999_999,
 				lastAccessedAt: 0,
 			})
@@ -361,7 +362,7 @@ describe("Resolver.resolve", () => {
 
 		expect(cachedOnSettle).toEqual({
 			status: "resolved",
-			version: 1,
+			version: 2,
 			result,
 			lastAccessedAt: 0,
 		})
@@ -1111,6 +1112,58 @@ describe("Resolver.resolve, by fingerprint", () => {
 
 		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
 		expect(unresolvedReasons).toEqual(["insufficient-tags", "provider-error"])
+	})
+
+	it("never reaches the audio when the catalogs could not search at all", async () => {
+		// iTunes and MusicBrainz are keyless and limited per machine, while the
+		// fingerprint spends a budget every user of this app shares. An outage of
+		// the two cheap ones must not move well tagged tracks onto the shared one,
+		// which is the moment it can least absorb them.
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([], true)
+		const { provider: musicbrainz } = fakeProvider([], true)
+		const { source } = fakeCoverSource()
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		expect(await resolver.resolve(playing(tagged, 1))).toBeNull()
+		expect(unresolvedReasons).toEqual(["provider-error"])
+		expect(calls.fileFor).toBe(0)
+		expect(calls.identify).toBe(0)
+	})
+
+	it("never reaches the audio for a catalog outage the cache is still holding", async () => {
+		// The entry lives for seconds so the cheap catalogs are retried soon, and
+		// until then it has to answer the same way the fresh failure did.
+		const { cache } = fakeCache()
+		const { provider: itunes, calls: itunesCalls } = fakeProvider([], true)
+		const { provider: musicbrainz } = fakeProvider([], true)
+		const { source } = fakeCoverSource()
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		await resolver.resolve(playing(tagged, 1))
+		expect(await resolver.resolve(playing(tagged, 1))).toBeNull()
+
+		expect(itunesCalls.search).toBe(1)
+		expect(calls.identify).toBe(0)
+	})
+
+	it("never reaches the audio when the catalogs named the track and only the artwork was missing", async () => {
+		// The recording is identified, so the fingerprint has no name left to add
+		// and would spend a shared request to reach the same archive.
+		const { cache, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([
+			candidate({ releases: [{ id: "r1", title: "Me Dejé Llevar" }] }),
+		])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const resolver = new Resolver(cache, itunes, musicbrainz, source, noOverrides(), identifier)
+
+		expect(await resolver.resolve(playing(tagged, 1))).toBeNull()
+		expect(unresolvedReasons).toEqual(["no-cover"])
+		expect(calls.identify).toBe(0)
 	})
 
 	it("never reaches the audio when the user already corrected the record", async () => {

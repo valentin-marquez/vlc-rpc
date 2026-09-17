@@ -171,3 +171,29 @@ describe("AcoustId.lookup", () => {
 		expect(vi.mocked(fetch).mock.calls.length).toBe(1)
 	})
 })
+
+describe("AcoustId.available", () => {
+	it("is ready before anything has gone wrong", () => {
+		expect(new AcoustId(KEY).available).toBe(true)
+	})
+
+	it("says so while it is holding off, so the caller can skip the work first", async () => {
+		// The caller hashes the audio before it can ask, and that is the expensive
+		// half. The cooldown lives here, so the answer about it does too.
+		respondWith('{"status":"error"}', 503)
+		const acoustid = new AcoustId(KEY)
+
+		await acoustid.lookup(FINGERPRINT, DURATION)
+
+		expect(acoustid.available).toBe(false)
+	})
+
+	it("stays unavailable once the service has rejected the configured key", async () => {
+		respondWith('{"status":"error","error":{"code":4,"message":"invalid API key"}}')
+		const acoustid = new AcoustId(KEY)
+
+		await acoustid.lookup(FINGERPRINT, DURATION)
+
+		expect(acoustid.available).toBe(false)
+	})
+})

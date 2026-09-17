@@ -28,9 +28,42 @@ const AUDIO_EXTENSION =
 /** The literal the mapper writes when every title source is missing. */
 const UNTAGGED_TITLE = "Unknown"
 
-type ChainOutcome =
+type StepOutcome =
 	| { kind: "resolved"; result: MusicResult }
 	| { kind: "unresolved"; reason: UnresolvedReason }
+
+/**
+ * Whether a tag lookup that produced no cover leaves the audio worth hashing.
+ *
+ * AcoustID's limit is per application key and shared by every user of this app,
+ * while iTunes and MusicBrainz are keyless and therefore limited per user. So
+ * the fingerprint only follows a chain that actually ruled on the track, never
+ * one that was unable to speak.
+ */
+function fingerprintFollows(reason: UnresolvedReason): boolean {
+	switch (reason) {
+		// The step's entire reason for existing: no tag names this file, so no text
+		// search can ever find it and only the audio can.
+		case "insufficient-tags":
+		// The catalogs searched and hold nothing under that name, or held
+		// something and none of it was this recording. Either way they have
+		// answered, and the audio is the only thing left to ask.
+		case "no-results":
+		case "no-match":
+			return true
+		// The recording is already identified and only its artwork is missing, so a
+		// fingerprint would spend a shared request to learn a name that is known,
+		// and land on the same archive that had no image for it.
+		case "no-cover":
+		// The catalogs could not search at all, which says nothing about the track.
+		// This entry expires in seconds and the next poll retries them, so letting
+		// an outage of two per user services become traffic on the one shared key
+		// would hit that key from every install at once, exactly when it is least
+		// able to absorb it.
+		case "provider-error":
+			return false
+	}
+}
 
 interface ChainStep {
 	name: string
@@ -118,7 +151,7 @@ export interface OverrideLookup {
 }
 
 export class Resolver {
-	private readonly inflight = new Map<string, Promise<MusicResult | null>>()
+	private readonly inflight = new Map<string, Promise<StepOutcome>>()
 
 	constructor(
 		private readonly cache: Cache,
@@ -148,14 +181,18 @@ export class Resolver {
 		}
 
 		const byTags = await this.resolveByTags(query)
-		if (byTags !== null) {
-			return byTags
+		if (byTags.kind === "resolved") {
+			return byTags.result
 		}
 
-		// Last, and only for what the tags could not name. The limit AcoustID
-		// enforces is per application key and therefore shared by every user of
-		// this app, unlike every other provider here, and hashing the audio is
-		// the most expensive thing this feature does on the machine it runs on.
+		// Last, and only for what the tags could not name. Hashing the audio is the
+		// most expensive thing this feature does on the machine it runs on, and the
+		// service it feeds is the one budget here that every user of this app
+		// shares, so the miss has to be a verdict and not an outage.
+		if (!fingerprintFollows(byTags.reason)) {
+			return null
+		}
+
 		return await this.resolveByAudio(status, query)
 	}
 
@@ -216,13 +253,12 @@ export class Resolver {
 	 * for it, and only then the work. The two chains below reach this with keys
 	 * from different key spaces, which is the whole point of the fingerprint one.
 	 */
-	private async once(
-		key: string,
-		work: () => Promise<MusicResult | null>,
-	): Promise<MusicResult | null> {
+	private async once(key: string, work: () => Promise<StepOutcome>): Promise<StepOutcome> {
 		const cached = this.cache.get(key)
 		if (cached) {
-			return cached.status === "resolved" ? cached.result : null
+			return cached.status === "resolved"
+				? { kind: "resolved", result: cached.result }
+				: { kind: "unresolved", reason: cached.reason }
 		}
 
 		const existing = this.inflight.get(key)
@@ -240,9 +276,16 @@ export class Resolver {
 		}
 	}
 
-	private async resolveByTags(query: TrackQuery): Promise<MusicResult | null> {
+	/** A miss carries its reason out, because what follows it depends on it. */
+	private async resolveByTags(query: TrackQuery): Promise<StepOutcome> {
 		const key = musicKey(query)
 		return await this.once(key, () => this.resolveUncached(query, key))
+	}
+
+	/** Cached with the reason it happened, and answered with the same one. */
+	private miss(key: string, reason: UnresolvedReason): StepOutcome {
+		this.cache.setUnresolved(key, reason)
+		return { kind: "unresolved", reason }
 	}
 
 	/**
@@ -262,7 +305,11 @@ export class Resolver {
 		}
 
 		const key = fingerprintKey(file)
-		return await this.once(key, () => this.identifyUncached(identifier, file, key, query.album))
+		const outcome = await this.once(key, () =>
+			this.identifyUncached(identifier, file, key, query.album),
+		)
+		// Nothing runs after this step, so its reason has no reader.
+		return outcome.kind === "resolved" ? outcome.result : null
 	}
 
 	private async locate(
@@ -282,7 +329,7 @@ export class Resolver {
 		file: AudioFileIdentity,
 		key: string,
 		album: string | undefined,
-	): Promise<MusicResult | null> {
+	): Promise<StepOutcome> {
 		let outcome: IdentifyOutcome
 		try {
 			outcome = await identifier.identify(file)
@@ -295,19 +342,16 @@ export class Resolver {
 		}
 
 		if (outcome.kind === "unavailable") {
-			this.cache.setUnresolved(key, "provider-error")
-			return null
+			return this.miss(key, "provider-error")
 		}
 		if (outcome.kind === "unidentified") {
-			this.cache.setUnresolved(key, outcome.reason)
-			return null
+			return this.miss(key, outcome.reason)
 		}
 
 		try {
 			const cover = await this.artworkFor(outcome.recording, album)
 			if (cover === null) {
-				this.cache.setUnresolved(key, "no-cover")
-				return null
+				return this.miss(key, "no-cover")
 			}
 
 			const result: MusicResult = {
@@ -316,28 +360,25 @@ export class Resolver {
 				id: outcome.recording.id,
 			}
 			this.cache.setResolved(key, result)
-			return result
+			return { kind: "resolved", result }
 		} catch {
 			logger.warn("Music cover lookup failed after a fingerprint match")
-			this.cache.setUnresolved(key, "provider-error")
-			return null
+			return this.miss(key, "provider-error")
 		}
 	}
 
-	private async resolveUncached(query: TrackQuery, key: string): Promise<MusicResult | null> {
+	private async resolveUncached(query: TrackQuery, key: string): Promise<StepOutcome> {
 		if (!isSearchable(query)) {
-			this.cache.setUnresolved(key, "insufficient-tags")
-			return null
+			return this.miss(key, "insufficient-tags")
 		}
 
 		const outcome = await this.runChain(query)
 		if (outcome.kind === "resolved") {
 			this.cache.setResolved(key, outcome.result)
-			return outcome.result
+			return outcome
 		}
 
-		this.cache.setUnresolved(key, outcome.reason)
-		return null
+		return this.miss(key, outcome.reason)
 	}
 
 	/**
@@ -346,7 +387,7 @@ export class Resolver {
 	 * Archive hop. Running those anyway after a match that produced a cover would
 	 * spend exactly what the order is there to save.
 	 */
-	private async runChain(query: TrackQuery): Promise<ChainOutcome> {
+	private async runChain(query: TrackQuery): Promise<StepOutcome> {
 		let providerFailed = false
 		let sawCandidates = false
 		let identifiedWithoutCover = false

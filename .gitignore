@@ -18,6 +18,8 @@ skills-lock.json
 # Third party binary, fetched per build by scripts/fetch-fpcalc.mjs
 /resources/bin/
 
-# Build time secrets
+# Build time secrets. Vite also loads .env.<mode> and .env.<mode>.local, and a
+# production build runs in production mode, so cover the whole family.
 .env
-.env.local
+.env.*
+!.env.example

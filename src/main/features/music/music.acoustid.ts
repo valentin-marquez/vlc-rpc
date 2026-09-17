@@ -134,10 +134,20 @@ export class AcoustId implements AudioIdLookup {
 
 	constructor(private readonly key: string) {}
 
+	/**
+	 * Both states that stop a request are this object's, so the answer about them
+	 * is too. The caller has to fingerprint the file before it can ask, which is
+	 * the most expensive thing the feature does, and asking this first is what
+	 * keeps that work from being spent on a request that would never leave.
+	 */
+	public get available(): boolean {
+		return !this.rejected && Date.now() >= this.cooldownUntil
+	}
+
 	public async lookup(fingerprint: string, duration: number): Promise<LookupOutcome> {
-		// Both checks come before the throttle: a step that has given up should
-		// cost nothing per poll, not a queued turn.
-		if (this.rejected || Date.now() < this.cooldownUntil) {
+		// Checked again here, and before the throttle: a step that has given up
+		// should cost nothing per poll, not a queued turn.
+		if (!this.available) {
 			return { kind: "unavailable" }
 		}
 

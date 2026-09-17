@@ -44,14 +44,31 @@ function filePathOf(uri: string): string | null {
  * playlist is read once per item rather than once per poll, and a lookup never
  * happens for a file that could not be fingerprinted.
  */
+/**
+ * What has to stay the same for a located file to still be that file. Null when
+ * VLC reports no playlist item, which is when nothing is worth remembering.
+ */
+function memoToken(status: VlcStatus): string | null {
+	if (status.plid === null) {
+		return null
+	}
+	return [status.plid, status.media.title ?? "", status.playback.duration].join("|")
+}
+
 export class Identifier implements AudioIdentifier {
 	/**
 	 * The playlist item this file was located for. The presence loop resolves
 	 * every 1.5 seconds and reading the playlist is an http round trip, so the
-	 * same question about the same item is asked once. The id is VLC's own and
-	 * changes with the item, which no tag on an untagged file does.
+	 * same question about the same item is asked once.
+	 *
+	 * The id alone is not enough to say "still the same file". VLC numbers
+	 * playlist items per process, so quitting and reopening it hands a fresh
+	 * file the same low id, and the memo would answer with the previous one:
+	 * the wrong cover, on a path where no tag exists to contradict it. The
+	 * title and the duration come free in the same status and separate two
+	 * files that happen to share an id.
 	 */
-	private located: { plid: number; file: AudioFileIdentity | null } | null = null
+	private located: { token: string; file: AudioFileIdentity | null } | null = null
 
 	constructor(
 		private readonly playing: PlayingFile,
@@ -64,20 +81,28 @@ export class Identifier implements AudioIdentifier {
 			return null
 		}
 
-		const plid = status.plid
+		const token = memoToken(status)
 		const memo = this.located
-		if (plid !== null && memo !== null && memo.plid === plid) {
+		if (token !== null && memo !== null && memo.token === token) {
 			return memo.file
 		}
 
 		const file = await this.locate()
-		if (plid !== null) {
-			this.located = { plid, file }
+		if (token !== null) {
+			this.located = { token, file }
 		}
 		return file
 	}
 
 	public async identify(file: AudioFileIdentity): Promise<IdentifyOutcome> {
+		// The cheap question first. Hashing the audio spawns a child process that
+		// reads the whole file, and the presence loop asks again every 1.5 seconds,
+		// so doing it while the lookup is holding off would burn that work ten
+		// times a minute for an answer that cannot arrive.
+		if (!this.acoustid.available) {
+			return { kind: "unavailable" }
+		}
+
 		const fingerprint = await this.fingerprinter.fingerprint(file.path)
 		if (fingerprint.kind === "absent") {
 			return { kind: "unavailable" }
