@@ -1,5 +1,6 @@
 import { cn } from "@renderer/lib/utils"
 import { MusicNotes, Pause, Play, VideoCamera } from "phosphor-react"
+import type { ReactNode } from "react"
 import React from "react"
 
 export type PresenceCardSize = "sm" | "lg"
@@ -63,7 +64,25 @@ export interface PresenceCardEmptyProps extends PresenceCardBase {
 	message?: string
 }
 
-export type PresenceCardProps = PresenceCardLiveProps | PresenceCardEmptyProps
+/**
+ * The same card with its body lines handed over, so the Layout screen can arrange the
+ * card itself rather than a drawing of one beside it. Everything around the lines, the
+ * frame, the artwork, the badge and the type ramp, stays the card's own.
+ */
+export interface PresenceCardSlotsProps extends PresenceCardBase {
+	kind: "slots"
+	header: string
+	name?: ReactNode
+	details?: ReactNode
+	state?: ReactNode
+	badge?: PresenceBadge
+	progress?: PresenceProgress
+}
+
+export type PresenceCardProps =
+	| PresenceCardLiveProps
+	| PresenceCardEmptyProps
+	| PresenceCardSlotsProps
 
 const ART: Record<PresenceCardSize, string> = { sm: "size-12", lg: "size-20" }
 const PADDING: Record<PresenceCardSize, string> = { sm: "p-3", lg: "p-4" }
@@ -80,6 +99,10 @@ const ART_RING = "shadow-[inset_0_0_0_1px_rgb(255_255_255/0.08)]"
 export function PresenceCard(props: PresenceCardProps): JSX.Element {
 	const { size = "lg", className, icon = "music" } = props
 	const isEmpty = props.kind === "empty"
+
+	if (props.kind === "slots") {
+		return <SlotsCard {...props} size={size} icon={icon} />
+	}
 
 	return (
 		<div className={cn("rounded-md border border-divider bg-card", PADDING[size], className)}>
@@ -136,6 +159,40 @@ export function PresenceCard(props: PresenceCardProps): JSX.Element {
 							)}
 						</>
 					)}
+				</div>
+			</div>
+		</div>
+	)
+}
+
+function SlotsCard({
+	size,
+	icon,
+	className,
+	header,
+	name,
+	details,
+	state,
+	badge,
+	progress,
+}: PresenceCardSlotsProps & { size: PresenceCardSize; icon: PresenceCardIcon }): JSX.Element {
+	return (
+		<div className={cn("rounded-md border border-divider bg-card", PADDING[size], className)}>
+			<p className="type-eyebrow mb-2 truncate text-muted-foreground">{header}</p>
+
+			<div className={cn("flex items-start", GAP[size], BODY[size])}>
+				<div className="relative shrink-0">
+					<ArtworkPlaceholder size={size} icon={icon} />
+					{badge && <SmallImage badge={badge} size={size} />}
+				</div>
+
+				<div className="flex min-w-0 flex-1 flex-col justify-center gap-1 self-stretch">
+					{name !== undefined && <div className="type-label text-strong">{name}</div>}
+					{details !== undefined && <div className={cn(LINE[size], "text-body")}>{details}</div>}
+					{state !== undefined && (
+						<div className={cn(LINE[size], "text-muted-foreground")}>{state}</div>
+					)}
+					{progress && <Progress progress={progress} playback={badge?.kind ?? "playing"} />}
 				</div>
 			</div>
 		</div>

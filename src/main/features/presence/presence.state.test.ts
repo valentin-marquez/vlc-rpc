@@ -3,6 +3,7 @@ import type { CoverOutcome } from "@main/features/cover"
 import type { MusicResult } from "@main/features/music"
 import type { CorrectedTags } from "@main/features/overrides"
 import type { AppConfig } from "@shared/config/app-config"
+import { textPiece, valuePiece } from "@shared/presence/layout"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -178,8 +179,8 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 
 			const presence = await service.getDiscordPresence(untaggedStatus(state), timeline)
 
-			expect(presence?.details).toBe("José Arnero")
-			expect(presence?.state).toBe("by El Baucha")
+			expect(presence?.name).toBe("José Arnero")
+			expect(presence?.details).toBe("by El Baucha")
 		})
 
 		it("keeps the file's own tags when nothing was corrected", async () => {
@@ -187,8 +188,9 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 
 			const presence = await service.getDiscordPresence(status(state), timeline)
 
-			expect(presence?.details).toBe("Probablemente")
-			expect(presence?.state).toBe("by Christina Aguilera")
+			expect(presence?.name).toBe("Probablemente")
+			expect(presence?.details).toBe("by Christina Aguilera")
+			expect(presence?.state).toBe("on Mi Reflejo")
 		})
 	},
 )
@@ -260,8 +262,13 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 			expect(presence?.state).toBe("1999")
 		})
 
-		it("folds the episode into the title line when the user picks one line", async () => {
-			withPresets({ videoLayoutPreset: "one-line" })
+		it("folds the episode into the title line when that is how it was arranged", async () => {
+			withPresets({
+				videoLayoutPreset: {
+					kind: "custom",
+					layout: { details: [valuePiece("title"), valuePiece("episodeInfo")], state: [] },
+				},
+			})
 
 			const presence = await videoService(SERIES).getDiscordPresence(
 				videoStatus("Breaking.Bad.S02E05.mkv", state),
@@ -272,8 +279,13 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 			expect(presence?.state).toBe("")
 		})
 
-		it("hides the episode when the user picks title only", async () => {
-			withPresets({ videoLayoutPreset: "title-only" })
+		it("hides the episode when the title is the only piece on the card", async () => {
+			withPresets({
+				videoLayoutPreset: {
+					kind: "custom",
+					layout: { details: [valuePiece("title")], state: [] },
+				},
+			})
 
 			const presence = await videoService(SERIES).getDiscordPresence(
 				videoStatus("Breaking.Bad.S02E05.mkv", state),
@@ -295,7 +307,16 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 		})
 
 		it("ignores the video choice when the music choice is the one that changed", async () => {
-			withPresets({ layoutPreset: "album-focused" })
+			withPresets({
+				layoutPreset: {
+					kind: "custom",
+					layout: {
+						activityName: [valuePiece("album")],
+						details: [valuePiece("album")],
+						state: [],
+					},
+				},
+			})
 
 			const presence = await videoService(SERIES).getDiscordPresence(
 				videoStatus("Breaking.Bad.S02E05.mkv", state),
@@ -354,8 +375,17 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 			}
 		}
 
-		it("follows the music preset the user picked", async () => {
-			withPresets({ layoutPreset: "album-focused" })
+		it("follows the arrangement the user saved", async () => {
+			withPresets({
+				layoutPreset: {
+					kind: "custom",
+					layout: {
+						activityName: [valuePiece("album")],
+						details: [valuePiece("album")],
+						state: [valuePiece("title"), textPiece("by"), valuePiece("artist")],
+					},
+				},
+			})
 			const { service } = build({ kind: "no-artwork" }, null)
 
 			const presence = await service.getDiscordPresence(status(state), timeline)
@@ -364,23 +394,28 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 			expect(presence?.state).toBe("Probablemente by Christina Aguilera")
 		})
 
-		it("names the activity after the app when the file carries no artist", async () => {
+		it("shows the file name alone when the file carries no tags", async () => {
 			const { service } = build({ kind: "no-artwork" }, null)
 
 			const presence = await service.getDiscordPresence(untagged(), timeline)
 
-			expect(presence?.name).toBe("VLC")
-			expect(presence?.details).toBe("track01")
+			expect(presence?.name).toBe("track01")
+			expect(presence?.details).toBe("")
 			expect(presence?.state).toBe("")
 		})
 
-		it("names the activity after the app when the layout has nothing to name it after", async () => {
-			withPresets({ layoutPreset: "album-focused" })
+		it("sends no name at all when the top line has nothing to draw, which Discord reads as VLC", async () => {
+			withPresets({
+				layoutPreset: {
+					kind: "custom",
+					layout: { activityName: [valuePiece("album")], details: [], state: [] },
+				},
+			})
 			const { service } = build({ kind: "no-artwork" }, null)
 
 			const presence = await service.getDiscordPresence(untagged(), timeline)
 
-			expect(presence?.name).toBe("VLC")
+			expect(presence?.name).toBeUndefined()
 		})
 	},
 )

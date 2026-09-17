@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest"
-import type { MusicPreset, VideoPreset } from "./layout"
 import {
-	MUSIC_PRESETS,
-	VIDEO_PRESETS,
-	applyTemplate,
+	DEFAULT_MUSIC_LAYOUT,
+	DEFAULT_VIDEO_LAYOUT,
+	fromMusicLines,
+	fromVideoLines,
+	musicChoiceFor,
 	renderLine,
 	resolveLayout,
+	sameLines,
+	textPiece,
+	toMusicLines,
+	toVideoLines,
+	valuePiece,
+	videoChoiceFor,
 	videoVariables,
 } from "./layout"
-
-const MUSIC_PRESET_NAMES: MusicPreset[] = ["default", "album-focused", "artist-spotlight"]
-const VIDEO_PRESET_NAMES: VideoPreset[] = ["default", "one-line", "title-only"]
 
 const FULL_TRACK = {
 	title: "Bohemian Rhapsody",
@@ -18,71 +22,67 @@ const FULL_TRACK = {
 	album: "A Night at the Opera",
 }
 const UNTAGGED_TRACK = { title: "track01", artist: "", album: "" }
+const NO_ALBUM = { title: "Bohemian Rhapsody", artist: "Queen", album: "" }
 
 const SERIES = videoVariables({ title: "Breaking Bad", season: 2, episode: 5 })
 const FILM = videoVariables({ title: "The Matrix", year: 1999 })
 const UNIDENTIFIED = videoVariables({ title: "holiday-clip" })
 
-describe("applyTemplate", () => {
-	it("substitutes every placeholder it is given a value for", () => {
-		expect(applyTemplate("{title} by {artist}", { title: "Probablemente", artist: "Nodal" })).toBe(
-			"Probablemente by Nodal",
+describe("renderLine", () => {
+	it("draws the pieces in the order they were placed", () => {
+		expect(
+			renderLine([valuePiece("title"), textPiece("by"), valuePiece("artist")], FULL_TRACK),
+		).toBe("Bohemian Rhapsody by Queen")
+	})
+
+	it("takes a piece off the line when the file has nothing for it", () => {
+		expect(renderLine([valuePiece("title"), valuePiece("album")], NO_ALBUM)).toBe(
+			"Bohemian Rhapsody",
 		)
+		expect(renderLine([valuePiece("album")], NO_ALBUM)).toBe("")
 	})
 
-	it("renders nothing when a variable is empty, so no literal outlives its value", () => {
-		expect(applyTemplate("by {artist}", { artist: "" })).toBe("")
-		expect(applyTemplate("by {artist}", { artist: undefined })).toBe("")
-		expect(applyTemplate("by {artist}", { artist: "   " })).toBe("")
+	it("takes the words with the value they were written for, so no literal outlives it", () => {
+		expect(renderLine([textPiece("by"), valuePiece("artist")], { artist: "" })).toBe("")
+		expect(renderLine([textPiece("by"), valuePiece("artist")], { artist: undefined })).toBe("")
+		expect(renderLine([textPiece("by"), valuePiece("artist")], { artist: "   " })).toBe("")
 	})
 
-	it("renders nothing when the template asks for a variable that was never supplied", () => {
-		expect(applyTemplate("{title} ({year})", { title: "Probablemente" })).toBe("")
+	it("drops the words that trail a value when that value is missing", () => {
+		const line = [valuePiece("title"), textPiece("("), valuePiece("year"), textPiece(")")]
+		expect(renderLine(line, FILM)).toBe("The Matrix (1999)")
+		expect(renderLine(line, SERIES)).toBe("Breaking Bad")
 	})
 
-	it("renders nothing rather than the word Unknown", () => {
-		expect(applyTemplate("{missing}", {})).toBe("")
-		expect(applyTemplate("Season {season}", { season: "" })).toBe("")
-		expect(applyTemplate("S{season}E{episode}", { season: "", episode: "" })).toBe("")
-		expect(applyTemplate("   ", {})).toBe("")
+	it("keeps a bracket against the value it wraps, and a separator spaced", () => {
+		expect(
+			renderLine([valuePiece("title"), textPiece("-"), valuePiece("artist")], FULL_TRACK),
+		).toBe("Bohemian Rhapsody - Queen")
+		expect(renderLine([textPiece("("), valuePiece("year"), textPiece(")")], FILM)).toBe("(1999)")
+	})
+
+	it("draws words that have no value anywhere on the line", () => {
+		expect(renderLine([textPiece("Listening to music")], {})).toBe("Listening to music")
+	})
+
+	it("never writes Unknown, and never an orphaned bracket", () => {
+		const drawn = renderLine(
+			[valuePiece("title"), textPiece("("), valuePiece("year"), textPiece(")")],
+			UNIDENTIFIED,
+		)
+		expect(drawn).toBe("holiday-clip")
 	})
 
 	it("treats zero as a value, because a season can be numbered zero", () => {
-		expect(applyTemplate("Season {season}", { season: 0 })).toBe("Season 0")
+		expect(renderLine([textPiece("Season"), valuePiece("season")], { season: 0 })).toBe("Season 0")
 	})
 
-	it("drops the line only when the missing variable is one it needs", () => {
-		expect(applyTemplate("S{season}E{episode}", { season: 2, episode: undefined })).toBe("")
-		expect(applyTemplate("S{season}E{episode}", { season: 2, episode: 5 })).toBe("S2E5")
+	it("draws nothing for a line with no pieces at all", () => {
+		expect(renderLine([], FULL_TRACK)).toBe("")
 	})
 
-	it("keeps the separators the template author wrote", () => {
-		expect(applyTemplate("- {a} - {b} -", { a: "x", b: "y" })).toBe("- x - y -")
-	})
-
-	it("collapses runs of whitespace", () => {
-		expect(applyTemplate("{a}    {b}", { a: "x", b: "y" })).toBe("x y")
-	})
-
-	it("leaves a literal string with no placeholders untouched", () => {
-		expect(applyTemplate("VLC", {})).toBe("VLC")
-	})
-})
-
-describe("renderLine", () => {
-	it("picks the first candidate whose variables all carry a value", () => {
-		expect(renderLine(["S{season}E{episode}", "Season {season}", "{year}"], { season: 2 })).toBe(
-			"Season 2",
-		)
-	})
-
-	it("falls through to a literal candidate", () => {
-		expect(renderLine(["{artist}", "VLC"], { artist: "" })).toBe("VLC")
-	})
-
-	it("renders nothing when no candidate fills and when the line is empty", () => {
-		expect(renderLine(["{artist}", "by {artist}"], { artist: "" })).toBe("")
-		expect(renderLine([], { artist: "Queen" })).toBe("")
+	it("collapses runs of whitespace a typed piece brought with it", () => {
+		expect(renderLine([textPiece("  by  "), valuePiece("artist")], FULL_TRACK)).toBe("by Queen")
 	})
 })
 
@@ -98,116 +98,163 @@ describe("videoVariables", () => {
 	})
 })
 
-describe("music presets", () => {
-	it("lays out a fully tagged track", () => {
-		const { music } = resolveLayout({ music: "default" })
-		expect(renderLine(music.activityName, FULL_TRACK)).toBe("Queen")
-		expect(renderLine(music.details, FULL_TRACK)).toBe("Bohemian Rhapsody")
-		expect(renderLine(music.state, FULL_TRACK)).toBe("by Queen")
+describe("the default arrangement", () => {
+	it("never draws the same value on two lines", () => {
+		const drawn = toMusicLines(DEFAULT_MUSIC_LAYOUT)
+			.map((line) => renderLine(line, FULL_TRACK))
+			.filter((line) => line !== "")
+		expect(drawn).toHaveLength(3)
+		expect(new Set(drawn).size).toBe(3)
 	})
 
-	it("names the activity after the app when the file carries no artist", () => {
-		const { music } = resolveLayout({ music: "default" })
-		expect(renderLine(music.activityName, UNTAGGED_TRACK)).toBe("VLC")
-		expect(renderLine(music.details, UNTAGGED_TRACK)).toBe("track01")
-		expect(renderLine(music.state, UNTAGGED_TRACK)).toBe("")
+	it("draws the song, then who plays it, then where it came from", () => {
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.activityName, FULL_TRACK)).toBe("Bohemian Rhapsody")
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.details, FULL_TRACK)).toBe("by Queen")
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.state, FULL_TRACK)).toBe("on A Night at the Opera")
 	})
 
-	it("puts the album first under album focus", () => {
-		const { music } = resolveLayout({ music: "album-focused" })
-		expect(renderLine(music.details, FULL_TRACK)).toBe("A Night at the Opera")
-		expect(renderLine(music.state, FULL_TRACK)).toBe("Bohemian Rhapsody by Queen")
+	it("keeps a track with no tags readable, and drops the lines it cannot fill", () => {
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.activityName, UNTAGGED_TRACK)).toBe("track01")
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.details, UNTAGGED_TRACK)).toBe("")
+		expect(renderLine(DEFAULT_MUSIC_LAYOUT.state, UNTAGGED_TRACK)).toBe("")
 	})
 
-	it("puts the artist first under artist spotlight", () => {
-		const { music } = resolveLayout({ music: "artist-spotlight" })
-		expect(renderLine(music.details, FULL_TRACK)).toBe("Queen")
-		expect(renderLine(music.state, FULL_TRACK)).toBe("Bohemian Rhapsody")
+	it("reads differently for a series than for a film", () => {
+		expect(toVideoLines(DEFAULT_VIDEO_LAYOUT).map((line) => renderLine(line, SERIES))).toEqual([
+			"Breaking Bad",
+			"S2E5",
+		])
+		expect(toVideoLines(DEFAULT_VIDEO_LAYOUT).map((line) => renderLine(line, FILM))).toEqual([
+			"The Matrix",
+			"1999",
+		])
 	})
 
-	it("never writes Unknown for a track with nothing but a file name", () => {
-		for (const preset of MUSIC_PRESET_NAMES) {
-			const { music } = resolveLayout({ music: preset })
-			for (const line of [music.activityName, music.details, music.state]) {
-				expect(renderLine(line, UNTAGGED_TRACK)).not.toContain("Unknown")
-			}
-		}
-	})
-})
-
-describe("video presets", () => {
-	it("shows the title with the episode below it by default", () => {
-		const { video } = resolveLayout({ video: "default" })
-		expect(renderLine(video.details, SERIES)).toBe("Breaking Bad")
-		expect(renderLine(video.state, SERIES)).toBe("S2E5")
-	})
-
-	it("shows the title with the year below it by default, for a film", () => {
-		const { video } = resolveLayout({ video: "default" })
-		expect(renderLine(video.details, FILM)).toBe("The Matrix")
-		expect(renderLine(video.state, FILM)).toBe("1999")
-	})
-
-	it("folds the episode into the title line under one line", () => {
-		const { video } = resolveLayout({ video: "one-line" })
-		expect(renderLine(video.details, SERIES)).toBe("Breaking Bad S2E5")
-		expect(renderLine(video.state, SERIES)).toBe("")
-	})
-
-	it("folds the year into the title line under one line, for a film", () => {
-		const { video } = resolveLayout({ video: "one-line" })
-		expect(renderLine(video.details, FILM)).toBe("The Matrix (1999)")
-		expect(renderLine(video.state, FILM)).toBe("")
-	})
-
-	it("shows the title alone under title only", () => {
-		const { video } = resolveLayout({ video: "title-only" })
-		expect(renderLine(video.details, SERIES)).toBe("Breaking Bad")
-		expect(renderLine(video.state, SERIES)).toBe("")
-		expect(renderLine(video.details, FILM)).toBe("The Matrix")
-		expect(renderLine(video.state, FILM)).toBe("")
-	})
-
-	it("reads differently for a series than for a film under every preset", () => {
-		for (const preset of VIDEO_PRESET_NAMES) {
-			const { video } = resolveLayout({ video: preset })
-			const series = [renderLine(video.details, SERIES), renderLine(video.state, SERIES)]
-			const film = [renderLine(video.details, FILM), renderLine(video.state, FILM)]
-			expect(series.join("|")).not.toBe(film.join("|"))
-		}
-	})
-
-	it("never writes Unknown, or an orphaned bracket, for a file it could not identify", () => {
-		for (const preset of VIDEO_PRESET_NAMES) {
-			const { video } = resolveLayout({ video: preset })
-			for (const line of [video.details, video.state]) {
-				const rendered = renderLine(line, UNIDENTIFIED)
-				expect(rendered).not.toContain("Unknown")
-				expect(rendered).not.toContain("(")
-				expect(rendered).not.toContain("{")
-			}
-		}
-		expect(renderLine(VIDEO_PRESETS["one-line"].details, UNIDENTIFIED)).toBe("holiday-clip")
+	it("leaves nothing but the title for a video file it could not identify", () => {
+		expect(
+			toVideoLines(DEFAULT_VIDEO_LAYOUT).map((line) => renderLine(line, UNIDENTIFIED)),
+		).toEqual(["holiday-clip", ""])
 	})
 })
 
 describe("resolveLayout", () => {
-	it("falls back to the default preset on each side", () => {
-		expect(resolveLayout({})).toEqual({
-			music: MUSIC_PRESETS.default,
-			video: VIDEO_PRESETS.default,
+	it("gives a config with no choice at all the default arrangement", () => {
+		expect(resolveLayout({})).toEqual({ music: DEFAULT_MUSIC_LAYOUT, video: DEFAULT_VIDEO_LAYOUT })
+	})
+
+	it("reads a choice that names the default", () => {
+		const layout = resolveLayout({ music: { kind: "default" }, video: { kind: "default" } })
+		expect(layout.music).toEqual(DEFAULT_MUSIC_LAYOUT)
+		expect(layout.video).toEqual(DEFAULT_VIDEO_LAYOUT)
+	})
+
+	it("reads pieces the user arranged", () => {
+		const layout = resolveLayout({
+			music: {
+				kind: "custom",
+				layout: {
+					activityName: [valuePiece("album")],
+					details: [valuePiece("title")],
+					state: [valuePiece("artist")],
+				},
+			},
+			video: {
+				kind: "custom",
+				layout: { details: [valuePiece("title")], state: [valuePiece("year")] },
+			},
 		})
+		expect(renderLine(layout.music.activityName, FULL_TRACK)).toBe("A Night at the Opera")
+		expect(renderLine(layout.video.state, FILM)).toBe("1999")
 	})
 
 	it("keeps the two choices independent", () => {
-		const layout = resolveLayout({ music: "album-focused", video: "title-only" })
-		expect(layout.music).toBe(MUSIC_PRESETS["album-focused"])
-		expect(layout.video).toBe(VIDEO_PRESETS["title-only"])
+		const layout = resolveLayout({
+			music: {
+				kind: "custom",
+				layout: { activityName: [valuePiece("album")], details: [], state: [] },
+			},
+			video: { kind: "default" },
+		})
+		expect(renderLine(layout.music.activityName, FULL_TRACK)).toBe("A Night at the Opera")
+		expect(layout.video).toEqual(DEFAULT_VIDEO_LAYOUT)
 	})
 
-	it("falls back to the default for a preset name it does not know", () => {
-		const layout = resolveLayout({ music: "nope" as MusicPreset, video: "nope" as VideoPreset })
-		expect(layout.music).toBe(MUSIC_PRESETS.default)
-		expect(layout.video).toBe(VIDEO_PRESETS.default)
+	it("falls back to the default for anything it does not recognize", () => {
+		// A config is a file someone can open and mistype, and an unreadable layout must not
+		// be the reason the app starts with no presence at all.
+		for (const junk of ["album-focused", "", 7, null, true, { kind: "nope" }, []]) {
+			const layout = resolveLayout({ music: junk as never, video: junk as never })
+			expect(layout.music).toEqual(DEFAULT_MUSIC_LAYOUT)
+			expect(layout.video).toEqual(DEFAULT_VIDEO_LAYOUT)
+		}
+	})
+
+	it("drops junk a hand edited config put among the pieces", () => {
+		const layout = resolveLayout({
+			music: {
+				kind: "custom",
+				layout: {
+					activityName: [
+						valuePiece("title"),
+						{ kind: "value", name: "" },
+						7,
+						null,
+						{ kind: "nope" },
+					],
+					details: "nope",
+					state: null,
+				},
+			} as never,
+			video: { kind: "custom", layout: {} } as never,
+		})
+		expect(layout.music.activityName).toEqual([valuePiece("title")])
+		expect(layout.music.details).toEqual([])
+		expect(layout.music.state).toEqual([])
+		expect(layout.video.details).toEqual([])
+	})
+})
+
+describe("lines and layouts", () => {
+	it("round trips a music layout through its ordered lines", () => {
+		expect(fromMusicLines(toMusicLines(DEFAULT_MUSIC_LAYOUT))).toEqual(DEFAULT_MUSIC_LAYOUT)
+	})
+
+	it("round trips a video layout through its ordered lines", () => {
+		expect(fromVideoLines(toVideoLines(DEFAULT_VIDEO_LAYOUT))).toEqual(DEFAULT_VIDEO_LAYOUT)
+	})
+
+	it("fills a missing line with nothing rather than reading past the end", () => {
+		expect(fromMusicLines([[valuePiece("title")]])).toEqual({
+			activityName: [valuePiece("title")],
+			details: [],
+			state: [],
+		})
+	})
+
+	it("compares lines by their pieces in order", () => {
+		expect(
+			sameLines([[valuePiece("a"), textPiece("b")]], [[valuePiece("a"), textPiece("b")]]),
+		).toBe(true)
+		expect(
+			sameLines([[valuePiece("a"), textPiece("b")]], [[textPiece("b"), valuePiece("a")]]),
+		).toBe(false)
+		expect(sameLines([[valuePiece("a")]], [[valuePiece("a")], []])).toBe(false)
+	})
+})
+
+describe("choosing what to store", () => {
+	it("stores a name while the pieces are still the shipped default", () => {
+		expect(musicChoiceFor(DEFAULT_MUSIC_LAYOUT)).toEqual({ kind: "default" })
+		expect(videoChoiceFor(DEFAULT_VIDEO_LAYOUT)).toEqual({ kind: "default" })
+	})
+
+	it("stores the pieces themselves once one has been moved", () => {
+		const edited = { ...DEFAULT_MUSIC_LAYOUT, details: [valuePiece("album")] }
+		expect(musicChoiceFor(edited)).toEqual({ kind: "custom", layout: edited })
+	})
+
+	it("stores an arrangement of its own as pieces", () => {
+		const own = { activityName: [valuePiece("album")], details: [], state: [] }
+		expect(musicChoiceFor(own)).toEqual({ kind: "custom", layout: own })
 	})
 })

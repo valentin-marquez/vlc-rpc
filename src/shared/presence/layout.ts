@@ -1,19 +1,23 @@
 /**
  * How a media file is laid out on a Discord profile. The presence loop renders these
- * lines and the Layout screen previews them, so both read the templates from here and
- * a preview cannot promise something the profile will not show.
+ * lines and the Layout screen arranges them, so both read the pieces from here and a
+ * preview cannot promise something the profile will not show.
  */
 
 export type TemplateVariables = Record<string, string | number | undefined>
 
 /**
- * Candidates in priority order. The first one whose variables all carry a value wins,
- * which is how one preset covers a series episode and a film with no episode at all.
+ * A piece of a line. A value piece draws what the file reports, a text piece draws the
+ * words the user typed. Both are placed by dragging, so a line can never name a value
+ * that does not exist.
  */
-export type LayoutLine = readonly string[]
+export type LayoutPiece = { kind: "value"; name: string } | { kind: "text"; text: string }
+
+/** The pieces of one line, in the order Discord draws them. */
+export type LayoutLine = readonly LayoutPiece[]
 
 export interface MusicLayout {
-	/** What follows "Listening to" on the profile. */
+	/** What Discord draws in bold. Left empty, it names the activity after the app. */
 	activityName: LayoutLine
 	details: LayoutLine
 	state: LayoutLine
@@ -29,68 +33,161 @@ export interface ResolvedLayout {
 	video: VideoLayout
 }
 
-export type MusicPreset = "default" | "album-focused" | "artist-spotlight"
+export const valuePiece = (name: string): LayoutPiece => ({ kind: "value", name })
+export const textPiece = (words: string): LayoutPiece => ({ kind: "text", text: words })
 
-export type VideoPreset = "default" | "one-line" | "title-only"
-
-export const MUSIC_PRESETS: Record<MusicPreset, MusicLayout> = {
-	default: {
-		activityName: ["{artist}", "VLC"],
-		details: ["{title}"],
-		state: ["by {artist}"],
-	},
-	"album-focused": {
-		activityName: ["{album}", "{artist}", "VLC"],
-		details: ["{album}"],
-		state: ["{title} by {artist}", "{title}"],
-	},
-	"artist-spotlight": {
-		activityName: ["{title}", "VLC"],
-		details: ["{artist}"],
-		state: ["{title}"],
-	},
-}
-
-export const VIDEO_PRESETS: Record<VideoPreset, VideoLayout> = {
-	default: {
-		details: ["{title}"],
-		state: ["{episodeInfo}", "{year}"],
-	},
-	"one-line": {
-		details: ["{title} {episodeInfo}", "{title} ({year})", "{title}"],
-		state: [],
-	},
-	"title-only": {
-		details: ["{title}"],
-		state: [],
-	},
-}
-
-export const DEFAULT_MUSIC_PRESET: MusicPreset = "default"
-export const DEFAULT_VIDEO_PRESET: VideoPreset = "default"
-
-export interface LayoutChoice {
-	music?: MusicPreset | undefined
-	video?: VideoPreset | undefined
+/**
+ * What the builder opens on, and what almost everyone will keep.
+ *
+ * Three lines, three different values: the song in bold, then who plays it, then where it
+ * came from. The arrangements it replaces each drew one of their values twice, which is
+ * invisible in a preview that hides the first line and obvious in one that does not.
+ */
+export const DEFAULT_MUSIC_LAYOUT: MusicLayout = {
+	activityName: [valuePiece("title")],
+	details: [textPiece("by"), valuePiece("artist")],
+	state: [textPiece("on"), valuePiece("album")],
 }
 
 /**
- * The two choices are the whole of the stored state. Composing the layout on every read
- * is what keeps a preset and the lines it stands for from ever disagreeing.
+ * The title, then whichever of the episode and the year the file turns out to carry. One
+ * arrangement that reads for a series and for a film, which is the whole point of a piece
+ * that takes itself off the line when it has nothing to draw.
  */
+export const DEFAULT_VIDEO_LAYOUT: VideoLayout = {
+	details: [valuePiece("title")],
+	state: [valuePiece("episodeInfo"), valuePiece("year")],
+}
+
+export type MusicLayoutChoice = { kind: "default" } | { kind: "custom"; layout: MusicLayout }
+
+export type VideoLayoutChoice = { kind: "default" } | { kind: "custom"; layout: VideoLayout }
+
+/** What the config key holds. */
+export type StoredMusicLayout = MusicLayoutChoice
+export type StoredVideoLayout = VideoLayoutChoice
+
+export interface LayoutChoice {
+	music?: StoredMusicLayout | undefined
+	video?: StoredVideoLayout | undefined
+}
+
+/**
+ * A name rather than a copy of the default pieces, so a release that improves the
+ * arrangement everyone starts on reaches everyone who never rearranged it.
+ */
+export const DEFAULT_MUSIC_CHOICE: MusicLayoutChoice = { kind: "default" }
+export const DEFAULT_VIDEO_CHOICE: VideoLayoutChoice = { kind: "default" }
+
 export function resolveLayout(choice: LayoutChoice): ResolvedLayout {
 	return {
-		music: pick(MUSIC_PRESETS, choice.music, DEFAULT_MUSIC_PRESET),
-		video: pick(VIDEO_PRESETS, choice.video, DEFAULT_VIDEO_PRESET),
+		music: resolveMusicLayout(choice.music),
+		video: resolveVideoLayout(choice.video),
 	}
 }
 
-// A hand edited config can name a preset that no release ever shipped.
-function pick<K extends string, V>(presets: Record<K, V>, name: K | undefined, fallback: K): V {
-	if (name !== undefined && Object.hasOwn(presets, name)) {
-		return presets[name]
+/**
+ * Anything that is not a shape this release writes resolves to the default arrangement.
+ * A config is a file on disk that a person can open and mistype, and a layout it cannot
+ * read is not a reason to start the app without a presence.
+ */
+export function resolveMusicLayout(stored: StoredMusicLayout | undefined): MusicLayout {
+	const held = asRecord(stored)
+	return held.kind === "custom" ? musicLayoutFrom(held.layout) : DEFAULT_MUSIC_LAYOUT
+}
+
+export function resolveVideoLayout(stored: StoredVideoLayout | undefined): VideoLayout {
+	const held = asRecord(stored)
+	return held.kind === "custom" ? videoLayoutFrom(held.layout) : DEFAULT_VIDEO_LAYOUT
+}
+
+/**
+ * Pieces the user arranged are the whole of what is stored, so they are what a hand edit
+ * can fill with anything.
+ */
+function musicLayoutFrom(candidate: unknown): MusicLayout {
+	const record = asRecord(candidate)
+	return {
+		activityName: cleanLine(record.activityName),
+		details: cleanLine(record.details),
+		state: cleanLine(record.state),
 	}
-	return presets[fallback]
+}
+
+function videoLayoutFrom(candidate: unknown): VideoLayout {
+	const record = asRecord(candidate)
+	return { details: cleanLine(record.details), state: cleanLine(record.state) }
+}
+
+function asRecord(candidate: unknown): Record<string, unknown> {
+	return typeof candidate === "object" && candidate !== null
+		? (candidate as Record<string, unknown>)
+		: {}
+}
+
+function cleanLine(candidate: unknown): LayoutLine {
+	if (!Array.isArray(candidate)) return []
+	return candidate.filter(isPiece)
+}
+
+function isPiece(candidate: unknown): candidate is LayoutPiece {
+	const record = asRecord(candidate)
+	if (record.kind === "value") return typeof record.name === "string" && record.name.trim() !== ""
+	if (record.kind === "text") return typeof record.text === "string" && record.text.trim() !== ""
+	return false
+}
+
+/**
+ * The lines of a layout in the order Discord draws them, which is the order the builder
+ * arranges them in. Going through a plain list is what lets one canvas serve both kinds.
+ */
+export function toMusicLines(layout: MusicLayout): readonly LayoutLine[] {
+	return [layout.activityName, layout.details, layout.state]
+}
+
+export function fromMusicLines(lines: readonly LayoutLine[]): MusicLayout {
+	return { activityName: lines[0] ?? [], details: lines[1] ?? [], state: lines[2] ?? [] }
+}
+
+export function toVideoLines(layout: VideoLayout): readonly LayoutLine[] {
+	return [layout.details, layout.state]
+}
+
+export function fromVideoLines(lines: readonly LayoutLine[]): VideoLayout {
+	return { details: lines[0] ?? [], state: lines[1] ?? [] }
+}
+
+export function samePiece(a: LayoutPiece, b: LayoutPiece): boolean {
+	if (a.kind === "value") return b.kind === "value" && a.name === b.name
+	return b.kind === "text" && a.text === b.text
+}
+
+export function sameLines(a: readonly LayoutLine[], b: readonly LayoutLine[]): boolean {
+	if (a.length !== b.length) return false
+	return a.every((line, index) => {
+		const other = b[index]
+		if (other === undefined || other.length !== line.length) return false
+		return line.every((piece, position) => {
+			const counterpart = other[position]
+			return counterpart !== undefined && samePiece(piece, counterpart)
+		})
+	})
+}
+
+/**
+ * Storing a name rather than a copy of the default pieces is what lets a later release
+ * improve them. The moment a piece is moved the copy is the truth.
+ */
+export function musicChoiceFor(layout: MusicLayout): MusicLayoutChoice {
+	if (sameLines(toMusicLines(DEFAULT_MUSIC_LAYOUT), toMusicLines(layout)))
+		return { kind: "default" }
+	return { kind: "custom", layout }
+}
+
+export function videoChoiceFor(layout: VideoLayout): VideoLayoutChoice {
+	if (sameLines(toVideoLines(DEFAULT_VIDEO_LAYOUT), toVideoLines(layout)))
+		return { kind: "default" }
+	return { kind: "custom", layout }
 }
 
 export interface VideoFacts {
@@ -117,55 +214,90 @@ function episodeMarker(season: number | undefined, episode: number | undefined):
 	return ""
 }
 
-const PLACEHOLDER = /\{([^{}]+)\}/g
 const WHITESPACE_RUN = /\s+/g
 
-/**
- * A template is all or nothing: one missing value drops the whole candidate. Filling the
- * gap instead is what used to write "Unknown" onto a profile, and dropping only the
- * placeholder would leave its literal text behind, as in "by " with no artist.
- */
-export function applyTemplate(template: string, variables: TemplateVariables): string {
-	let complete = true
+export function drawnValue(name: string, variables: TemplateVariables): string {
+	const held = variables[name]
+	return held === undefined ? "" : String(held).trim()
+}
 
-	const rendered = template.replace(PLACEHOLDER, (_placeholder, name: string) => {
-		const value = variables[name]
-		const text = value === undefined ? "" : String(value).trim()
-		if (text === "") {
-			complete = false
+/**
+ * A piece with nothing to draw takes itself off the line, and takes the words next to it
+ * with it. Leaving the words behind is what used to write "by " onto a profile with no
+ * artist, and filling the gap instead is what used to write "Unknown".
+ */
+export function renderLine(line: LayoutLine, variables: TemplateVariables): string {
+	const drawn = line.map((piece) =>
+		piece.kind === "value" ? drawnValue(piece.name, variables) : null,
+	)
+
+	const parts = line.flatMap((piece, index) => {
+		if (piece.kind === "value") {
+			const held = drawn[index] ?? ""
+			return held === "" ? [] : [held]
 		}
-		return text
+
+		const words = piece.text.trim()
+		return words === "" || !carried(drawn, index) ? [] : [words]
 	})
 
-	if (!complete) return ""
-
-	return rendered.replace(WHITESPACE_RUN, " ").trim()
+	return join(parts).replace(WHITESPACE_RUN, " ").trim()
 }
 
-export function renderLine(line: LayoutLine, variables: TemplateVariables): string {
-	for (const candidate of line) {
-		const rendered = applyTemplate(candidate, variables)
-		if (rendered !== "") return rendered
+const OPENS = /[([{]$/
+const CLOSES = /^[)\]},.;:!?]/
+
+/**
+ * Pieces sit a space apart, except around the punctuation someone typed to wrap a value.
+ * A bracket the user put beside the year is meant to touch it.
+ */
+function join(parts: readonly string[]): string {
+	return parts.reduce((line, part) => {
+		if (line === "") return part
+		if (OPENS.test(line) || CLOSES.test(part)) return line + part
+		return `${line} ${part}`
+	}, "")
+}
+
+/**
+ * Words belong to the value they were written for: the one after them, or the one before
+ * when nothing follows. Words with no value anywhere on the line stand on their own.
+ */
+function carried(drawn: readonly (string | null)[], index: number): boolean {
+	for (let after = index + 1; after < drawn.length; after += 1) {
+		const held = drawn[after]
+		if (held !== null && held !== undefined) return held !== ""
 	}
-	return ""
+	for (let before = index - 1; before >= 0; before -= 1) {
+		const held = drawn[before]
+		if (held !== null && held !== undefined) return held !== ""
+	}
+	return true
 }
 
-/**
- * The variables a music template may use, for the screen that lists them.
- */
-export const MUSIC_TEMPLATE_VARS = {
-	title: "Song title",
-	artist: "Artist name",
-	album: "Album name",
+export interface PieceInfo {
+	name: string
+	/** What the piece is called on screen. Never a field name. */
+	label: string
+	/** Reads inside a sentence: "there is no <noun>". */
+	noun: string
 }
 
-/**
- * The variables a video template may use, for the screen that lists them.
- */
-export const VIDEO_TEMPLATE_VARS = {
-	title: "Show or film title",
-	episodeInfo: "Episode marker (S2E5, Season 2 or Episode 5), empty for a film",
-	year: "Release year",
-	season: "Season number",
-	episode: "Episode number",
+export const MUSIC_PIECES: readonly PieceInfo[] = [
+	{ name: "title", label: "Song title", noun: "song title" },
+	{ name: "artist", label: "Artist", noun: "artist" },
+	{ name: "album", label: "Album", noun: "album" },
+]
+
+export const VIDEO_PIECES: readonly PieceInfo[] = [
+	{ name: "title", label: "Title", noun: "title" },
+	{ name: "episodeInfo", label: "Episode", noun: "episode, which a film has none of" },
+	{ name: "year", label: "Year", noun: "release year" },
+	{ name: "season", label: "Season number", noun: "season number" },
+	{ name: "episode", label: "Episode number", noun: "episode number" },
+]
+
+export function pieceLabel(piece: LayoutPiece, pieces: readonly PieceInfo[]): string {
+	if (piece.kind === "text") return piece.text
+	return pieces.find((info) => info.name === piece.name)?.label ?? piece.name
 }
