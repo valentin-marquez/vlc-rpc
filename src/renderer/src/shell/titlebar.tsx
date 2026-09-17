@@ -1,7 +1,7 @@
-import { Cross1Icon, MinusIcon, SizeIcon } from "@radix-ui/react-icons"
 import { cn } from "@renderer/lib/utils"
 import { Navigation } from "@renderer/shell/navigation"
 import { StatusChips } from "@renderer/shell/status-chip"
+import { CornersOut, Minus, X } from "phosphor-react"
 import { useEffect, useState } from "react"
 
 const windowControl = cn(
@@ -71,7 +71,7 @@ export function Titlebar({ isMac, scrolled }: TitlebarProps): JSX.Element {
 							className={cn(windowControl, "hover:bg-float hover:text-strong")}
 							aria-label="Minimize"
 						>
-							<MinusIcon className="size-4" />
+							<Minus className="size-4" />
 						</button>
 						<button
 							type="button"
@@ -82,7 +82,7 @@ export function Titlebar({ isMac, scrolled }: TitlebarProps): JSX.Element {
 							{isMaximized ? (
 								<span className="size-3 border border-current" />
 							) : (
-								<SizeIcon className="size-4" />
+								<CornersOut className="size-4" />
 							)}
 						</button>
 						<button
@@ -91,7 +91,7 @@ export function Titlebar({ isMac, scrolled }: TitlebarProps): JSX.Element {
 							className={cn(windowControl, "hover:bg-danger hover:text-white")}
 							aria-label="Close"
 						>
-							<Cross1Icon className="size-4" />
+							<X className="size-4" />
 						</button>
 					</div>
 				)}

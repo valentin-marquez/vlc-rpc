@@ -1,12 +1,6 @@
-import {
-	CheckCircledIcon,
-	Cross1Icon,
-	DownloadIcon,
-	ExclamationTriangleIcon,
-	ReloadIcon,
-} from "@radix-ui/react-icons"
 import { Button } from "@renderer/components/ui/button"
 import { cn } from "@renderer/lib/utils"
+import { ArrowClockwise, CheckCircle, DownloadSimple, Warning, X } from "phosphor-react"
 import { useEffect, useState } from "react"
 import { useUpdateListener } from "../hooks/use-update-listener"
 
@@ -74,17 +68,15 @@ export function UpdateNotification(): JSX.Element | null {
 		>
 			<div className="flex items-center justify-between gap-2 border-b border-divider p-3">
 				<div className="flex items-center gap-2">
-					{isError && (
-						<ExclamationTriangleIcon className="size-5 text-danger-text" aria-hidden="true" />
-					)}
+					{isError && <Warning className="size-5 text-danger-text" aria-hidden="true" />}
 					{status === "update-available" && (
-						<ReloadIcon className="size-5 text-brand-text" aria-hidden="true" />
+						<ArrowClockwise className="size-5 text-brand-text" aria-hidden="true" />
 					)}
 					{status === "download-progress" && (
-						<DownloadIcon className="size-5 text-brand-text" aria-hidden="true" />
+						<DownloadSimple className="size-5 text-brand-text" aria-hidden="true" />
 					)}
 					{status === "update-downloaded" && (
-						<CheckCircledIcon className="size-5 text-ok-text" aria-hidden="true" />
+						<CheckCircle className="size-5 text-ok-text" aria-hidden="true" />
 					)}
 
 					<h3 className="type-label text-strong">
@@ -101,7 +93,7 @@ export function UpdateNotification(): JSX.Element | null {
 					onClick={closeNotification}
 					aria-label="Close notification"
 				>
-					<Cross1Icon aria-hidden="true" />
+					<X aria-hidden="true" />
 				</Button>
 			</div>
 

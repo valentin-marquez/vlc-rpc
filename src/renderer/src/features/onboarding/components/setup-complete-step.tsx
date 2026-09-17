@@ -1,5 +1,5 @@
-import { CheckCircledIcon } from "@radix-ui/react-icons"
 import { Button } from "@renderer/components/ui/button"
+import { CheckCircle } from "phosphor-react"
 
 interface SetupCompleteStepProps {
 	onBack: () => void
@@ -17,7 +17,7 @@ export function SetupCompleteStep({
 			<h2 className="type-hero text-strong">VLC is configured</h2>
 
 			<div className="flex gap-3 rounded-md bg-ok/14 p-4">
-				<CheckCircledIcon aria-hidden="true" className="mt-[2px] size-4 shrink-0 text-ok-text" />
+				<CheckCircle aria-hidden="true" className="mt-[2px] size-4 shrink-0 text-ok-text" />
 				<div className="space-y-1">
 					<p className="type-label text-ok-text">The HTTP interface is on</p>
 					<p className="type-body text-body">

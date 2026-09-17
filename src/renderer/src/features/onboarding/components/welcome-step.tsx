@@ -1,5 +1,5 @@
-import { InfoCircledIcon } from "@radix-ui/react-icons"
 import { Button } from "@renderer/components/ui/button"
+import { Info } from "phosphor-react"
 
 interface WelcomeStepProps {
 	onNext: () => void
@@ -14,7 +14,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps): JSX.Element {
 			</p>
 
 			<div className="flex gap-3 rounded-md border border-divider bg-inset p-4">
-				<InfoCircledIcon aria-hidden="true" className="mt-[2px] size-4 shrink-0 text-brand" />
+				<Info aria-hidden="true" className="mt-[2px] size-4 shrink-0 text-brand" />
 				<p className="type-body text-body">
 					The app reads VLC's HTTP interface to see what is playing. The next step turns that
 					interface on.

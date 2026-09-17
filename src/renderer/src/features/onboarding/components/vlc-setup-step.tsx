@@ -1,7 +1,7 @@
-import { CrossCircledIcon } from "@radix-ui/react-icons"
 import { Button } from "@renderer/components/ui/button"
 import { Input } from "@renderer/components/ui/input"
 import type { VlcConfig } from "@shared/config/app-config"
+import { XCircle } from "phosphor-react"
 
 interface VlcSetupStepProps {
 	vlcConfig: VlcConfig
@@ -82,7 +82,7 @@ export function VlcSetupStep({
 
 			{errorMessage && (
 				<div className="flex gap-2 rounded-md bg-danger-wash p-3 text-danger-text" role="alert">
-					<CrossCircledIcon aria-hidden="true" className="mt-[2px] size-4 shrink-0" />
+					<XCircle aria-hidden="true" className="mt-[2px] size-4 shrink-0" />
 					<p className="type-body">{errorMessage}</p>
 				</div>
 			)}
