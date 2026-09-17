@@ -1,11 +1,5 @@
-------
-
-"vlc-rpc": patch\
-
----vlc-rpc\: patch
-
+---
+"vlc-rpc": patch
 ---
 
-Fix release workflow to properly build binaries without auto-publishing
-
-Fix release workflow to properly build binaries without auto-publishing
+El workflow de release vuelve a construir los binarios sin publicarlos solo.
