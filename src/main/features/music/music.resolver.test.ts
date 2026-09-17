@@ -1062,6 +1062,32 @@ describe("Resolver.overrideTargetFor", () => {
 		})
 	})
 
+	it("reports a correction that supplied the tags as active, like one that picked a cover", async () => {
+		// The shape a file with no tags is corrected under. Reported as absent, the
+		// panel goes on saying "not set" over a correction the user just saved.
+		const { resolver } = targeting(
+			{
+				"file:C:\\Music\\Ripped\\track01.mp3": {
+					kind: "untagged-audio",
+					title: "Probablemente",
+					artist: "Christian Nodal",
+					sourceFilename: "track01.mp3",
+					savedAt: 0,
+				},
+			},
+			["audio:|probablemente"],
+			RIP,
+		)
+
+		const anonymous = status({ title: "Probablemente", album: "" })
+
+		expect(await resolver.overrideTargetFor(anonymous)).toEqual({
+			kind: "file",
+			key: "file:C:\\Music\\Ripped\\track01.mp3",
+			active: true,
+		})
+	})
+
 	it("reports no key when the tags name nothing and neither does a file", async () => {
 		// A stream has no bytes on disk, so there is no third identity to fall to
 		// and no honest key left to offer.

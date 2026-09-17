@@ -5,10 +5,11 @@ import { vlcStatusStore } from "@renderer/features/vlc"
 import React from "react"
 
 import { useProxiedArtwork } from "../hooks/use-proxied-artwork"
-import { refreshMediaInfo } from "../media.actions"
-import { contentTypeLabel, formatDuration, formatEpisode } from "../media.format"
+import { applyCorrection } from "../media.actions"
+import type { CorrectionRow } from "../media.format"
+import { contentTypeLabel, correctionSummary, formatDuration, formatEpisode } from "../media.format"
 import type { MediaState } from "../media.store"
-import { mediaStore } from "../media.store"
+import { correctionStore, mediaStore } from "../media.store"
 import { OverrideForm } from "./override-form"
 
 interface SourceRow {
@@ -18,6 +19,13 @@ interface SourceRow {
 }
 
 /**
+ * An open correction form, pinned to the file it was opened for. It lasts as
+ * long as that file plays: what is typed into it was typed about one file, and
+ * neither the next track nor the same track played again inherits it.
+ */
+type EditSession = { kind: "closed" } | { kind: "open"; key: string; file: string | null }
+
+/**
  * What VLC reports, beside what Discord shows. This app's whole job is the
  * mapping between the two, so the source sits next to the result and a wrong
  * title or a wrong cover is one glance away.
@@ -25,11 +33,27 @@ interface SourceRow {
 export function SourcePanel(): JSX.Element {
 	const vlcStatus = useStore(vlcStatusStore)
 	const media = useStore(mediaStore)
+	const correction = useStore(correctionStore)
 	const artworkUrl = useProxiedArtwork()
-	// Held as the key rather than a flag, so a file change closes the form on its own.
-	const [editingKey, setEditingKey] = React.useState<string | null>(null)
+	const [edit, setEdit] = React.useState<EditSession>({ kind: "closed" })
 	const formId = React.useId()
-	const editing = editingKey !== null && editingKey === media.overrideKey
+	// Read once, so the key the form is opened on is the key the save is filed
+	// under even though a poll can land between the two.
+	const overrideKey = media.overrideKey
+	// The file the correction would be about, named as the form itself records it.
+	const playingFile = media.fileTitle ?? media.title
+	// Both, and not the key alone. An audio correction is filed per record, so the
+	// next track of the same album derives the same key: on the key alone a form
+	// left open reopened over the next song still carrying what was typed for the
+	// one before, which is a correction saved onto the wrong file.
+	const editing = edit.kind === "open" && edit.key === overrideKey && edit.file === playingFile
+	const applying = correction.kind === "applying" && correction.key === overrideKey
+
+	React.useEffect(() => {
+		if (edit.kind === "open" && edit.file !== playingFile) {
+			setEdit({ kind: "closed" })
+		}
+	}, [edit, playingFile])
 
 	if (vlcStatus !== "connected" || !media.title) {
 		return (
@@ -56,18 +80,31 @@ export function SourcePanel(): JSX.Element {
 					/>
 				))}
 
-				{media.overrideKey && (
+				{overrideKey && (
 					<Row
 						kind="value"
 						label="Correction"
-						value={correctionSummary(media)}
+						// A live region rather than plain text: the row is where the answer
+						// to "did that save" lives, and it changes without being touched.
+						value={
+							<output className="block truncate">
+								{correctionSummary(correctionRow(media), correction)}
+							</output>
+						}
 						trailing={
 							<Button
 								size="sm"
 								variant="secondary"
 								aria-expanded={editing}
 								aria-controls={formId}
-								onClick={() => setEditingKey(editing ? null : media.overrideKey)}
+								isLoading={applying}
+								onClick={() =>
+									setEdit(
+										editing
+											? { kind: "closed" }
+											: { kind: "open", key: overrideKey, file: playingFile },
+									)
+								}
 							>
 								{media.overrideActive ? "Edit correction" : "Correct this file"}
 							</Button>
@@ -76,7 +113,7 @@ export function SourcePanel(): JSX.Element {
 				)}
 			</Panel>
 
-			{!media.overrideKey && (
+			{!overrideKey && (
 				<p className="type-caption text-pretty text-muted-foreground">
 					{isAudio
 						? "This is not a file on disk, so there is nothing to file a correction against."
@@ -84,10 +121,10 @@ export function SourcePanel(): JSX.Element {
 				</p>
 			)}
 
-			{editing && media.overrideKey && (
+			{editing && overrideKey && (
 				<div id={formId}>
 					<OverrideForm
-						overrideKey={media.overrideKey}
+						overrideKey={overrideKey}
 						sourceFilename={media.fileTitle ?? media.title}
 						isAudio={isAudio}
 						binding={media.overrideBinding ?? "metadata"}
@@ -97,13 +134,11 @@ export function SourcePanel(): JSX.Element {
 						currentCoverUrl={artworkUrl}
 						coverSourceUrl={media.contentImageSourceUrl}
 						overrideActive={media.overrideActive}
-						onDone={() => {
-							setEditingKey(null)
-							// The save evicted the caches, so the panel reflects the correction
-							// now rather than at the next poll.
-							void refreshMediaInfo()
+						onDone={(outcome) => {
+							setEdit({ kind: "closed" })
+							void applyCorrection(overrideKey, outcome)
 						}}
-						onCancel={() => setEditingKey(null)}
+						onCancel={() => setEdit({ kind: "closed" })}
 					/>
 				</div>
 			)}
@@ -111,15 +146,12 @@ export function SourcePanel(): JSX.Element {
 	)
 }
 
-/**
- * A file binding is worth saying out loud: it behaves differently from the
- * usual one, and Settings is where the difference is explained in full.
- */
-function correctionSummary(media: MediaState): string {
-	if (!media.overrideActive) {
-		return media.overrideBinding === "file" ? "Not set, held against this file" : "Not set"
+function correctionRow(media: MediaState): CorrectionRow {
+	return {
+		key: media.overrideKey,
+		active: media.overrideActive,
+		binding: media.overrideBinding,
 	}
-	return media.overrideBinding === "file" ? "Saved against this file" : "Saved for this file"
 }
 
 function deducedKind(media: MediaState): "movie" | "tv" | null {

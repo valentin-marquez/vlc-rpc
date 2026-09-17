@@ -75,6 +75,22 @@ export const mediaStore = atom<MediaState>(INITIAL_STATE)
  */
 export const lastPresenceStore = atom<LastSentPresence>({ kind: "unknown" })
 
+/**
+ * A correction that is written but not yet reflected. Saving one evicts what
+ * the app had worked out and sends it back to the catalogs with the corrected
+ * words, so for a file that carried no tags the wait is a real lookup and not a
+ * courtesy: without this the screen sits on the old answer and says nothing.
+ *
+ * `outcome` is what the store now holds, so the panel can say so before the
+ * lookup that follows has anything to add.
+ */
+export type CorrectionActivity =
+	| { kind: "settled" }
+	| { kind: "applying"; key: string; outcome: "saved" | "removed" }
+
+export const correctionStore = atom<CorrectionActivity>({ kind: "settled" })
+
 export function resetMediaStore(): void {
 	mediaStore.set(INITIAL_STATE)
+	correctionStore.set({ kind: "settled" })
 }

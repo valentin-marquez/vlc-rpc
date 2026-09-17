@@ -1,4 +1,5 @@
 import type { ContentType } from "@shared/media/media.types"
+import type { CorrectionActivity } from "./media.store"
 
 const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
 	tv_show: "TV show",
@@ -29,6 +30,37 @@ export function contentTypeLabel(
 		return "Video"
 	}
 	return null
+}
+
+/** Where a correction for what is playing is filed, and whether one is there. */
+export interface CorrectionRow {
+	key: string | null
+	active: boolean
+	binding: "metadata" | "file" | null
+}
+
+/**
+ * The correction row, which has to answer two questions at once: what is on
+ * file, and whether the app is still busy acting on it. A file binding is worth
+ * saying out loud, it behaves differently from the usual one and Settings is
+ * where the difference is explained in full.
+ *
+ * While a correction is being applied the row reports the work rather than the
+ * result. Saving one throws away what the app had worked out and asks again, and
+ * for audio that carried no tags that is a catalog search for the cover: seconds
+ * in which the old answer is still on screen and nothing else would say why.
+ */
+export function correctionSummary(row: CorrectionRow, activity: CorrectionActivity): string {
+	if (activity.kind === "applying" && activity.key === row.key) {
+		return activity.outcome === "saved"
+			? "Looking the file up again"
+			: "Going back to what the app worked out"
+	}
+
+	if (!row.active) {
+		return row.binding === "file" ? "Not set, held against this file" : "Not set"
+	}
+	return row.binding === "file" ? "Saved against this file" : "Saved for this file"
 }
 
 export function formatDuration(seconds: number | null): string | null {

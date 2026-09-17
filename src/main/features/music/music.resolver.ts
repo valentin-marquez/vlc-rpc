@@ -327,7 +327,10 @@ export class Resolver {
 			return null
 		}
 
-		return { ...target, active: this.overrides.get(target.key)?.kind === "audio" }
+		// Either audio shape counts. Testing for `audio` alone left a correction on
+		// a file with no tags reported as absent, so the screen went on offering to
+		// file one the user had just filed.
+		return { ...target, active: audioCorrection(this.overrides.get(target.key)) !== null }
 	}
 
 	/**

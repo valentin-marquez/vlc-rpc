@@ -29,8 +29,11 @@ export interface OverrideFormProps {
 	/** The address that cover came from, which is what the field can be typed with. */
 	coverSourceUrl: string | null
 	overrideActive: boolean
-	/** Saved or removed: the caller closes the form and refreshes the panel. */
-	onDone: () => void
+	/**
+	 * What the store now holds. The caller closes the form and carries it through
+	 * to the panel, which is where the wait that follows is reported.
+	 */
+	onDone: (outcome: "saved" | "removed") => void
 	onCancel: () => void
 }
 
@@ -89,7 +92,7 @@ export function OverrideForm({
 		try {
 			const result = await window.api.overrides.save(overrideKey, buildDraft())
 			if (result.saved) {
-				onDone()
+				onDone("saved")
 				return
 			}
 			setError(failureMessage(result))
@@ -110,7 +113,7 @@ export function OverrideForm({
 
 		try {
 			await window.api.overrides.remove(overrideKey)
-			onDone()
+			onDone("removed")
 		} catch (cause) {
 			logger.error(`Failed to remove the override: ${cause}`)
 			setError({

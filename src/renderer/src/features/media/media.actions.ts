@@ -1,74 +1,25 @@
 import { vlcStatusStore } from "@renderer/features/vlc/vlc.store"
 import { logger } from "@renderer/lib/utils"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
-import { lastPresenceStore, mediaStore, resetMediaStore } from "./media.store"
+import { type InfoStamp, mergeVlcStatus, stampsAgree } from "./media.mapper"
+import { correctionStore, lastPresenceStore, mediaStore, resetMediaStore } from "./media.store"
+
+/**
+ * Bumped by every correction the user writes. A read that was asked for under
+ * an older count describes a file the app has since been told it got wrong.
+ */
+let corrections = 0
+
+function stampNow(): InfoStamp {
+	return { file: mediaStore.get().fileTitle, corrections }
+}
 
 /**
  * Update media store from VLC status response.
  * Called by VLC polling when a new status arrives.
  */
 export function updateFromVlcStatus(status: VlcStatus | null): void {
-	if (!status || !status.active || status.status === "stopped") {
-		mediaStore.set({
-			...mediaStore.get(),
-			mediaStatus: "stopped",
-			title: null,
-			artist: null,
-			album: null,
-			duration: null,
-			position: null,
-			artwork: null,
-			fileTitle: null,
-			mediaType: null,
-			contentType: null,
-			contentImageUrl: null,
-			contentImageSourceUrl: null,
-			season: null,
-			episode: null,
-			year: null,
-			overrideKey: null,
-			overrideActive: false,
-			overrideBinding: null,
-		})
-		return
-	}
-
-	const { media, playback } = status
-	const previous = mediaStore.get()
-	const fileTitle = media.title || null
-
-	// VLC's status arrives well before the enriched fields can be refetched, which
-	// takes a catalog lookup and an image proxy round trip. Carrying the previous
-	// file's fields across that gap would let "Edit correction" open a form keyed
-	// to the file that just finished, and write the correction onto it.
-	const stale =
-		previous.fileTitle !== fileTitle
-			? {
-					contentType: null,
-					contentImageUrl: null,
-					contentImageSourceUrl: null,
-					season: null,
-					episode: null,
-					year: null,
-					overrideKey: null,
-					overrideActive: false,
-					overrideBinding: null,
-				}
-			: {}
-
-	mediaStore.set({
-		...previous,
-		...stale,
-		mediaStatus: status.status === "playing" ? "playing" : "paused",
-		title: media.title || null,
-		artist: media.artist || null,
-		album: media.album || null,
-		duration: playback.duration || null,
-		position: playback.time || null,
-		artwork: media.artworkUrl || null,
-		fileTitle,
-		mediaType: status.mediaType || null,
-	})
+	mediaStore.set(mergeVlcStatus(mediaStore.get(), status))
 }
 
 /**
@@ -81,7 +32,12 @@ export async function refreshMediaInfo(): Promise<void> {
 			return
 		}
 
+		const asked = stampNow()
 		const mediaInfo = await window.api.media.getMediaInfo()
+
+		if (!stampsAgree(asked, stampNow())) {
+			return
+		}
 
 		if (!mediaInfo || !mediaInfo.active) {
 			mediaStore.set({
@@ -99,6 +55,12 @@ export async function refreshMediaInfo(): Promise<void> {
 			return
 		}
 
+		// Every field below falls back to what this same answer says the file is
+		// called, never to what the screen already held. A removed correction
+		// reports nothing in its place, and falling back to the screen would leave
+		// the words the user just deleted sitting there until the file changed.
+		const fileTitle = mediaInfo.media?.title || mediaStore.get().fileTitle
+
 		mediaStore.set({
 			...mediaStore.get(),
 			contentType: mediaInfo.content_type || null,
@@ -110,12 +72,11 @@ export async function refreshMediaInfo(): Promise<void> {
 				mediaInfo.content_metadata?.movie_name ||
 				mediaInfo.content_metadata?.show_name ||
 				mediaInfo.content_metadata?.anime_name ||
-				mediaStore.get().title,
+				fileTitle,
 			// A correction on a file with no tags arrives here, the same way a catalog
 			// title does above, so the screen shows what Discord is about to show.
-			artist:
-				mediaInfo.content_metadata?.artist || mediaInfo.media?.artist || mediaStore.get().artist,
-			fileTitle: mediaInfo.media?.title || mediaStore.get().fileTitle,
+			artist: mediaInfo.content_metadata?.artist || mediaInfo.media?.artist || null,
+			fileTitle,
 			mediaType: mediaInfo.mediaType || mediaStore.get().mediaType,
 			season: mediaInfo.content_metadata?.season || null,
 			episode: mediaInfo.content_metadata?.episode || null,
@@ -130,6 +91,38 @@ export async function refreshMediaInfo(): Promise<void> {
 		logger.info("Media information updated")
 	} catch (error) {
 		logger.error(`Error fetching media info: ${error}`)
+	}
+}
+
+/**
+ * Carry a correction the store has already accepted through to the screen.
+ *
+ * The write is done by the time this is called, so the panel says so at once
+ * rather than at whatever point the two second poll next comes round. What
+ * takes time is the answer the correction buys: the caches it shadows were
+ * evicted, and for a file that carried no tags the corrected words go back out
+ * to the catalogs to find the cover. That wait is the reason this reports
+ * itself instead of running quietly.
+ */
+export async function applyCorrection(key: string, outcome: "saved" | "removed"): Promise<void> {
+	corrections += 1
+
+	const applying = { kind: "applying", key, outcome } as const
+	correctionStore.set(applying)
+
+	const current = mediaStore.get()
+	if (current.overrideKey === key) {
+		mediaStore.set({ ...current, overrideActive: outcome === "saved" })
+	}
+
+	try {
+		await refreshMediaInfo()
+	} finally {
+		// Only the correction still being waited on settles: a second one saved
+		// over the top of this one owns the row from that moment.
+		if (correctionStore.get() === applying) {
+			correctionStore.set({ kind: "settled" })
+		}
 	}
 }
 
