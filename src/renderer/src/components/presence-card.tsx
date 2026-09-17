@@ -218,21 +218,43 @@ function Progress({ progress }: { progress: PresenceProgress }): JSX.Element {
 		durationSeconds > 0 ? Math.min(Math.max(elapsedSeconds / durationSeconds, 0), 1) : 0
 	const remaining = Math.max(durationSeconds - elapsedSeconds, 0)
 	const fillRef = React.useRef<HTMLDivElement>(null)
+	const animationRef = React.useRef<Animation | null>(null)
+	const endsAtRef = React.useRef<number | null>(null)
 
-	// The bar encodes elapsed time, so it runs to the end of the track at a linear rate and is
-	// retimed on each poll. Stepping it per poll would visibly disagree with the audio.
+	// The bar encodes elapsed time, so it runs to the end of the track at a linear
+	// rate rather than stepping once per poll, which would visibly disagree with
+	// the audio.
+	//
+	// It is not restarted on every poll though. Cancelling snaps the fill back to
+	// whatever the data says, and that data crossed IPC a few hundred milliseconds
+	// ago while the animation kept going, so restarting on each tick jumps the bar
+	// backwards every time. Only a real move, a seek, a pause or a new track,
+	// shifts where the track ends by enough to be worth retiming.
 	React.useEffect(() => {
 		const fill = fillRef.current
 		if (!fill || remaining <= 0) return
 		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
 
-		const animation = fill.animate(
+		const endsAt = Date.now() + remaining * 1000
+		const settled = endsAtRef.current
+		if (animationRef.current && settled !== null && Math.abs(endsAt - settled) < 1500) {
+			return
+		}
+
+		animationRef.current?.cancel()
+		animationRef.current = fill.animate(
 			[{ transform: `scaleX(${fraction})` }, { transform: "scaleX(1)" }],
 			{ duration: remaining * 1000, easing: "linear", fill: "forwards" },
 		)
-
-		return () => animation.cancel()
+		endsAtRef.current = endsAt
 	}, [fraction, remaining])
+
+	React.useEffect(
+		() => () => {
+			animationRef.current?.cancel()
+		},
+		[],
+	)
 
 	return (
 		<div className="mt-2">

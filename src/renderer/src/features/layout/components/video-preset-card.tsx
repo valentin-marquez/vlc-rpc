@@ -1,7 +1,4 @@
-import { useStore } from "@nanostores/react"
 import { PresenceCard } from "@renderer/components/presence-card"
-import type { MediaState } from "@renderer/features/media"
-import { mediaStore, useProxiedArtwork } from "@renderer/features/media"
 import type { VideoFacts, VideoLayout, VideoPreset } from "@shared/presence/layout"
 import { VIDEO_PRESETS, renderLine, videoVariables } from "@shared/presence/layout"
 
@@ -28,9 +25,6 @@ export function VideoPresetCard({
 	isSelected,
 	onSelect,
 }: VideoPresetCardProps): JSX.Element {
-	const media = useStore(mediaStore)
-	const artworkUrl = useProxiedArtwork()
-
 	const layout = VIDEO_PRESETS[card.preset]
 
 	return (
@@ -43,7 +37,7 @@ export function VideoPresetCard({
 			onSelect={onSelect}
 		>
 			<div className="flex flex-col gap-3">
-				{videoSamples(media, artworkUrl).map((sample) => (
+				{videoSamples().map((sample) => (
 					<Preview key={sample.label} sample={sample} layout={layout} />
 				))}
 			</div>
@@ -72,30 +66,17 @@ function Preview({ sample, layout }: { sample: VideoSample; layout: VideoLayout 
 }
 
 /**
- * Both rows are always drawn, because the point of a video preset is how differently it
- * reads for an episode and for a film. What is playing takes over the row it belongs to.
+ * Both rows are drawn from examples, never from what is playing.
+ *
+ * The point of a video preset is how differently it reads for an episode and for
+ * a film, and that comparison only works on matched content. Folding the live
+ * item into one row left an example without artwork sitting beside a real cover:
+ * two cards that stopped looking like a pair. What is playing is on Home, at
+ * full size, which is where it belongs.
  */
-function videoSamples(media: MediaState, artworkUrl: string | null): VideoSample[] {
-	const live = liveFacts(media)
-	const liveIsEpisode = live !== null && (live.season !== undefined || live.episode !== undefined)
-
+function videoSamples(): VideoSample[] {
 	return [
-		live !== null && liveIsEpisode
-			? { label: "TV show", facts: live, artworkUrl }
-			: { label: "TV show", facts: SAMPLE_EPISODE, artworkUrl: null },
-		live !== null && !liveIsEpisode
-			? { label: "Movie", facts: live, artworkUrl }
-			: { label: "Movie", facts: SAMPLE_FILM, artworkUrl: null },
+		{ label: "TV show", facts: SAMPLE_EPISODE, artworkUrl: null },
+		{ label: "Movie", facts: SAMPLE_FILM, artworkUrl: null },
 	]
-}
-
-function liveFacts(media: MediaState): VideoFacts | null {
-	if (media.mediaType !== "video" || !media.title) return null
-
-	return {
-		title: media.title,
-		season: media.season ?? undefined,
-		episode: media.episode ?? undefined,
-		year: media.year ?? undefined,
-	}
 }
