@@ -32,7 +32,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
 			className={cn(
 				"inline-flex h-8 cursor-pointer items-center justify-center gap-2 whitespace-nowrap",
 				// 13px / 500 is the segmented control's own size, off the type scale on purpose.
-				"rounded-sm px-3 text-[13px] font-medium text-muted-foreground",
+				"rounded-sm px-3 type-label text-muted-foreground",
 				"transition-colors [transition-duration:var(--dur-tint)] ease-out-soft",
 				"hover:text-body focus-discord",
 				"data-[state=active]:bg-float data-[state=active]:text-strong",

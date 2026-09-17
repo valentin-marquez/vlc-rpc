@@ -39,6 +39,7 @@ export function HomePage(): JSX.Element {
 
 	return (
 		<div className="flex flex-col gap-6">
+			<h1 className="sr-only">Home</h1>
 			{failed && (
 				<VlcBanner
 					title={notConfigured ? "VLC is not set up" : "Cannot reach VLC"}

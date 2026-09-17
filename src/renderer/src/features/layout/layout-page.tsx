@@ -46,6 +46,7 @@ export function LayoutPage(): JSX.Element {
 
 	return (
 		<div className="@container flex flex-col gap-4">
+			<h1 className="sr-only">Layout</h1>
 			<p className="type-caption text-muted-foreground">
 				Choose how your media appears in Discord. A change takes a few seconds to show up.
 			</p>

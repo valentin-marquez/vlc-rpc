@@ -21,9 +21,9 @@ export interface PresenceCardLiveProps extends PresenceCardBase {
 	header: string
 	/** Line one. */
 	details: string
-	/** Line two. */
+	/** Line two. Discord draws no third body line for a third party presence. */
 	state?: string
-	/** Line three, the large image text this app sends as the album. */
+	/** Hover text on the artwork, which is the only place Discord shows it. */
 	largeText?: string
 	artworkUrl?: string | null
 	progress?: PresenceProgress
@@ -60,7 +60,12 @@ export function PresenceCard(props: PresenceCardProps): JSX.Element {
 				{isEmpty ? (
 					<ArtworkPlaceholder size={size} />
 				) : (
-					<Artwork key={props.artworkUrl ?? "none"} url={props.artworkUrl ?? null} size={size} />
+					<Artwork
+						key={props.artworkUrl ?? "none"}
+						url={props.artworkUrl ?? null}
+						size={size}
+						hoverText={props.largeText}
+					/>
 				)}
 
 				<div className="flex min-w-0 flex-1 flex-col justify-center self-stretch">
@@ -78,14 +83,6 @@ export function PresenceCard(props: PresenceCardProps): JSX.Element {
 									{props.state}
 								</p>
 							)}
-							{props.largeText && (
-								<p
-									className={cn(LINE[size], "truncate text-muted-foreground")}
-									title={props.largeText}
-								>
-									{props.largeText}
-								</p>
-							)}
 							{props.progress && <Progress progress={props.progress} />}
 						</>
 					)}
@@ -98,16 +95,21 @@ export function PresenceCard(props: PresenceCardProps): JSX.Element {
 function Artwork({
 	url,
 	size,
+	hoverText,
 }: {
 	url: string | null
 	size: PresenceCardSize
+	hoverText?: string | undefined
 }): JSX.Element {
 	const [loaded, setLoaded] = React.useState(false)
 
 	if (!url) return <ArtworkPlaceholder size={size} />
 
 	return (
-		<div className={cn("relative shrink-0 overflow-hidden rounded-md", ART[size], ART_RING)}>
+		<div
+			title={hoverText}
+			className={cn("relative shrink-0 overflow-hidden rounded-md", ART[size], ART_RING)}
+		>
 			<ArtworkPlaceholder size={size} className="absolute inset-0" />
 			<img
 				src={url}
@@ -176,7 +178,7 @@ function Progress({ progress }: { progress: PresenceProgress }): JSX.Element {
 					style={{ transform: `scaleX(${fraction})` }}
 				/>
 			</div>
-			<div className="mt-1 flex justify-between text-[11px] font-medium tabular-nums text-muted-foreground">
+			<div className="type-caption mt-1 flex justify-between tabular-nums text-muted-foreground">
 				<span>{formatTime(elapsedSeconds)}</span>
 				<span>{formatTime(durationSeconds)}</span>
 			</div>

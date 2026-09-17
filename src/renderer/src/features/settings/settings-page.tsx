@@ -31,6 +31,7 @@ export function SettingsPage(): JSX.Element {
 
 	return (
 		<div className="flex flex-col gap-8">
+			<h1 className="sr-only">Settings</h1>
 			<AppSettingsPanel
 				config={config}
 				canStartWithSystem={system.kind === "ready" && !system.isPortable}

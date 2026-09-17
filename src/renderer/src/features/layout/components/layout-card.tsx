@@ -32,9 +32,9 @@ export function LayoutCard({
 
 	const layout = LAYOUT_PRESETS[card.preset]
 	const variables = {
-		title: media.title || SAMPLE_TRACK.title,
-		artist: media.artist || SAMPLE_TRACK.artist,
-		album: media.album || SAMPLE_TRACK.album,
+		...(media.mediaType === "audio" && media.title
+			? { title: media.title, artist: media.artist ?? "", album: media.album ?? "" }
+			: SAMPLE_TRACK),
 	}
 
 	const activityName = layout.activityName ? applyTemplate(layout.activityName, variables) : "VLC"

@@ -105,7 +105,7 @@ export function VlcConfigForm({ initialConfig }: VlcConfigFormProps): JSX.Elemen
 						</p>
 					)}
 					{save.kind === "failed" && (
-						<p className="type-caption text-pretty text-danger-text">
+						<p role="alert" className="type-caption text-pretty text-danger-text">
 							Could not write VLC's settings file. Close VLC and try again.
 						</p>
 					)}

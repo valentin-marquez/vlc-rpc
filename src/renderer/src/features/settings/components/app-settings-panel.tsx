@@ -88,7 +88,10 @@ export function AppSettingsPanel({
 			<Row
 				label="Cover art cache"
 				description={
-					<span className={cache.kind === "failed" ? "text-danger-text" : undefined}>
+					<span
+						aria-live="polite"
+						className={cache.kind === "failed" ? "text-danger-text" : undefined}
+					>
 						{CACHE_DESCRIPTION[cache.kind]}
 					</span>
 				}

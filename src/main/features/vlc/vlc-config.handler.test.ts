@@ -33,15 +33,24 @@ import { Client } from "./vlc.client"
 
 let root: string
 
-/** Points the handler at a throwaway vlcrc by faking where VLC keeps its config. */
-function handlerFor(fixture: string | null): VlcConfigHandler {
+/**
+ * Points the handler at a throwaway vlcrc by faking where VLC keeps its config.
+ *
+ * Awaits `ready` before handing it back. The constructor starts a config sync it
+ * cannot await, and `configSetCalls` is shared across tests, so a handler left
+ * with that work in flight writes into whichever test happens to be running when
+ * it lands.
+ */
+async function handlerFor(fixture: string | null): Promise<VlcConfigHandler> {
 	const vlcDir = join(root, "vlc")
 	mkdirSync(vlcDir, { recursive: true })
 	if (fixture) {
 		copyFileSync(join(__dirname, "__fixtures__", `${fixture}.txt`), join(vlcDir, "vlcrc"))
 	}
 	process.env.APPDATA = root
-	return new VlcConfigHandler(new Client())
+	const handler = new VlcConfigHandler(new Client())
+	await handler.ready
+	return handler
 }
 
 beforeEach(() => {
@@ -56,7 +65,7 @@ afterEach(() => {
 
 describe.runIf(process.platform === "win32")("getVlcConfig", () => {
 	it("reads port and password from a configured vlcrc", async () => {
-		const config = await handlerFor("vlcrc-configured").getVlcConfig()
+		const config = await (await handlerFor("vlcrc-configured")).getVlcConfig()
 
 		expect(config.httpPort).toBe(9080)
 		expect(config.httpPassword).toBe("TestPassword123")
@@ -66,7 +75,7 @@ describe.runIf(process.platform === "win32")("getVlcConfig", () => {
 	it("reports http as disabled when every setting is commented out", async () => {
 		// This fixture is what a fresh VLC install writes: every http setting
 		// present but commented. See parseVlcConfig for the parsing fix.
-		const config = await handlerFor("vlcrc-defaults").getVlcConfig()
+		const config = await (await handlerFor("vlcrc-defaults")).getVlcConfig()
 
 		expect(config.httpEnabled).toBe(false)
 	})
@@ -75,7 +84,7 @@ describe.runIf(process.platform === "win32")("getVlcConfig", () => {
 		// This fallback is intentional and documented on getVlcConfig: callers
 		// that need to tell it apart from a real read use readVlcConfigFile via
 		// synchronizeConfig instead, tested below.
-		const config = await handlerFor(null).getVlcConfig()
+		const config = await (await handlerFor(null)).getVlcConfig()
 
 		expect(config).toEqual(APP_CONFIG)
 	})
@@ -86,8 +95,7 @@ describe.runIf(process.platform === "win32")("synchronizeConfig", () => {
 	// Awaiting its exposed .ready before resetting configSetCalls keeps that
 	// initial run's side effect from leaking into the explicit call below.
 	async function settledHandlerFor(fixture: string | null): Promise<VlcConfigHandler> {
-		const handler = handlerFor(fixture)
-		await handler.ready
+		const handler = await handlerFor(fixture)
 		configSetCalls.length = 0
 		return handler
 	}
