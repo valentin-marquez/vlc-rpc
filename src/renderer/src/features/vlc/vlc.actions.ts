@@ -68,17 +68,15 @@ export async function checkVlcConnection(): Promise<boolean> {
 }
 
 /**
- * Enable VLC's HTTP interface without the user hand editing vlcrc, reusing
- * the same write path the setup form uses. vlcrc is only read when VLC
- * starts, so this cannot make an already running VLC pick it up: the caller
- * still needs to tell the user to restart it.
+ * vlcrc is only read when VLC starts, so this cannot make a running VLC pick the change up:
+ * the caller still has to tell the user to restart it.
  */
 export async function repairVlcConfig(): Promise<boolean> {
 	const current = vlcConfigStore.get() ?? DEFAULT_CONFIG.vlc
 	return (await saveVlcConfig({ ...current, httpEnabled: true })) !== null
 }
 
-export function startStatusPolling(interval = 2000): void {
+function startStatusPolling(interval = 2000): void {
 	if (statusPollingInterval) {
 		clearInterval(statusPollingInterval)
 	}
@@ -88,15 +86,7 @@ export function startStatusPolling(interval = 2000): void {
 	logger.info(`VLC status polling started (${interval}ms)`)
 }
 
-export function stopStatusPolling(): void {
-	if (statusPollingInterval) {
-		clearInterval(statusPollingInterval)
-		statusPollingInterval = null
-		logger.info("VLC status polling stopped")
-	}
-}
-
-export async function refreshVlcStatus(): Promise<void> {
+async function refreshVlcStatus(): Promise<void> {
 	if (vlcStatusStore.get() === "disconnected") {
 		const isConnected = await checkVlcConnection()
 		if (!isConnected) return

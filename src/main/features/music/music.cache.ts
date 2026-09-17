@@ -4,15 +4,10 @@ import type { CacheEntry, IdentifiedName, MusicResult, UnresolvedReason } from "
 
 // Its own counter, never the catalog cache's: the two features share no code
 // path, so a change to the video scorer must not silently wipe every cached
-// music lookup, and vice versa.
-// Bumped to 2 when unresolved entries began recording why: an entry written
-// before that carries no reason, and reading it as one would be a guess.
-// Bumped to 3 when an acoustic answer began carrying the name it identified.
-// An entry written before that holds a cover and no name, and a resolved entry
-// never expires, so without this every file already identified would keep
-// reading as its own file name for as long as the entry survives.
-// Exported so a test double stamps and refuses the same number the real one does:
-// a fake that writes a version the product cannot produce tests a state nobody has.
+// music lookup, and vice versa. Bump it whenever an entry gains a field the
+// reader would otherwise have to guess at, since a resolved entry never
+// expires: 2 added the reason behind a miss, 3 the name an acoustic match
+// identified. Exported so a test double stamps the number the real one does.
 export const CACHE_VERSION = 3
 const MAX_RESOLVED_ENTRIES = 200
 const TRANSIENT_TTL_MS = 5_000
@@ -86,19 +81,6 @@ export class Cache {
 			lastAccessedAt: this.clock.now(),
 			...(name === undefined ? {} : { name }),
 		}
-		this.conf.set("entries", entries)
-	}
-
-	/**
-	 * Removes one entry. Saving an override needs it: a resolved entry has no TTL
-	 * and only the cap above it, so a correction laid on top of an already cached
-	 * answer would let the old cover come back the day the user removes the
-	 * correction, and stay.
-	 */
-	public delete(key: string): void {
-		const entries = this.conf.get("entries")
-		if (!(key in entries)) return
-		delete entries[key]
 		this.conf.set("entries", entries)
 	}
 

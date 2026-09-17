@@ -7,15 +7,13 @@ interface OverridesSchema {
 }
 
 /**
- * The keys come from the same builders the caches use, and `catalogKey` is pure:
- * it never sees the resolver's guard against an empty parsed title, so a file
- * whose name cannot be parsed yields the key `video:` exactly. In a cache that
- * key can only ever hold a negative result, but an override under it would
- * become the title and the cover of every unparseable file the user plays. That
- * is the one way this feature can produce a confidently wrong answer, so the
- * check lives in the store's only write path rather than in a caller that could
- * forget it, and the read path honors it too in case an older build or a hand
- * edited file left such a row behind.
+ * A file whose name cannot be parsed yields the key `video:` exactly, since
+ * `catalogKey` is pure and never sees the resolver's guard against an empty
+ * title. In a cache that key holds a negative result; as an override it would
+ * become the title and the cover of every unparseable file the user plays. So
+ * the check lives in the store's only write path rather than in a caller that
+ * could forget it, and the read path honors it too, in case an older build or a
+ * hand edited file left such a row behind.
  */
 function hasIdentity(key: string): boolean {
 	const separator = key.indexOf(":")
@@ -25,10 +23,9 @@ function hasIdentity(key: string): boolean {
 }
 
 /**
- * No LRU, no TTL and no version counter, unlike the two caches next door. A
- * cache holds what it can recompute, so discarding an entry costs a request.
- * This holds what the user typed by hand, which cannot be recovered from
- * anywhere. The only thing that removes an override is the user.
+ * No LRU, no TTL and no version counter, unlike the two caches next door: a
+ * cache holds what it can recompute, this holds what the user typed by hand.
+ * The only thing that removes an override is the user.
  */
 export class Store {
 	private readonly conf: Conf<OverridesSchema>

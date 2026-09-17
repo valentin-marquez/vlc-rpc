@@ -1,8 +1,5 @@
 import { Logger as ElectronWinston } from "electron-winston/main"
 
-/**
- * Logger service for the application
- */
 class LoggerService {
 	private static instance: LoggerService | null = null
 	private logger: ElectronWinston

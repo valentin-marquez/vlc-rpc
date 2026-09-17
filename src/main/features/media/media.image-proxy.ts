@@ -3,20 +3,17 @@ import { fileURLToPath } from "node:url"
 import { logger } from "@main/core/logger"
 
 /**
- * Service for proxying images from various sources to data URLs
- * to avoid Content Security Policy restrictions
+ * Images reach the renderer as data URLs: the window's Content Security Policy
+ * allows `data:` and `blob:` for images and nothing remote.
  */
 export class ImageProxy {
 	private cache: Map<string, { dataUrl: string; timestamp: number }> = new Map()
-	private readonly cacheTtl = 3600 // Cache TTL in seconds (1 hour)
+	private readonly cacheTtl = 3600 // seconds
 
 	constructor() {
 		logger.info("Image proxy service initialized")
 	}
 
-	/**
-	 * Convert a URL or file path to a data URL
-	 */
 	public async getImageAsDataUrl(source: string | null | undefined): Promise<string | null> {
 		if (!source) {
 			return null
@@ -73,17 +70,6 @@ export class ImageProxy {
 		}
 	}
 
-	/**
-	 * Clear the cache
-	 */
-	public clearCache(): void {
-		this.cache.clear()
-		logger.info("Image proxy cache cleared")
-	}
-
-	/**
-	 * Determine content type from file name
-	 */
 	private getContentTypeFromFileName(fileName: string): string {
 		const extension = fileName.toLowerCase().split(".").pop() || ""
 
@@ -104,9 +90,7 @@ export class ImageProxy {
 		}
 	}
 
-	/**
-	 * Sanitize URL for logging (remove sensitive parts)
-	 */
+	/** A local path is logged as its last two segments: the rest is the user's disk. */
 	private sanitizeUrl(url: string): string {
 		if (url.startsWith("file://") || (!url.startsWith("http://") && !url.startsWith("https://"))) {
 			const parts = url.split(/[/\\]/)

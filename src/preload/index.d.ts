@@ -72,7 +72,6 @@ declare global {
 				}>
 				getCurrent: () => Promise<UpdateAvailability>
 				getInstallationType: () => Promise<UpdateInstallKind>
-				install: () => Promise<boolean>
 				openReleasePage: () => Promise<void>
 				onAvailability: (callback: (availability: UpdateAvailability) => void) => () => void
 			}

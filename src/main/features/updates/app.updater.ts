@@ -34,9 +34,6 @@ const RELEASES_URL = "https://github.com/valentin-marquez/vlc-rpc/releases/lates
  */
 type Phase = { kind: "idle" } | { kind: "checking" } | { kind: "downloading" }
 
-/**
- * Service for automatic application updates
- */
 export class Updater {
 	private mainWindow: BrowserWindow | null = null
 	private phase: Phase = { kind: "idle" }
@@ -69,9 +66,6 @@ export class Updater {
 		})
 	}
 
-	/**
-	 * Set the main window for notifications
-	 */
 	public setMainWindow(window: BrowserWindow): void {
 		this.mainWindow = window
 
@@ -345,9 +339,6 @@ export class Updater {
 		}
 	}
 
-	/**
-	 * Download available update
-	 */
 	public downloadUpdate(): void {
 		if (this.install.kind === "portable") {
 			// The update feed lists the installer, so what would land in the cache
@@ -366,10 +357,7 @@ export class Updater {
 		})
 	}
 
-	/**
-	 * Install a downloaded update and restart. Only an installed copy can do
-	 * this: a portable one is sent to the release page instead.
-	 */
+	/** Only an installed copy can do this: a portable one is sent to the release page. */
 	public installNow(): void {
 		if (this.install.kind === "portable") {
 			void this.openReleasePage()
@@ -391,16 +379,10 @@ export class Updater {
 		}
 	}
 
-	/**
-	 * Get current installation type
-	 */
 	public getInstallationType(): UpdateInstallKind {
 		return this.install.kind === "portable" ? "portable" : "setup"
 	}
 
-	/**
-	 * Get update status information
-	 */
 	public getUpdateStatus(): {
 		isPortable: boolean
 		updateCheckInProgress: boolean

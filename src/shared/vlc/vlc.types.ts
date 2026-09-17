@@ -1,6 +1,3 @@
-/**
- * Processed VLC status for our application
- */
 export interface VlcStatus {
 	active: boolean
 	status: string

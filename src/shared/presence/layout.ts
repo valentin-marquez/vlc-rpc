@@ -59,11 +59,8 @@ export const valuePiece = (name: string): LayoutPiece => ({ kind: "value", name 
 export const textPiece = (words: string): LayoutPiece => ({ kind: "text", text: words })
 
 /**
- * What the builder opens on, and what almost everyone will keep.
- *
- * The shape of a Spotify card, which is the one everybody has already read a hundred times:
- * the song in bold, who plays it under that, the album last. The header is left to Discord,
- * which writes the application's name there, exactly as it writes "Listening to Spotify".
+ * The shape of a Spotify card: the song in bold, who plays it under that, the album last.
+ * The header is left to Discord, which writes the application's name there.
  *
  * The arrangement it replaces put the song in the header, so a profile read "Listening to
  * Probablemente" with "by Christian Nodal" in bold under it, the song and the artist the
@@ -190,7 +187,7 @@ export function fromVideoLines(lines: readonly LayoutLine[]): VideoLayout {
 	return { details: lines[0] ?? [], state: lines[1] ?? [] }
 }
 
-export function samePiece(a: LayoutPiece, b: LayoutPiece): boolean {
+function samePiece(a: LayoutPiece, b: LayoutPiece): boolean {
 	if (a.kind === "value") return b.kind === "value" && a.name === b.name
 	return b.kind === "text" && a.text === b.text
 }

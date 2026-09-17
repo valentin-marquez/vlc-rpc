@@ -53,19 +53,18 @@ export interface RecordingCandidate {
 }
 
 /**
- * Un proveedor devuelve lista vacia cuando busco bien y no encontro nada, y
- * lanza cuando no pudo buscar. El resolver necesita esa diferencia: lo primero
- * es un hecho del catalogo y se cachea largo, lo segundo es infraestructura y
- * se cachea corto.
+ * A provider answers with an empty list when it searched and found nothing, and
+ * throws when it could not search at all. The resolver needs that difference: a
+ * fact about the catalog is cached for a day, an outage for seconds.
  */
 export interface MusicProvider {
 	search(query: TrackQuery): Promise<RecordingCandidate[]>
 }
 
 /**
- * Misma convencion de tres canales que MusicProvider: una URL cuando hay
- * portada, `null` cuando el archivo de arte no existe para esa release (un 404
- * es una respuesta, no un error), y lanza cuando la consulta no se pudo hacer.
+ * The same three channels as MusicProvider: a URL when there is a cover, `null`
+ * when that release has no art (a 404 is an answer, not an error), and a throw
+ * when the request could not be made.
  */
 export interface CoverArtSource {
 	coverFor(release: CandidateRelease): Promise<string | null>

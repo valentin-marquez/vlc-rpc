@@ -3,11 +3,7 @@ import { useEffect, useState } from "react"
 import { getProxiedImage } from "../media.actions"
 import { mediaStore } from "../media.store"
 
-/**
- * Hook that returns a proxied (data URL) version of the current media artwork.
- * Handles both the enriched content image URL and the basic VLC artwork URL.
- * Automatically re-proxies when the source URL changes.
- */
+/** The resolved cover wins over VLC's own, which is the coarser of the two. */
 export function useProxiedArtwork(): string | null {
 	const media = useStore(mediaStore)
 	const [proxiedUrl, setProxiedUrl] = useState<string | null>(null)

@@ -31,21 +31,15 @@
 	--color-background: hsl(var(--background));
 	--color-foreground: hsl(var(--foreground));
 	--color-card: hsl(var(--card));
-	--color-muted: hsl(var(--muted));
 	--color-muted-foreground: hsl(var(--muted-foreground));
 
 	--radius-xs: 4px;
 	--radius-sm: 6px;
 	--radius-md: 8px;
 	--radius-lg: 12px;
-	--radius-xl: 16px;
 	--radius-pill: 999px;
 
 	--ease-out-soft: var(--ease-out);
-	--ease-spring-press: var(--spring-press);
-	--ease-spring-snap: var(--spring-snap);
-	--ease-spring-enter: var(--spring-enter);
-	--ease-spring-bounce: var(--spring-bounce);
 
 	--font-sans: "Inter Variable", sans-serif;
 }
@@ -82,9 +76,7 @@
 		--background: var(--surface-canvas);
 		--foreground: var(--text-body);
 		--card: var(--surface-card);
-		--muted: var(--surface-inset);
 		--muted-foreground: var(--text-muted);
-		--radius: 8px;
 
 		/* Damped harmonic oscillator sampled to settling, so springs need no runtime library. */
 		--spring-press: linear(
@@ -109,32 +101,6 @@
 			0.9963
 		);
 		--spring-press-duration: 130ms;
-		--spring-snap: linear(
-			0,
-			0.0447,
-			0.1483,
-			0.2772,
-			0.4102,
-			0.5345,
-			0.6437,
-			0.7353,
-			0.8095,
-			0.8675,
-			0.9115,
-			0.944,
-			0.9671,
-			0.9831,
-			0.9936,
-			1.0001,
-			1.0039,
-			1.0057,
-			1.0063,
-			1.0061,
-			1.0055,
-			1.0047,
-			1.0039
-		);
-		--spring-snap-duration: 178ms;
 		--spring-enter: linear(
 			0,
 			0.0238,
@@ -250,13 +216,6 @@
 		line-height: 1.4;
 	}
 
-	.type-title {
-		font-size: 16px;
-		font-weight: 600;
-		line-height: 1.3;
-		letter-spacing: -0.005em;
-	}
-
 	.type-hero {
 		font-size: 20px;
 		font-weight: 700;
@@ -270,10 +229,6 @@
 
 	.app-titlebar .no-drag {
 		-webkit-app-region: no-drag;
-	}
-
-	.app-titlebar .drag {
-		-webkit-app-region: drag;
 	}
 }
 
@@ -312,8 +267,6 @@
 	:root {
 		--spring-press: var(--ease-out);
 		--spring-press-duration: 0ms;
-		--spring-snap: var(--ease-out);
-		--spring-snap-duration: 0ms;
 		--spring-enter: var(--ease-out);
 		--spring-enter-duration: 0ms;
 		--spring-bounce: var(--ease-out);
@@ -322,7 +275,6 @@
 
 	/* Tailwind v4 compiles scale-*, translate-* and rotate-* to the standalone
 	   scale, translate and rotate properties, which transform: none does not reach. */
-	.toast,
 	.onboarding-step,
 	.update-pill,
 	.button {
@@ -337,7 +289,7 @@
 	}
 }
 
-/* Two looping animations exist. Neither should burn GPU while nobody is looking. */
+/* The one looping animation in the app should not burn GPU while nobody is looking. */
 :root[data-window-idle] .spinner {
 	animation-play-state: paused;
 }

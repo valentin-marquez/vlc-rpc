@@ -23,10 +23,8 @@ export interface VideoOverride extends OverrideBase {
 /**
  * No title: audio presence text is built from the file's own tags, never from a
  * resolver title, so a title override here would have no consumer. Cover is
- * required, an audio override with no cover corrects nothing.
- *
- * That reasoning holds only while the tags exist. When they do not, the branch
- * below applies instead.
+ * required, an audio override with no cover corrects nothing. That holds only
+ * while the tags exist; when they do not, the branch below applies.
  */
 export interface AudioOverride extends OverrideBase {
 	kind: "audio"
@@ -34,20 +32,16 @@ export interface AudioOverride extends OverrideBase {
 }
 
 /**
- * Audio whose tags name nothing, where the correction supplies what the file
- * is rather than only what it looks like.
+ * Audio whose tags name nothing, where the correction supplies what the file is
+ * rather than only what it looks like.
  *
  * A separate branch and not three optional fields on `AudioOverride`, because
- * the asymmetry above is still right for a file that does carry tags: a title
- * typed there would be written and never read. Here the typed values are the
- * only thing the presence text has to read, and the only thing a catalog can
- * be searched with, so the compiler is the thing that keeps each shape where
- * it belongs.
+ * the asymmetry above is still right for a file that carries tags: a title typed
+ * there would be written and never read, while here the typed values are the
+ * only thing the presence text and a catalog search have to work from.
  *
- * The cover stays optional and last. The point of taking the tags is that the
- * ordinary lookup then runs and finds the artwork itself, which beats sending
- * the user off to find an image that iTunes would have handed over for free.
- * It is there for the file no catalog knows at all.
+ * The cover stays optional: given the words, the ordinary lookup finds the
+ * artwork itself, and it is there for the file no catalog knows at all.
  */
 export interface UntaggedAudioOverride extends OverrideBase {
 	kind: "untagged-audio"
@@ -57,12 +51,11 @@ export interface UntaggedAudioOverride extends OverrideBase {
 }
 
 /**
- * The user refusing what the app matched this file to, which is a correction
- * like any other: it is filed, listed and removed the same way. It carries no
- * fields because the whole of what it says is "stop deducing, the file speaks
- * for itself", and that is also why it turns off the acoustic cover and not
- * only the name. The two come from one recording, so a match whose name the
- * user rejects is a match whose cover is another record's.
+ * The user refusing what the app matched this file to, filed, listed and removed
+ * like any other correction. It carries no fields because the whole of what it
+ * says is that the file speaks for itself, and it turns off the acoustic cover
+ * as well as the name: the two come from one recording, so a match whose name
+ * the user rejects is a match whose cover is another record's.
  */
 export interface AsIsOverride extends OverrideBase {
 	kind: "as-is"
@@ -74,11 +67,10 @@ export type Override = VideoOverride | AudioOverride | UntaggedAudioOverride | A
  * What a file should read as when its own tags name nothing, and who says so.
  * The presence text is built from tags, so these are the tags it reads instead.
  *
- * The source travels with the words because the screen has to be able to name
- * it. A user who never typed anything is owed the difference between what the
- * file says and what the app worked out from the sound of it, otherwise there
- * is nothing on screen to disagree with. `as-is` carries no words at all: it
- * is the user having refused a match, which is why the file names itself again.
+ * The source travels with the words because a user who never typed anything is
+ * owed the difference between what the file says and what the app worked out
+ * from the sound of it, otherwise there is nothing on screen to disagree with.
+ * `as-is` carries no words: the user refused a match, so the file names itself.
  */
 export interface CorrectedTags {
 	title?: string | undefined
@@ -103,12 +95,11 @@ export interface OverrideEntry {
  * there already. A resolver answers this without resolving, because the media
  * that most needs correcting is exactly the media that resolves to nothing.
  *
- * `kind` is what the key is bound to, and the two behave differently enough
- * that the screen has to be able to say which: a `metadata` key is derived from
- * what the file claims to be, so it covers every file that claims the same and
- * moves when a release is named differently, while a `file` key names one file
- * on disk and stops the day it is moved or renamed. That is what a person needs
- * to know to understand why a correction stopped applying.
+ * `kind` is what the key is bound to, and the screen has to be able to say
+ * which: a `metadata` key covers every file that claims the same thing and moves
+ * when a release is named differently, while a `file` key names one file on disk
+ * and stops the day it is moved or renamed. That is what a person needs to
+ * understand why a correction stopped applying.
  */
 export interface OverrideTarget {
 	kind: "metadata" | "file"

@@ -15,21 +15,16 @@ import iconPath16 from "../../../../resources/icons/16x16.png?asset"
 import type { Startup } from "./app.startup"
 import type { Window } from "./app.window"
 
-/**
- * System tray service
- */
 const TEMPORARY_DISABLES = [
 	{ label: "Disable for 15 minutes", minutes: 15 },
 	{ label: "Disable for 1 hour", minutes: 60 },
 	{ label: "Disable for 2 hours", minutes: 120 },
 ] as const
 
-// Built once, at import. `toLocaleTimeString` builds a formatter per call, and
-// the first one built in a process is what pays for the platform's locale data:
-// on Windows that is the host time zone lookup, tens of milliseconds when the
-// machine is idle and unbounded when it is not. This menu is rebuilt every ten
-// seconds for as long as a temporary window runs, so the cost belongs at
-// startup rather than inside the first menu that happens to name a time.
+// Built once, at import. The first formatter built in a process pays for the
+// platform's locale data: on Windows that is the host time zone lookup, tens of
+// milliseconds when the machine is idle and unbounded when it is not. This menu
+// is rebuilt every ten seconds for as long as a temporary window runs.
 const UNTIL_TIME = new Intl.DateTimeFormat(undefined, {
 	hour: "2-digit",
 	minute: "2-digit",
@@ -59,14 +54,12 @@ export class Tray {
 
 		app.on("before-quit", () => this.dispose())
 
-		// Handle system events that may affect the tray
 		powerMonitor.on("suspend", () => {
 			logger.info("System is going to sleep")
 		})
 
 		powerMonitor.on("resume", () => {
 			logger.info("System resumed from sleep")
-			// Verify tray icon after system resume
 			setTimeout(() => {
 				if (!this.tray || this.tray.isDestroyed()) {
 					logger.info("Tray icon lost after system resume, reinitializing")
@@ -81,7 +74,6 @@ export class Tray {
 
 		powerMonitor.on("unlock-screen", () => {
 			logger.info("Screen unlocked")
-			// Verify tray icon after screen unlock
 			setTimeout(() => {
 				if (!this.tray || this.tray.isDestroyed()) {
 					logger.info("Tray icon lost after screen unlock, reinitializing")
@@ -95,20 +87,18 @@ export class Tray {
 	}
 
 	/**
-	 * Wire the window reference after both this and the window exist. Tray and
-	 * Window depend on each other only inside callbacks that fire well after
-	 * construction, so neither needs the other to be born; this is the one
-	 * connection the composition root makes explicit instead of leaving it
-	 * hidden behind two modules importing each other.
+	 * Tray and Window need each other only inside callbacks, so the composition
+	 * root wires this by hand rather than letting the two modules import each
+	 * other.
 	 */
 	public setWindow(window: Window): void {
 		this.window = window
 	}
 
 	/**
-	 * Stop everything this tray started. The keepalive watches for an icon that
-	 * went missing and builds a new one, so leaving it running past the quit is
-	 * how a tray icon comes back a minute after the user asked for it to go.
+	 * The keepalive rebuilds an icon that went missing, so leaving it running
+	 * past the quit is how a tray icon comes back a minute after the user asked
+	 * for it to go.
 	 */
 	public dispose(): void {
 		this.stopTrayKeepalive()
@@ -121,34 +111,12 @@ export class Tray {
 		}
 	}
 
-	/**
-	 * Wait until the tray is ready
-	 */
 	public async whenReady(): Promise<void> {
 		return this.readyPromise
 	}
 
-	/**
-	 * Get the current state of the tray for debugging purposes
-	 */
-	public getTrayState(): {
-		exists: boolean
-		isDestroyed: boolean | null
-		isReady: boolean
-	} {
-		return {
-			exists: this.tray !== null,
-			isDestroyed: this.tray ? this.tray.isDestroyed() : null,
-			isReady: this.readyResolver === null,
-		}
-	}
-
-	/**
-	 * Initialize the tray icon and menu
-	 */
 	private initTray(): void {
 		try {
-			// Prevent multiple initializations
 			if (this.tray && !this.tray.isDestroyed()) {
 				logger.info("Tray already exists and is not destroyed, skipping initialization")
 				return
@@ -166,7 +134,6 @@ export class Tray {
 				throw new Error("Empty tray icon")
 			}
 
-			// Destroy existing tray if it exists
 			if (this.tray) {
 				try {
 					this.tray.destroy()
@@ -197,9 +164,6 @@ export class Tray {
 		}
 	}
 
-	/**
-	 * Get the appropriate icon path
-	 */
 	private getTrayIconPath(): string {
 		const iconName = "16x16.png"
 
@@ -209,12 +173,9 @@ export class Tray {
 		return join(process.resourcesPath, "resources", "icons", iconName)
 	}
 
-	/**
-	 * Fallback method to initialize tray with a simpler approach
-	 */
+	/** An icon drawn here rather than loaded, for when the file cannot be read. */
 	private fallbackTrayInit(): void {
 		try {
-			// Prevent multiple fallback initializations
 			if (this.tray && !this.tray.isDestroyed()) {
 				logger.info("Tray already exists and is not destroyed, skipping fallback initialization")
 				return
@@ -222,7 +183,6 @@ export class Tray {
 
 			logger.info("Attempting fallback tray initialization")
 
-			// Destroy existing tray if it exists
 			if (this.tray) {
 				try {
 					this.tray.destroy()
@@ -261,9 +221,6 @@ export class Tray {
 		}
 	}
 
-	/**
-	 * Setup a periodic check to ensure tray icon exists
-	 */
 	private setupTrayKeepalive(): void {
 		this.stopTrayKeepalive()
 
@@ -275,9 +232,6 @@ export class Tray {
 		}, 60000)
 	}
 
-	/**
-	 * Stop the periodic tray check
-	 */
 	private stopTrayKeepalive(): void {
 		if (this.keepaliveTimer) {
 			clearInterval(this.keepaliveTimer)
@@ -286,9 +240,6 @@ export class Tray {
 		}
 	}
 
-	/**
-	 * Start the timer to update the menu periodically
-	 */
 	private startMenuUpdateTimer(): void {
 		this.stopMenuUpdateTimer()
 
@@ -302,9 +253,6 @@ export class Tray {
 		}, 10000)
 	}
 
-	/**
-	 * Stop the menu update timer
-	 */
 	private stopMenuUpdateTimer(): void {
 		if (this.menuUpdateTimer) {
 			clearInterval(this.menuUpdateTimer)
@@ -313,9 +261,6 @@ export class Tray {
 		}
 	}
 
-	/**
-	 * Update the tray context menu based on current configuration
-	 */
 	public updateContextMenu(): void {
 		if (!this.tray) {
 			logger.warn("Cannot update tray menu, tray is not initialized")
@@ -342,7 +287,6 @@ export class Tray {
 				},
 			]
 
-			// Only show "Start with System" for non-portable versions
 			if (!this.startup.isPortable()) {
 				menuItems.push({
 					label: "Start with System",
@@ -405,9 +349,8 @@ export class Tray {
 	}
 
 	/**
-	 * Takes the on/off answer from the client instead of reading the flags a
-	 * second time, so the menu cannot claim one thing while Discord shows
-	 * another. Only the wording is decided here.
+	 * The on/off answer comes from the client rather than from the flags again,
+	 * so the menu cannot claim one thing while Discord shows another.
 	 */
 	private rpcMenuLabel(enabled: boolean): string {
 		if (enabled) {

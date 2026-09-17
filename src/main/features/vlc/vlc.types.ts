@@ -1,6 +1,3 @@
-/**
- * Raw VLC status response from the HTTP API
- */
 export interface VlcRawStatus {
 	state: string
 	time?: number
@@ -45,9 +42,7 @@ export interface VlcRawStatus {
 	}
 }
 
-/**
- * VLC stream information from category
- */
+/** One entry of `information.category`, whose keys VLC translates to its own language. */
 export interface VlcStreamInfo {
 	Type?: string
 	Video_resolution?: string
@@ -66,9 +61,7 @@ export interface VlcStreamInfo {
 	[key: string]: string | undefined
 }
 
-/**
- * VLC metadata information from category.meta
- */
+/** The tags VLC read out of the file, under `information.category.meta`. */
 export interface VlcMetadata {
 	title?: string
 	filename?: string
@@ -85,7 +78,7 @@ export interface VlcMetadata {
 	movie_name?: string
 	year?: string
 	anime_name?: string
-	// Campos personalizados para URLs de imágenes subidas
+	// Custom fields naming a cover this app uploaded, written back into the file.
 	"X-COVER-URL"?: string
 	"X-APP-VERSION"?: string
 	"X-PROCESSED-BY"?: string
@@ -93,9 +86,6 @@ export interface VlcMetadata {
 	[key: string]: string | undefined
 }
 
-/**
- * VLC playlist response from the HTTP API
- */
 export interface VlcPlaylistResponse {
 	ro: string
 	type: string
@@ -104,9 +94,6 @@ export interface VlcPlaylistResponse {
 	children?: VlcPlaylistItem[]
 }
 
-/**
- * VLC playlist item
- */
 export interface VlcPlaylistItem {
 	ro: string
 	type: string

@@ -10,9 +10,6 @@ import {
 	StatusDisplayType,
 } from "@xhayper/discord-rpc"
 
-/**
- * Service for Discord Rich Presence integration
- */
 export class Client {
 	private rpc: RpcClient | null = null
 	private connected = false
@@ -48,23 +45,16 @@ export class Client {
 		return configService.get("rpcEnabled")
 	}
 
-	/**
-	 * Enable RPC permanently
-	 */
 	public enableRpc(): void {
 		configService.set("rpcEnabled", true)
 		configService.delete("rpcDisabledUntil")
 		logger.info("RPC enabled")
 	}
 
-	/**
-	 * Disable RPC permanently
-	 */
 	public disableRpc(): void {
 		configService.set("rpcEnabled", false)
 		configService.delete("rpcDisabledUntil")
 
-		// Clear any active presence
 		this.clear().catch((error) => {
 			logger.error(`Error clearing Discord presence when disabling RPC: ${error}`)
 		})
@@ -72,14 +62,11 @@ export class Client {
 		logger.info("RPC disabled")
 	}
 
-	/**
-	 * Disable RPC temporarily for specified duration (in minutes)
-	 */
 	public disableRpcTemporary(minutes: number): void {
-		configService.set("rpcEnabled", true) // Keep global state as enabled
+		// The permanent flag stays on: the window above it is what is temporary.
+		configService.set("rpcEnabled", true)
 		configService.set("rpcDisabledUntil", this.clock.now() + minutes * 60 * 1000)
 
-		// Clear any active presence
 		this.clear().catch((error) => {
 			logger.error(`Error clearing Discord presence when temporarily disabling RPC: ${error}`)
 		})
@@ -87,9 +74,6 @@ export class Client {
 		logger.info(`RPC temporarily disabled for ${minutes} minutes`)
 	}
 
-	/**
-	 * Check if connected to Discord
-	 */
 	public isConnected(): boolean {
 		return this.connected
 	}
@@ -104,9 +88,6 @@ export class Client {
 		return this.appName
 	}
 
-	/**
-	 * Connect to Discord RPC
-	 */
 	public async connect(): Promise<boolean> {
 		if (this.connected) {
 			return true
@@ -156,9 +137,6 @@ export class Client {
 		}
 	}
 
-	/**
-	 * Start a reconnection timer that will attempt to reconnect periodically
-	 */
 	private startReconnectTimer(): void {
 		this.stopReconnectTimer()
 
@@ -183,9 +161,6 @@ export class Client {
 		}, this.reconnectDelay)
 	}
 
-	/**
-	 * Stop any active reconnection timer
-	 */
 	private stopReconnectTimer(): void {
 		if (this.reconnectTimer) {
 			clearTimeout(this.reconnectTimer)
@@ -193,9 +168,7 @@ export class Client {
 		}
 	}
 
-	/**
-	 * Force a reconnection attempt
-	 */
+	/** Drops the connection before reconnecting, so a stale socket cannot answer. */
 	public async forceReconnect(): Promise<boolean> {
 		if (this.rpc) {
 			try {
@@ -211,11 +184,7 @@ export class Client {
 		return await this.connect()
 	}
 
-	/**
-	 * Update Discord Rich Presence
-	 */
 	public async update(presenceData: DiscordPresenceData): Promise<boolean> {
-		// Check if RPC is enabled before updating
 		if (!this.isRpcEnabled()) {
 			logger.info("RPC is disabled, skipping presence update")
 			return false
@@ -252,7 +221,6 @@ export class Client {
 				activity.state = presenceData.state
 			}
 
-			// Set custom application name if provided
 			if (presenceData.name) {
 				activity.name = presenceData.name
 			}
@@ -265,12 +233,13 @@ export class Client {
 				activity.smallImageText = presenceData.small_text
 			}
 
+			// The presence carries seconds, Discord's client takes milliseconds.
 			if (presenceData.start_timestamp) {
-				activity.startTimestamp = presenceData.start_timestamp * 1000 // Convert to milliseconds
+				activity.startTimestamp = presenceData.start_timestamp * 1000
 			}
 
 			if (presenceData.end_timestamp) {
-				activity.endTimestamp = presenceData.end_timestamp * 1000 // Convert to milliseconds
+				activity.endTimestamp = presenceData.end_timestamp * 1000
 			}
 
 			if (presenceData.party_id) {
@@ -310,9 +279,6 @@ export class Client {
 		}
 	}
 
-	/**
-	 * Clear Discord Rich Presence
-	 */
 	public async clear(): Promise<boolean> {
 		if (!this.connected) {
 			return false
@@ -333,9 +299,6 @@ export class Client {
 		}
 	}
 
-	/**
-	 * Close the connection to Discord
-	 */
 	public async close(): Promise<void> {
 		this.stopReconnectTimer()
 

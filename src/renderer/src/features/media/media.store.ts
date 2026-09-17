@@ -3,7 +3,6 @@ import type { LastSentPresence } from "@shared/presence/presence.types"
 import { atom } from "nanostores"
 
 export interface MediaState {
-	// Playback status
 	mediaStatus: MediaStatus
 	// Basic info (from VLC status)
 	title: string | null
@@ -95,8 +94,3 @@ export type CorrectionActivity =
 	| { kind: "applying"; key: string; outcome: "saved" | "removed" }
 
 export const correctionStore = atom<CorrectionActivity>({ kind: "settled" })
-
-export function resetMediaStore(): void {
-	mediaStore.set(INITIAL_STATE)
-	correctionStore.set({ kind: "settled" })
-}

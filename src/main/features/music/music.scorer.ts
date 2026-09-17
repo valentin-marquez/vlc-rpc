@@ -166,19 +166,16 @@ const MIN_IDENTITY_MARGIN = 0.05
  * The floor the same score has to clear before the answer also replaces the
  * words the file would have shown.
  *
- * Higher than the cover's floor because the two mistakes are not the same
- * shape. A refused cover leaves an empty frame, which is an honest thing to
- * show; text has no empty state, something is always written, so putting the
- * wrong name there is a confident lie rather than a gap, and it travels to
- * everyone who reads the profile.
+ * Higher than the cover's floor because the mistakes differ in shape: a refused
+ * cover leaves an empty frame, while text has no empty state, so a wrong name is
+ * a confident lie that travels to everyone who reads the profile.
  *
- * Measured on the validated capture: the recording that is playing scored
- * 0.9589, and the duet that reuses its vocal take, a different credit on a
- * different album, scored 0.8551. This floor sits 0.0749 above that impostor,
- * where the cover's floor sits 0.0449 above it, and still leaves 0.0289 of
- * headroom under the one score confirmed correct. The headroom is the point of
- * not putting it higher: the score falls with the encode, and a bar the
- * validated file only just cleared would refuse the next rip of it.
+ * Measured on the validated capture: the recording playing scored 0.9589, and
+ * the duet reusing its vocal take scored 0.8551. This floor sits 0.0749 above
+ * that impostor, where the cover's floor sits 0.0449 above it, and still leaves
+ * 0.0289 of headroom under the one score confirmed correct. That headroom is the
+ * point: the score falls with the encode, and a bar the validated file only just
+ * cleared would refuse the next rip of it.
  */
 const MIN_NAMING_SCORE = 0.93
 

@@ -1,17 +1,13 @@
 import { electronAPI } from "@electron-toolkit/preload"
 import type { UpdateAvailability } from "@shared/updates/update.types"
 import { contextBridge } from "electron"
-import { exposeConf } from "electron-conf/preload"
 import { exposeLogger } from "electron-winston/preload"
 import { onEvent, typedInvoke } from "./typed-bridge"
 
-// Expose electron-conf to renderer
-exposeConf()
-
-// Expose electron-winston to renderer
+// The renderer logs through electron-winston, and reads config through the
+// typed bridge below rather than through electron-conf's own renderer client.
 exposeLogger()
 
-// Custom APIs for renderer
 const api = {
 	config: {
 		get: typedInvoke("config:get"),
@@ -64,7 +60,6 @@ const api = {
 		getStatus: typedInvoke("update:status"),
 		getCurrent: typedInvoke("update:current"),
 		getInstallationType: typedInvoke("update:installation-type"),
-		install: typedInvoke("update:install"),
 		openReleasePage: typedInvoke("update:open-release-page"),
 		onAvailability: (callback: (availability: UpdateAvailability) => void) => {
 			return onEvent("update:availability", callback)
@@ -72,9 +67,6 @@ const api = {
 	},
 }
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
 if (process.contextIsolated) {
 	try {
 		contextBridge.exposeInMainWorld("electron", electronAPI)

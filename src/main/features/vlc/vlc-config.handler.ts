@@ -11,17 +11,12 @@ import { parseVlcConfig } from "./vlc-config.mapper"
 import type { VlcConfigRead } from "./vlc-config.types"
 import type { Client } from "./vlc.client"
 
-/**
- * Handler for VLC configuration operations
- */
 export class VlcConfigHandler {
 	private vlcConfigPath: string | null = null
 
 	/**
 	 * Resolves once the startup synchronization the constructor kicks off has
-	 * finished. The constructor cannot await it itself; this is here so a
-	 * caller (tests, or startup code that cares) can know when the app's
-	 * config has settled instead of racing it.
+	 * finished, so a caller can know when the config settled instead of racing it.
 	 */
 	public readonly ready: Promise<void>
 
@@ -31,9 +26,6 @@ export class VlcConfigHandler {
 		this.ready = this.synchronizeConfig()
 	}
 
-	/**
-	 * Determine the VLC configuration file path based on the current OS
-	 */
 	private determineVlcConfigPath(): void {
 		const platform = process.platform
 		let configPath: string
@@ -64,12 +56,10 @@ export class VlcConfigHandler {
 	}
 
 	/**
-	 * Read vlcrc and report whether it was actually read.
-	 *
-	 * The app's stored config is never returned here disguised as a file read:
-	 * synchronizeConfig needs to tell "vlcrc says X" from "could not read vlcrc,
-	 * assuming X" apart, or it ends up comparing the app's belief to itself and
-	 * reporting sync on a file that does not exist.
+	 * Read vlcrc and report whether it was actually read. The app's stored config
+	 * is never returned here disguised as a file read: `synchronizeConfig` has to
+	 * tell "vlcrc says X" from "could not read vlcrc, assuming X", or it compares
+	 * the app's belief to itself and reports sync on a file that does not exist.
 	 */
 	private async readVlcConfigFile(): Promise<VlcConfigRead> {
 		if (!this.vlcConfigPath) {
@@ -109,11 +99,9 @@ export class VlcConfigHandler {
 	}
 
 	/**
-	 * Get the current VLC configuration.
-	 *
-	 * Falls back to the app's own stored config when vlcrc cannot be read.
-	 * Callers that need to tell a real read from that fallback apart should use
-	 * readVlcConfigFile instead: synchronizeConfig does exactly that.
+	 * Falls back to the app's own stored config when vlcrc cannot be read. A
+	 * caller that has to tell a real read from that fallback uses
+	 * `readVlcConfigFile` instead, as `synchronizeConfig` does.
 	 */
 	public async getVlcConfig(): Promise<VlcConfig> {
 		const result = await this.readVlcConfigFile()
@@ -126,9 +114,7 @@ export class VlcConfigHandler {
 		return result.config
 	}
 
-	/**
-	 * Set up VLC configuration for Discord Rich Presence
-	 */
+	/** Writes the HTTP interface settings into vlcrc, keeping the rest of the file. */
 	public async setupVlcConfig(config: VlcConfig): Promise<boolean> {
 		if (!this.vlcConfigPath) {
 			logger.error("VLC config path not determined")
@@ -309,9 +295,6 @@ export class VlcConfigHandler {
 		}
 	}
 
-	/**
-	 * Generate a random password
-	 */
 	private generateRandomPassword(length: number): string {
 		const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 		let result = ""
@@ -325,15 +308,10 @@ export class VlcConfigHandler {
 	}
 
 	/**
-	 * Synchronize the app's VLC configuration with the actual VLC config file
-	 * This ensures that changes made outside the app are reflected in the app's config
-	 */
-	/**
-	 * Reconcile the app's stored config with what vlcrc actually says.
-	 *
-	 * Reads the file directly rather than through getVlcConfig, so a missing
-	 * or unreadable vlcrc is reported honestly instead of comparing the app's
-	 * stored config to itself and calling that "already in sync".
+	 * Reconcile the app's stored config with what vlcrc actually says, so a change
+	 * made outside the app is picked up. It reads the file directly rather than
+	 * through `getVlcConfig`, so a missing or unreadable vlcrc is reported instead
+	 * of the app comparing its stored config to itself and calling that in sync.
 	 */
 	public async synchronizeConfig(): Promise<void> {
 		logger.info("Synchronizing VLC configuration at startup")

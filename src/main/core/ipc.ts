@@ -2,16 +2,9 @@ import type { IpcChannel, IpcRequest, IpcResponse } from "@shared/ipc"
 import { ipcMain } from "electron"
 
 /**
- * Register a type-safe IPC invoke handler.
- *
- * The channel string, request args, and response type are all inferred from
- * the `IpcInvokeChannelMap` contract. Changing a type in the contract will
- * cause a compile error here if the handler doesn't match.
- *
- * @example
- *   registerHandler("config:get", async (key?) => {
- *     return key ? configService.get(key) : configService.get()
- *   })
+ * The channel, its request args and its response all come from the
+ * `IpcInvokeChannelMap` contract, so a handler that drifts from it fails to
+ * compile rather than at runtime.
  */
 export function registerHandler<C extends IpcChannel>(
 	channel: C,

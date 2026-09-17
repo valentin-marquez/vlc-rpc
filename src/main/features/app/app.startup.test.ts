@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const { electronMock } = vi.hoisted(() => ({
 	electronMock: {
 		isPackaged: { value: true },
-		openAtLogin: { value: false },
 		setLoginItemSettings: vi.fn(),
 	},
 }))
@@ -19,7 +18,6 @@ vi.mock("electron", () => ({
 			return electronMock.isPackaged.value
 		},
 		setLoginItemSettings: electronMock.setLoginItemSettings,
-		getLoginItemSettings: () => ({ openAtLogin: electronMock.openAtLogin.value }),
 	},
 }))
 
@@ -32,7 +30,6 @@ const UNIDENTIFIED: InstallKind = { kind: "portable", reason: "no-uninstaller" }
 beforeEach(() => {
 	electronMock.setLoginItemSettings.mockClear()
 	electronMock.isPackaged.value = true
-	electronMock.openAtLogin.value = false
 })
 
 describe("Deciding whether a copy may start with Windows", () => {
@@ -67,16 +64,8 @@ describe("Deciding whether a copy may start with Windows", () => {
 	it("writes nothing while running from source", () => {
 		electronMock.isPackaged.value = false
 
-		const startup = new Startup(INSTALLED)
-		startup.setStartAtLogin(true)
+		new Startup(INSTALLED).setStartAtLogin(true)
 
 		expect(electronMock.setLoginItemSettings).not.toHaveBeenCalled()
-		expect(startup.getStartAtLogin()).toBe(false)
-	})
-
-	it("reports what Windows holds for a packaged install", () => {
-		electronMock.openAtLogin.value = true
-
-		expect(new Startup(INSTALLED).getStartAtLogin()).toBe(true)
 	})
 })

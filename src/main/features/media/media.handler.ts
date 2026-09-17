@@ -36,10 +36,10 @@ function toContentType(mediaKind: CatalogResult["mediaKind"]): ContentType {
 }
 
 /**
- * A resolver asked where a correction for this file would be filed, which is a
- * question it can answer without resolving. Declared here so the audio side
- * arrives as the music catalog itself: `artwork` picks which cover to show, and
- * knows nothing about how a record is keyed.
+ * A resolver asked where a correction for this file would be filed, which it can
+ * answer without resolving. Declared here so the audio side arrives as the music
+ * catalog itself: `artwork` picks a cover and knows nothing about how a record
+ * is keyed.
  */
 export interface OverrideTargets {
 	overrideTargetFor(status: VlcStatus): Promise<OverrideTarget | null>
@@ -81,13 +81,7 @@ function reportOverrideTarget(info: DetectedMediaInfo, target: OverrideTarget | 
 	info.override_binding = target.kind
 }
 
-/**
- * Handler for accessing media information
- */
 export class MediaInfoHandler {
-	// Cache for the last media data
-	private lastMediaInfo: (VlcStatus & DetectedMediaInfo) | null = null
-
 	constructor(
 		private readonly artwork: ArtworkResolver,
 		private readonly catalog: CatalogResolver,
@@ -119,9 +113,6 @@ export class MediaInfoHandler {
 		})
 	}
 
-	/**
-	 * Get media information for the current media
-	 */
 	public async getMediaInfo(
 		vlcStatus: VlcStatus | null,
 	): Promise<(VlcStatus & DetectedMediaInfo) | null> {
@@ -132,17 +123,15 @@ export class MediaInfoHandler {
 		try {
 			const mediaInfo: VlcStatus & DetectedMediaInfo = { ...vlcStatus }
 
-			// For audio content, try to get cover art
 			if (vlcStatus.mediaType === "audio") {
 				const cover = await this.artwork.resolve(vlcStatus)
 				if (cover) {
 					mediaInfo.content_image_url = cover
 				}
 
-				// The audio text normally comes from the file's own tags, which the
-				// renderer already has, so there is nothing to report beside the kind.
-				// A file with no tags is the exception: what the app shows for it is
-				// what the user typed, and it has to travel like any resolved title.
+				// Audio text comes from the file's own tags, which the renderer already
+				// has. A file with no tags is the exception: what it shows is what the
+				// user typed, and that has to travel like any resolved title.
 				mediaInfo.content_type = "audio"
 				reportOverrideTarget(mediaInfo, await this.music.overrideTargetFor(vlcStatus))
 
@@ -192,20 +181,10 @@ export class MediaInfoHandler {
 				}
 			}
 
-			// Cache the media info for future use
-			this.lastMediaInfo = mediaInfo
-
 			return mediaInfo
 		} catch (error) {
 			logger.error(`Error processing media info: ${error}`)
 			return vlcStatus
 		}
-	}
-
-	/**
-	 * Get the last media info from cache
-	 */
-	public getLastMediaInfo(): (VlcStatus & DetectedMediaInfo) | null {
-		return this.lastMediaInfo
 	}
 }

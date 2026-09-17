@@ -2,9 +2,6 @@ import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
 import type { Client } from "./vlc.client"
 
-/**
- * Handler for VLC status operations
- */
 export class VlcStatusHandler {
 	constructor(private readonly vlc: Client) {
 		this.registerHandlers()
@@ -21,12 +18,5 @@ export class VlcStatusHandler {
 			logger.info(`Checked VLC connection status: ${status.reason}`)
 			return status
 		})
-	}
-
-	/**
-	 * Update VLC connection info when config changes
-	 */
-	public updateConnectionInfo(): void {
-		this.vlc.updateConnectionInfo()
 	}
 }

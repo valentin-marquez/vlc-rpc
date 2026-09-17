@@ -91,10 +91,10 @@ export class Resolver {
 
 	/**
 	 * Where a correction for this file would be filed, without resolving it. The
-	 * key never leaves this feature otherwise, and the media that most needs a
-	 * correction is the media `resolve` answers `null` for: western film and
-	 * television have no provider, so a key that travelled only with a result
-	 * would reach the renderer for everything except the reason it exists.
+	 * media that most needs a correction is the media `resolve` answers `null`
+	 * for, since western film and television have no provider, so a key that
+	 * travelled only with a result would reach the renderer for everything except
+	 * the reason it exists.
 	 *
 	 * `null` when the store would turn the key down, so nothing offers the user a
 	 * form that cannot be saved.
@@ -118,10 +118,9 @@ export class Resolver {
 
 	/**
 	 * Drops what was cached under the identity an override names, so removing the
-	 * correction later shows what the app deduces now and not the answer that was
-	 * cached before the correction was typed. A video override is filed under the
-	 * very `catalogKey` the cache uses, so one delete is the whole job. A key from
-	 * another feature simply matches nothing here.
+	 * correction later shows what the app deduces now. A video override is filed
+	 * under the very `catalogKey` the cache uses, so one delete is the whole job,
+	 * and a key from another feature matches nothing here.
 	 */
 	public evictOverride(key: string): void {
 		this.cache.delete(key)

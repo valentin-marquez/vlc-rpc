@@ -4,12 +4,9 @@ import { configService } from "@main/core/config"
 import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
 import type { Client as DiscordClient } from "@main/features/discord"
-import { BrowserWindow, app, ipcMain, session, shell } from "electron"
+import { BrowserWindow, app, session, shell } from "electron"
 import type { Tray } from "./app.tray"
 
-/**
- * Window management service
- */
 export class Window {
 	private mainWindow: BrowserWindow | null = null
 
@@ -20,9 +17,6 @@ export class Window {
 		this.registerIpcHandlers()
 	}
 
-	/**
-	 * Register IPC handlers for window controls
-	 */
 	private registerIpcHandlers(): void {
 		registerHandler("window:minimize", () => {
 			this.mainWindow?.minimize()
@@ -50,25 +44,8 @@ export class Window {
 		registerHandler("system:platform", () => {
 			return process.platform
 		})
-
-		ipcMain.on("window:maximized-change-subscribe", () => {
-			if (this.mainWindow) {
-				const sendMaximizeState = () => {
-					this.mainWindow?.webContents.send(
-						"window:maximized-change",
-						this.mainWindow.isMaximized(),
-					)
-				}
-
-				this.mainWindow.on("maximize", sendMaximizeState)
-				this.mainWindow.on("unmaximize", sendMaximizeState)
-			}
-		})
 	}
 
-	/**
-	 * Create the main application window
-	 */
 	public async createWindow(): Promise<BrowserWindow> {
 		if (this.mainWindow) {
 			return this.mainWindow
@@ -81,7 +58,6 @@ export class Window {
 			logger.error(`Error waiting for tray: ${error}`)
 		}
 
-		// Set Content Security Policy for React development
 		session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
 			callback({
 				responseHeaders: {
@@ -131,16 +107,11 @@ export class Window {
 			const startWithSystem = configService.get("startWithSystem")
 			const launchedAtStartup = this.wasLaunchedAtStartup()
 
-			// Only start minimized if:
-			// 1. It's not the first run (app is already configured)
-			// 2. Both minimizeToTray and startWithSystem are enabled
-			// 3. The app was launched during system startup
 			const shouldStartMinimized =
 				!isFirstRun && minimizeToTray && startWithSystem && launchedAtStartup
 
 			if (shouldStartMinimized) {
 				logger.info("Starting minimized to system tray (launched at system startup)")
-				// Don't show the window, it will remain hidden and available in the tray
 			} else {
 				logger.info(
 					`Showing main window (isFirstRun: ${isFirstRun}, minimizeToTray: ${minimizeToTray}, startWithSystem: ${startWithSystem}, launchedAtStartup: ${launchedAtStartup})`,
@@ -174,7 +145,6 @@ export class Window {
 			}
 		})
 
-		// Check Discord connection when window regains focus
 		this.mainWindow.on("focus", () => {
 			if (!this.discord.isConnected()) {
 				logger.info("Window focused, trying to reconnect to Discord")
@@ -184,7 +154,6 @@ export class Window {
 			}
 		})
 
-		// Check Discord connection when window is shown (e.g., from tray)
 		this.mainWindow.on("show", () => {
 			if (!this.discord.isConnected()) {
 				logger.info("Window shown, trying to reconnect to Discord")
@@ -204,11 +173,7 @@ export class Window {
 		return this.mainWindow
 	}
 
-	/**
-	 * Check if the app was launched during system startup
-	 */
 	private wasLaunchedAtStartup(): boolean {
-		// Different ways to detect if app was launched on startup
 		if (
 			Object.prototype.hasOwnProperty.call(app, "wasLaunchedAtStartup") &&
 			app.wasLaunchedAtStartup
@@ -226,23 +191,9 @@ export class Window {
 			return true
 		}
 
-		// Check process name and path for login item indicators
 		if (process.platform === "win32") {
-			// Windows often launches startup apps with explorer.exe as parent
 			const execPath = process.execPath.toLowerCase()
 			if (execPath.includes("\\appdata\\") && !is.dev) {
-				// Don't consider dev mode as startup
-				return true
-			}
-		}
-
-		// Check Windows registry for startup detection
-		if (
-			process.env.PROGRAMDATA ||
-			process.env.APPDATA ||
-			process.argv.some((arg) => arg.includes("--autostart"))
-		) {
-			if (app.wasLaunchedAtStartup) {
 				return true
 			}
 		}
@@ -250,9 +201,6 @@ export class Window {
 		return false
 	}
 
-	/**
-	 * Show the main window if exists, create it otherwise
-	 */
 	public showWindow(): void {
 		if (!this.mainWindow) {
 			this.createWindow()
@@ -262,16 +210,6 @@ export class Window {
 				this.mainWindow.restore()
 			}
 			this.mainWindow.focus()
-		}
-	}
-
-	/**
-	 * Close the main window
-	 */
-	public closeWindow(): void {
-		if (this.mainWindow) {
-			this.mainWindow.close()
-			this.mainWindow = null
 		}
 	}
 }

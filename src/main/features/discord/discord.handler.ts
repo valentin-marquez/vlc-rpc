@@ -8,9 +8,6 @@ import type { Client as VlcClient } from "@main/features/vlc"
 import type { LastSentPresence, PresenceClearReason } from "@shared/presence/presence.types"
 import type { Client as DiscordClient } from "./discord.client"
 
-/**
- * Handler for Discord RPC operations
- */
 export class DiscordRpcHandler {
 	private pollIntervalId: NodeJS.Timeout | null = null
 	private readonly timeline: Timeline
@@ -30,12 +27,10 @@ export class DiscordRpcHandler {
 	}
 
 	/**
-	 * Resend on the next tick even though nothing VLC reports has changed.
-	 *
-	 * The poll skips Discord whenever `presenceKey` is unchanged, and that key is
-	 * built from what VLC reports, which a manual correction does not touch. So
-	 * correcting a cover two minutes into an episode would otherwise leave the old
-	 * one on screen for the rest of it, and forever on a track that repeats.
+	 * Resend on the next tick even though nothing VLC reports has changed. The
+	 * poll skips Discord whenever `presenceKey` is unchanged, and a manual
+	 * correction touches none of what that key is built from, so a cover
+	 * corrected two minutes into an episode would otherwise wait for the next one.
 	 */
 	public forceNextUpdate(): void {
 		this.lastSentKey = null
@@ -73,25 +68,6 @@ export class DiscordRpcHandler {
 			return await this.discord.forceReconnect()
 		})
 
-		registerHandler("discord:rpc:enable", () => {
-			this.discord.enableRpc()
-			return true
-		})
-
-		registerHandler("discord:rpc:disable", () => {
-			this.discord.disableRpc()
-			return true
-		})
-
-		registerHandler("discord:rpc:disable:temporary", (minutes) => {
-			this.discord.disableRpcTemporary(minutes)
-			return true
-		})
-
-		registerHandler("discord:rpc:status", () => {
-			return this.discord.isRpcEnabled()
-		})
-
 		registerHandler("discord:presence:last", () => {
 			return this.getLastPresence()
 		})
@@ -110,12 +86,9 @@ export class DiscordRpcHandler {
 		return Math.max(500, Math.min(10000, configured || 1500))
 	}
 
-	/**
-	 * Start the update loop for Discord presence
-	 */
 	public startUpdateLoop(): boolean {
 		if (this.pollIntervalId !== null) {
-			return true // Already running
+			return true
 		}
 
 		try {
@@ -136,9 +109,6 @@ export class DiscordRpcHandler {
 		}
 	}
 
-	/**
-	 * Stop the update loop
-	 */
 	public stopUpdateLoop(): void {
 		logger.info("Stopping Discord presence update loop")
 

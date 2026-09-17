@@ -25,8 +25,8 @@ vi.mock("@main/core/config", () => ({
 	},
 }))
 
-// vi.mock se hoistea por encima de los imports, asi que este import normal
-// ya recibe los modulos mockeados.
+// vi.mock is hoisted above the imports, so this ordinary import already
+// receives the mocked modules.
 import { Client } from "./vlc.client"
 
 const vlcStatusService = new Client()

@@ -1,7 +1,4 @@
 import type { ActivityType } from "discord-api-types/v10"
-/**
- * Discord presence update data
- */
 export interface DiscordPresenceData {
 	details?: string
 	state?: string

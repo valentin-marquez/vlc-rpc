@@ -5,9 +5,6 @@ import { Conf } from "electron-conf/main"
 import { registerHandler } from "./ipc"
 import { logger } from "./logger"
 
-/**
- * Configuration service for the application
- */
 class ConfigService {
 	private static instance: ConfigService | null = null
 	private conf: Conf<AppConfig>
@@ -21,12 +18,8 @@ class ConfigService {
 		logger.info("Configuration loaded", { path: this.conf.fileName })
 
 		this.registerIpcHandlers()
-		this.conf.registerRendererListener()
 	}
 
-	/**
-	 * Get the singleton instance of the config service
-	 */
 	public static getInstance(): ConfigService {
 		if (!ConfigService.instance) {
 			ConfigService.instance = new ConfigService()
@@ -34,9 +27,6 @@ class ConfigService {
 		return ConfigService.instance
 	}
 
-	/**
-	 * Register IPC handlers for config operations
-	 */
 	private registerIpcHandlers(): void {
 		registerHandler("config:get", (key?) => {
 			if (key) {
@@ -53,13 +43,7 @@ class ConfigService {
 		})
 	}
 
-	/**
-	 * Get the full configuration
-	 */
 	public get(): AppConfig
-	/**
-	 * Get a single configuration value
-	 */
 	public get<K extends keyof AppConfig>(key: K): AppConfig[K]
 	public get<K extends keyof AppConfig>(key?: K): AppConfig | AppConfig[K] {
 		if (key) {
@@ -68,29 +52,15 @@ class ConfigService {
 		return this.conf.store
 	}
 
-	/**
-	 * Set a configuration value
-	 */
 	public set<K extends keyof AppConfig>(key: K, value: AppConfig[K]): void {
 		this.conf.set(key, value)
 		// The value stays out of the log: config holds the VLC http password.
 		logger.info(`Config updated: ${key}`)
 	}
 
-	/**
-	 * Delete a configuration value
-	 */
 	public delete<K extends keyof AppConfig>(key: K): void {
 		this.conf.delete(key)
 		logger.info(`Config deleted: ${key}`)
-	}
-
-	/**
-	 * Reset configuration to defaults
-	 */
-	public reset(): void {
-		this.conf.clear()
-		logger.info("Config reset to defaults")
 	}
 }
 

@@ -2,9 +2,6 @@ import { registerHandler } from "@main/core/ipc"
 import { logger } from "@main/core/logger"
 import type { Startup } from "./app.startup"
 
-/**
- * Handler for app info requests
- */
 export class AppInfoHandler {
 	constructor(private readonly startup: Startup) {
 		this.registerHandlers()

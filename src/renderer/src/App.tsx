@@ -34,7 +34,7 @@ function App(): JSX.Element {
 			})
 	}, [])
 
-	// Two looping animations exist and neither should run while nobody is looking.
+	// The spinner loops, and it should not run while nobody is looking.
 	useEffect(() => {
 		const root = document.documentElement
 

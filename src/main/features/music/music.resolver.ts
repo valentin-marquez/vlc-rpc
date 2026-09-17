@@ -296,13 +296,11 @@ export class Resolver {
 
 	/**
 	 * The cover the user filed for this file, read from the store and nothing
-	 * else. `resolve` answers this too, but only after the file's own artwork has
-	 * already been preferred, and reaching it means a network round trip for every
-	 * track that carries artwork of its own.
+	 * else. `resolve` answers this too, but only after preferring the file's own
+	 * artwork, which costs a network round trip for every track that carries some.
 	 *
-	 * A local read for anything the tags name, which is the common case. Audio
-	 * that names nothing pays one playlist read per item to find out which file
-	 * it is, memoized by the locator.
+	 * A local read for anything the tags name. Audio that names nothing pays one
+	 * playlist read per item, memoized by the locator.
 	 */
 	public async overrideCoverFor(status: VlcStatus): Promise<string | null> {
 		if (status.mediaType !== "audio") {
@@ -316,19 +314,13 @@ export class Resolver {
 
 	/**
 	 * What this file should read as, for audio that carries no tags of its own,
-	 * and who says so.
-	 *
-	 * The presence text is built from tags and there are none, so without this a
-	 * file the app has already identified still reads as its own file name on
-	 * Discord. Two sources answer, in this order: what the user typed, then what
-	 * the audio was matched to, and the second only when the match cleared the
-	 * higher of the two fingerprint floors.
+	 * and who says so. Two sources answer, in this order: what the user typed,
+	 * then what the audio was matched to, and the second only when the match
+	 * cleared the higher of the two fingerprint floors.
 	 *
 	 * Not merged field by field. A correction is the user having refused what the
-	 * app deduced, so filling the half they left blank from the same deduction
-	 * would put a credit on their profile they never agreed to, and it would
-	 * leave the screen with a name half typed and half guessed that no single
-	 * sentence could attribute.
+	 * app deduced, so filling the half they left blank from that same deduction
+	 * would put a credit on their profile they never agreed to.
 	 *
 	 * `null` for everything else, tagged audio included: the file already says
 	 * what it is, and a correction there carries only a cover by design.
@@ -406,22 +398,18 @@ export class Resolver {
 	}
 
 	/**
-	 * The one key this file's correction lives under, chosen rather than merged:
-	 * a file is looked up under exactly the key it would be saved under, so a
-	 * correction is never filed where nothing will look for it.
+	 * The one key this file's correction lives under, chosen rather than merged,
+	 * so a file is looked up under exactly the key it would be saved under.
 	 *
-	 * The record key first, because it is the one worth having: it is shared by
-	 * every track of a release, so one correction fixes the whole album and
-	 * survives the file being moved, renamed or re-encoded. The store turns it
-	 * down when the credit that leads it is empty, which is audio with no artist
-	 * tag, and that is where the file itself takes over. It cannot collide, since
-	 * two files are never one path, and it is the only identity such a file has:
-	 * its title is usually a filename, and one correction under a filename would
-	 * claim every rip that reused it.
+	 * The record key first, because it is shared by every track of a release: one
+	 * correction fixes the whole album and survives the file being moved, renamed
+	 * or re-encoded. The store turns it down when the credit leading it is empty,
+	 * which is audio with no artist tag, and there the path takes over as the only
+	 * identity such a file has.
 	 *
-	 * Adding an artist tag later therefore retires the file correction rather
-	 * than moving it. That is the honest outcome: the file now says what it is,
-	 * and a correction filed when it said nothing was never about the record.
+	 * Adding an artist tag later therefore retires the file correction rather than
+	 * moving it: the file now says what it is, and a correction filed when it said
+	 * nothing was never about the record.
 	 */
 	private async overrideKeyFor(
 		status: VlcStatus,
@@ -443,22 +431,17 @@ export class Resolver {
 
 	/**
 	 * Drops what was cached for the record an audio override names, so removing
-	 * the correction later shows what the app deduces now and not the answer that
-	 * was cached before the correction was typed.
+	 * the correction later shows what the app deduces now and not the answer
+	 * cached before it was typed.
 	 *
-	 * It cannot be the cache's `delete`, the way the catalog's is. An override is
-	 * filed per record, the cache is keyed per track, and that key carries the
-	 * album last, after a credit of unknown length: the track keys of an album
-	 * cannot be derived from the override key, and no prefix of one is a prefix of
-	 * the others. Every cached key has to be tested instead.
+	 * Every key has to be tested rather than deleted by name, the way the
+	 * catalog's is: the override is per record, the cache is per track, and no
+	 * prefix of one track key is a prefix of the others.
 	 *
 	 * A correction filed against a file matches nothing here, deliberately. What
-	 * it replaces is the fingerprint entry, and that entry is a function of the
-	 * bytes: dropping it would spend a request against the one budget every user
-	 * of this app shares to be told the same thing again. Removing such a
-	 * correction therefore shows what the app deduces, which is what the entry
-	 * already holds, and a file that is re-encoded retires it on its own since the
-	 * fingerprint key carries the size and the modification time.
+	 * it replaces is the fingerprint entry, which is a function of the bytes, so
+	 * dropping it would spend a request on the one budget every user of this app
+	 * shares to be told the same thing again.
 	 */
 	public evictOverride(key: string): void {
 		this.cache.deleteWhere((cached) => overrideCoversTrack(cached, key))

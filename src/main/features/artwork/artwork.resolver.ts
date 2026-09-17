@@ -21,11 +21,8 @@ export interface MusicCatalog {
 
 /**
  * Picks the image to show for an audio track: the correction the user typed,
- * then the file's own artwork, then an external catalog.
- *
- * It sits above both features so `cover` never learns that catalogs exist, and
- * so the rule below lives in one place instead of at each of its three call
- * sites.
+ * then the file's own artwork, then an external catalog. It sits above both
+ * features so `cover` never learns that catalogs exist.
  */
 export class Resolver {
 	constructor(

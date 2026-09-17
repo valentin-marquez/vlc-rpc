@@ -2,7 +2,7 @@ import { vlcStatusStore } from "@renderer/features/vlc/vlc.store"
 import { logger } from "@renderer/lib/utils"
 import type { VlcStatus } from "@shared/vlc/vlc.types"
 import { type InfoStamp, mergeVlcStatus, stampsAgree } from "./media.mapper"
-import { correctionStore, lastPresenceStore, mediaStore, resetMediaStore } from "./media.store"
+import { correctionStore, lastPresenceStore, mediaStore } from "./media.store"
 
 /**
  * Bumped by every correction the user writes. A read that was asked for under
@@ -14,18 +14,10 @@ function stampNow(): InfoStamp {
 	return { file: mediaStore.get().fileTitle, corrections }
 }
 
-/**
- * Update media store from VLC status response.
- * Called by VLC polling when a new status arrives.
- */
 export function updateFromVlcStatus(status: VlcStatus | null): void {
 	mediaStore.set(mergeVlcStatus(mediaStore.get(), status))
 }
 
-/**
- * Fetch enriched media info (content type, season/episode, cover art URL)
- * from the main process and merge into the unified store.
- */
 export async function refreshMediaInfo(): Promise<void> {
 	try {
 		if (vlcStatusStore.get() !== "connected") {
@@ -159,11 +151,7 @@ export async function decideAudioMatch(
 	await applyCorrection(key, action === "restore" ? "removed" : "saved")
 }
 
-/**
- * Read back the presence the main process last handed to Discord. Reported
- * rather than rebuilt here: Home exists to reveal a mismatch between VLC and
- * Discord, so it must not be able to invent one.
- */
+/** Reported rather than rebuilt: Home reveals a mismatch, so it must not be able to invent one. */
 export async function refreshLastPresence(): Promise<void> {
 	try {
 		lastPresenceStore.set(await window.api.discord.getLastPresence())
@@ -172,10 +160,7 @@ export async function refreshLastPresence(): Promise<void> {
 	}
 }
 
-/**
- * Proxy an image URL through the main process to get a data URL.
- * Avoids CORS issues with external artwork URLs.
- */
+/** Through the main process, because the page's CSP blocks a remote image outright. */
 export async function getProxiedImage(url: string | null): Promise<string | null> {
 	if (!url) return null
 	if (url.startsWith("data:")) return url
@@ -187,5 +172,3 @@ export async function getProxiedImage(url: string | null): Promise<string | null
 		return null
 	}
 }
-
-export { resetMediaStore }

@@ -16,7 +16,6 @@ import * as Updates from "@main/features/updates"
 import * as Vlc from "@main/features/vlc"
 import { app } from "electron"
 
-// Add isQuitting property and wasLaunchedAtStartup property to app
 declare global {
 	namespace Electron {
 		interface App {
@@ -35,7 +34,6 @@ if (!gotTheLock) {
 	logger.info("Another instance is already running. Quitting this one.")
 	app.quit()
 } else {
-	// Detect if app was launched at startup
 	const launchArgs = process.argv.slice(1).join(" ").toLowerCase()
 	app.wasLaunchedAtStartup =
 		launchArgs.includes("--autostart") ||
@@ -44,9 +42,7 @@ if (!gotTheLock) {
 		launchArgs.includes("--autorun")
 
 	// Assigned once the composition root below runs inside whenReady(). A
-	// second-instance launch racing that window is a pre-existing edge case,
-	// not something this refactor introduces: showWindow() no-ops instead of
-	// throwing if it fires first.
+	// second-instance launch that beats it finds undefined and no-ops.
 	let window: App.Window | undefined
 
 	app.on("second-instance", () => {
@@ -71,9 +67,6 @@ if (!gotTheLock) {
 		})
 
 		electronApp.setAppUserModelId("com.valentinmarquez.vlcdiscordrp")
-
-		configService.set("version", app.getVersion())
-		logger.info(`Set app version in config: ${app.getVersion()}`)
 
 		// Services with no dependency on another feature
 		const systemClock = new SystemClock()
@@ -103,14 +96,12 @@ if (!gotTheLock) {
 		const musicCache = new Music.Cache(systemClock)
 		// Identifying audio by its sound needs a key of this application's own,
 		// injected at build time. A clone without one keeps every other step of
-		// the cover chain exactly as it was, and is told so here rather than once
-		// per track.
+		// the cover chain, and is told so here rather than once per track.
 		//
-		// electron-vite replaces the expression below with a literal before any
-		// module exists, while tsconfig.node.json typechecks this file as
-		// CommonJS, where the syntax is not allowed. The directive is the
-		// expecting kind on purpose: the day that config changes, tsc reports it
-		// as unused and the line goes.
+		// electron-vite inlines the expression below before any module exists,
+		// while tsconfig.node.json typechecks this file as CommonJS, where the
+		// syntax is not allowed. Expecting the error rather than ignoring it: the
+		// day that config changes, tsc reports the directive as unused.
 		// @ts-expect-error TS1470, import.meta under a CommonJS typecheck
 		const acoustIdKey: string = import.meta.env.MAIN_VITE_ACOUSTID_KEY ?? ""
 		if (acoustIdKey.length === 0) {
@@ -118,9 +109,8 @@ if (!gotTheLock) {
 		}
 		// One locator for both readers, so the playlist is read once per item and
 		// not once per question. The resolver holds it unconditionally: a file
-		// with no tags can only be corrected under the file itself, and gating
-		// that on the key above would drop the correction from every build that
-		// does not carry one.
+		// with no tags can only be corrected under the file itself, so gating it
+		// on the key above would drop corrections from every keyless build.
 		const musicLocator = new Music.Locator(vlc)
 		const identifier =
 			acoustIdKey.length === 0
@@ -136,9 +126,9 @@ if (!gotTheLock) {
 			identifier,
 		)
 		const artwork = new Artwork.Resolver(cover, musicResolver)
-		// The music resolver a third time, under its narrowest question yet: audio
-		// text is built from tags, and a file that carries none has only what the
-		// user typed to build it from.
+		// The music resolver a third time, for its narrowest question: audio text
+		// is built from tags, and a file that carries none has only what the user
+		// typed to build it from.
 		const presence = new Presence.Service(artwork, catalogResolver, musicResolver)
 
 		// The tray/window cycle, resolved in fixed order
@@ -152,10 +142,9 @@ if (!gotTheLock) {
 		new Media.MediaInfoHandler(artwork, catalogResolver, musicResolver, vlc, imageProxy)
 		const discordRpcHandler = new Discord.DiscordRpcHandler(discord, vlc, presence, systemClock)
 		// Both resolvers, because the key alone does not say which cache holds what
-		// the correction replaces, and each one answers only for its own keys. The
-		// rpc handler, because evicting a cache does not reach a presence already
-		// on screen: that loop diffs on what VLC reports, which a correction leaves
-		// untouched.
+		// the correction replaces. The rpc handler, because evicting a cache does
+		// not reach a presence already on screen: that loop diffs on what VLC
+		// reports, which a correction leaves untouched.
 		new Overrides.Handler(overridesStore, [catalogResolver, musicResolver], discordRpcHandler)
 		new Updates.UpdateHandler(updater)
 		new Vlc.VlcConfigHandler(vlc)

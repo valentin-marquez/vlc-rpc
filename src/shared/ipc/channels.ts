@@ -70,14 +70,8 @@ export type OverrideSaveResult =
 // ─── Invoke Channels (Renderer → Main, request/response) ────────────────────
 
 /**
- * IPC Contract Map: single source of truth for all invoke-based IPC channels.
- *
- * Each key is the exact channel string used by `ipcMain.handle` / `ipcRenderer.invoke`.
- * The value defines the request args tuple and the response type.
- *
- * To add a new channel:
- *   1. Add an entry here with its request/response types.
- *   2. The compiler will force you to implement the handler (main) and bridge (preload).
+ * The one place an invoke channel is declared. An entry added here does not compile until
+ * the handler in main and the bridge in preload both exist.
  */
 export interface IpcInvokeChannelMap {
 	// ── Config ──────────────────────────────────────────────────────────────
@@ -100,10 +94,6 @@ export interface IpcInvokeChannelMap {
 	"discord:start-loop": { request: []; response: boolean }
 	"discord:stop-loop": { request: []; response: boolean }
 	"discord:reconnect": { request: []; response: boolean }
-	"discord:rpc:enable": { request: []; response: boolean }
-	"discord:rpc:disable": { request: []; response: boolean }
-	"discord:rpc:disable:temporary": { request: [minutes: number]; response: boolean }
-	"discord:rpc:status": { request: []; response: boolean }
 	"discord:presence:last": { request: []; response: LastSentPresence }
 
 	// ── Media ───────────────────────────────────────────────────────────────
@@ -158,7 +148,6 @@ export interface IpcInvokeChannelMap {
 	/** What the updater knows right now, for a renderer that mounted after it knew. */
 	"update:current": { request: []; response: UpdateAvailability }
 	"update:installation-type": { request: []; response: UpdateInstallKind }
-	"update:install": { request: []; response: boolean }
 	"update:open-release-page": { request: []; response: undefined }
 
 	// ── Window ──────────────────────────────────────────────────────────────
@@ -174,11 +163,7 @@ export interface IpcInvokeChannelMap {
 
 // ─── Push Events (Main → Renderer, one-way) ────────────────────────────────
 
-/**
- * Events pushed from main to renderer via `webContents.send` / `ipcRenderer.on`.
- *
- * Each key is the event channel string. The value is the payload type.
- */
+/** One-way pushes from main, keyed by channel with the payload as the value. */
 export interface IpcEventMap {
 	"window:maximized-change": boolean
 	/**

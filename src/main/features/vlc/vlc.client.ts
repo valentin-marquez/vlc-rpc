@@ -5,9 +5,6 @@ import type { VlcConnectionReason, VlcConnectionStatus, VlcStatus } from "@share
 import { detectVideoStream } from "./vlc.mapper"
 import type { VlcMetadata, VlcPlaylistItem, VlcPlaylistResponse, VlcRawStatus } from "./vlc.types"
 
-/**
- * Service to read and process VLC media status through HTTP interface
- */
 /** Drops a trailing media extension, and only that: a dot inside a title stays. */
 function stripExtension(filename: string): string {
 	return filename.replace(/\.[a-z0-9]{2,4}$/i, "")
@@ -50,9 +47,6 @@ export class Client {
 		this.updateConnectionInfo()
 	}
 
-	/**
-	 * Update connection information based on current VLC config
-	 */
 	public updateConnectionInfo(): void {
 		const vlcConfig = configService.get("vlc")
 		this.baseUrl = `http://localhost:${vlcConfig.httpPort}/requests/`
@@ -61,11 +55,8 @@ export class Client {
 		logger.info(`Auth headers created: ${Object.keys(this.authHeader).length > 0 ? "Yes" : "No"}`)
 	}
 
-	/**
-	 * Create the HTTP Basic Auth header for VLC
-	 */
 	private createAuthHeader(password: string): Record<string, string> {
-		// VLC requires empty username and password in a specific format
+		// VLC authenticates with an empty username and the password alone.
 		const username = ""
 		const authString = `${username}:${password || ""}`
 		const base64Auth = Buffer.from(authString).toString("base64")
@@ -90,12 +81,7 @@ export class Client {
 		return Math.max(500, Math.min(10000, configured || 2000))
 	}
 
-	/**
-	 * Read VLC status through HTTP interface
-	 *
-	 * @param forceUpdate Whether to force an update even if hash hasn't changed
-	 * @returns Parsed status information or null if unavailable
-	 */
+	/** `forceUpdate` reparses even when the response hashes the same as the last one. */
 	public async readStatus(forceUpdate = false): Promise<VlcStatus | null> {
 		const vlcConfig = configService.get("vlc")
 
@@ -173,10 +159,7 @@ export class Client {
 		}
 	}
 
-	/**
-	 * Try an alternative authentication approach
-	 * VLC can be picky about auth formats
-	 */
+	/** VLC can be picky about auth formats, so a 401 is retried with the credentials in the URL. */
 	private async retryWithAlternativeAuth(statusUrl: string): Promise<VlcStatus | null> {
 		try {
 			logger.info("Trying alternative authentication method...")
@@ -221,9 +204,6 @@ export class Client {
 		}
 	}
 
-	/**
-	 * Update authentication strategy based on what works
-	 */
 	private updateAuthStrategy(password: string): void {
 		const username = ""
 		const authString = `${username}:${password || ""}`
@@ -237,10 +217,6 @@ export class Client {
 		logger.info("Updated authentication strategy")
 	}
 
-	/**
-	 * Convert VLC HTTP API status format to our internal format
-	 * Uses VLC stream information for reliable content type detection
-	 */
 	private convertVlcStatus(vlcStatus: VlcRawStatus): VlcStatus {
 		const state = vlcStatus.state || "stopped"
 		const time = Number.parseInt(String(vlcStatus.time || 0), 10)
@@ -277,12 +253,9 @@ export class Client {
 		status.videoInfo = videoInfo
 		logger.info(`Media type detected: ${status.mediaType}`)
 
-		// Get metadata from VLC
 		const meta = (category.meta as VlcMetadata) || {}
 
-		// Media information extraction
 		if (meta) {
-			// Prioritize specific metadata fields over generic ones
 			// The filename is the last resort, and it arrives with its extension.
 			// Leaving it on puts ".mp3" on the user's profile, which is the exact
 			// thing reading the tags is meant to avoid.
@@ -297,9 +270,8 @@ export class Client {
 			status.media.artist = meta.artist || ""
 			status.media.album = meta.album || ""
 
-			// Handle artwork URL - prioritize our uploaded images
+			// An image this app uploaded outranks the local one, until it expires.
 			if (meta["X-COVER-URL"]) {
-				// Check if our uploaded image is still valid
 				const expiryDate = meta["X-EXPIRY-DATE"]
 				let isExpired = false
 
@@ -320,14 +292,12 @@ export class Client {
 					status.media.artworkUrl = meta.artwork_url
 				}
 			} else {
-				// Use local artwork URL if available
 				status.media.artworkUrl = meta.artwork_url
 			}
 		}
 
 		logger.info(`Final media type: ${status.mediaType} for "${status.media.title}"`)
 
-		// Log metadata for debugging
 		if (meta["X-COVER-URL"]) {
 			logger.info(
 				`Custom metadata found - App: ${meta["X-PROCESSED-BY"]}, Version: ${meta["X-APP-VERSION"]}`,
@@ -337,10 +307,7 @@ export class Client {
 		return status
 	}
 
-	/**
-	 * Get the current playing file URI from VLC playlist
-	 * @returns The file URI of the currently playing item or null
-	 */
+	/** The URI of the item the playlist marks as current, which status.json does not carry. */
 	public async getCurrentFileUri(): Promise<string | null> {
 		const vlcConfig = configService.get("vlc")
 
@@ -370,7 +337,6 @@ export class Client {
 			const content = await response.text()
 			const playlist: VlcPlaylistResponse = JSON.parse(content)
 
-			// Find the current playing item
 			const currentItem = this.findCurrentPlayingItem(playlist)
 			if (currentItem?.uri) {
 				return currentItem.uri
@@ -387,18 +353,11 @@ export class Client {
 		}
 	}
 
-	/**
-	 * Recursively search for the current playing item in the playlist
-	 * @param item - Playlist item to search
-	 * @returns The current playing item or null
-	 */
 	private findCurrentPlayingItem(item: VlcPlaylistResponse): VlcPlaylistItem | null {
-		// Check if this item is marked as current
 		if ("current" in item && (item as VlcPlaylistItem).current === "current") {
 			return item as VlcPlaylistItem
 		}
 
-		// Search in children
 		if (item.children) {
 			for (const child of item.children) {
 				const found = this.findCurrentPlayingItem(child as VlcPlaylistResponse)

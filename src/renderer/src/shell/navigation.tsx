@@ -10,7 +10,7 @@ interface NavItem {
 	icon: Icon
 }
 
-export const NAV_ITEMS: readonly NavItem[] = [
+const NAV_ITEMS: readonly NavItem[] = [
 	{ path: "/", label: "Home", icon: House },
 	{ path: "/layout", label: "Layout", icon: LayoutIcon },
 	{ path: "/settings", label: "Settings", icon: Gear },
