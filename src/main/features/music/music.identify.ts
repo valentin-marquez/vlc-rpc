@@ -6,8 +6,25 @@ import type {
 	AudioIdLookup,
 	AudioIdentifier,
 	FileLocator,
+	FingerprintMatch,
+	IdentifiedName,
 	IdentifyOutcome,
 } from "./music.types"
+
+/**
+ * The credit as one line. MusicBrainz ships the join phrases separately and the
+ * normalizer drops them, so the names are rejoined with the one separator that
+ * is right for every credit rather than guessed at per artist.
+ */
+function nameOf(match: FingerprintMatch): IdentifiedName | null {
+	const title = match.title.trim()
+	const artist = match.artists
+		.map((name) => name.trim())
+		.filter((name) => name.length > 0)
+		.join(", ")
+
+	return title.length > 0 && artist.length > 0 ? { title, artist } : null
+}
 
 /**
  * Identification from the audio itself: hash the file, ask AcoustID what
@@ -64,11 +81,12 @@ export class Identifier implements AudioIdentifier {
 			return { kind: "unidentified", reason: "no-results" }
 		}
 
-		const best = pickIdentified(outcome.matches)
-		if (best === null) {
+		const identification = pickIdentified(outcome.matches)
+		if (identification.kind === "unidentified") {
 			return { kind: "unidentified", reason: "no-match" }
 		}
 
+		const best = identification.match
 		return {
 			kind: "identified",
 			recording: {
@@ -79,6 +97,7 @@ export class Identifier implements AudioIdentifier {
 				releases: best.releases,
 				rank: best.rank,
 			},
+			name: identification.kind === "named" ? nameOf(best) : null,
 		}
 	}
 }

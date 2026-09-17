@@ -171,6 +171,11 @@ class PlayingState extends MediaState {
 		// concrete file being played, and parsing is pure and local.
 		const localParse = mediaType === "video" ? parseVideo(media.title || "") : null
 
+		// The artwork first, and the text after it. Both can come from the same
+		// acoustic match, and the lookup that learns it happens inside this call:
+		// asked in the other order the text would answer from the poll before,
+		// leaving the right cover beside the file name for one turn of the loop.
+		const cover = mediaType === "audio" ? await this.artwork.resolve(mediaInfo) : null
 		const corrected =
 			mediaType === "audio" ? await this.corrections.correctedTagsFor(mediaInfo) : null
 
@@ -210,11 +215,8 @@ class PlayingState extends MediaState {
 			smallText += `, ${resolution}`
 		}
 
-		if (mediaType === "audio" && media) {
-			const cover = await this.artwork.resolve(mediaInfo)
-			if (cover) {
-				largeImage = cover
-			}
+		if (cover) {
+			largeImage = cover
 		}
 
 		const presenceData: DiscordPresenceData = {
@@ -274,6 +276,11 @@ class PausedState extends MediaState {
 		// concrete file being played, and parsing is pure and local.
 		const localParse = mediaType === "video" ? parseVideo(media.title || "") : null
 
+		// The artwork first, and the text after it. Both can come from the same
+		// acoustic match, and the lookup that learns it happens inside this call:
+		// asked in the other order the text would answer from the poll before,
+		// leaving the right cover beside the file name for one turn of the loop.
+		const cover = mediaType === "audio" ? await this.artwork.resolve(mediaInfo) : null
 		const corrected =
 			mediaType === "audio" ? await this.corrections.correctedTagsFor(mediaInfo) : null
 
@@ -309,11 +316,8 @@ class PausedState extends MediaState {
 			smallText += `, ${resolution}`
 		}
 
-		if (mediaType === "audio" && media) {
-			const cover = await this.artwork.resolve(mediaInfo)
-			if (cover) {
-				largeImage = cover
-			}
+		if (cover) {
+			largeImage = cover
 		}
 
 		const presenceData: DiscordPresenceData = {

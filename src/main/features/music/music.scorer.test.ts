@@ -325,59 +325,77 @@ describe("pickIdentified", () => {
 	}
 
 	it("has nothing to pick from an empty list", () => {
-		expect(pickIdentified([])).toBeNull()
+		expect(pickIdentified([])).toEqual({ kind: "unidentified" })
 	})
 
-	it("takes a lone match that clears the floor", () => {
-		expect(pickIdentified([match()])?.id).toBe("mbid-1")
+	it("names a lone match that clears both floors", () => {
+		const picked = pickIdentified([match()])
+
+		expect(picked.kind).toBe("named")
+		expect(picked.kind === "named" && picked.match.id).toBe("mbid-1")
 	})
 
 	it("refuses a match the service is not confident about", () => {
 		// 0.8551 is the score the validated capture gives a different recording
 		// that shares a vocal take, so a floor under it admits a wrong cover.
-		expect(pickIdentified([match({ score: 0.8551 })])).toBeNull()
-		expect(pickIdentified([match({ score: 0.899 })])).toBeNull()
+		expect(pickIdentified([match({ score: 0.8551 })])).toEqual({ kind: "unidentified" })
+		expect(pickIdentified([match({ score: 0.899 })])).toEqual({ kind: "unidentified" })
+	})
+
+	it("draws the cover for a match that is not sure enough to rename the file", () => {
+		// Between the two floors: good enough that the cover beats no cover, not
+		// good enough to overwrite words that are already on screen.
+		const picked = pickIdentified([match({ score: 0.9299 })])
+
+		expect(picked.kind).toBe("cover-only")
+		expect(picked.kind === "cover-only" && picked.match.id).toBe("mbid-1")
+	})
+
+	it("names a match sitting exactly on the naming floor", () => {
+		expect(pickIdentified([match({ score: 0.93 })]).kind).toBe("named")
 	})
 
 	it("refuses two close matches that credit different artists", () => {
-		const winner = pickIdentified([
+		const picked = pickIdentified([
 			match({ score: 0.94, id: "solo" }),
 			match({ score: 0.93, id: "duet", artists: ["Christian Nodal", "David Bisbal"], rank: 1 }),
 		])
 
-		expect(winner).toBeNull()
+		expect(picked).toEqual({ kind: "unidentified" })
 	})
 
-	it("takes the top when two close matches credit the same artist", () => {
+	it("covers but does not name two close matches that credit the same artist", () => {
 		// Both covers belong to the same performer's catalog, and the release
-		// ordering already prefers the album over the single.
-		const winner = pickIdentified([
+		// ordering already prefers the album over the single. The titles are not
+		// interchangeable the way the covers are, so the text is left alone.
+		const picked = pickIdentified([
 			match({ score: 0.94, id: "album-take" }),
 			match({ score: 0.93, id: "single-take", title: "Probablemente (En vivo)", rank: 1 }),
 		])
 
-		expect(winner?.id).toBe("album-take")
+		expect(picked.kind).toBe("cover-only")
+		expect(picked.kind === "cover-only" && picked.match.id).toBe("album-take")
 	})
 
-	it("takes the top when it clears the runner up by more than the margin", () => {
-		const winner = pickIdentified([
+	it("names the top when it clears the runner up by more than the margin", () => {
+		const picked = pickIdentified([
 			match({ score: 0.97, id: "solo" }),
 			match({ score: 0.91, id: "duet", artists: ["Christian Nodal", "David Bisbal"], rank: 1 }),
 		])
 
-		expect(winner?.id).toBe("solo")
+		expect(picked.kind === "named" && picked.match.id).toBe("solo")
 	})
 
 	it("orders by score rather than by the position the service returned", () => {
-		const winner = pickIdentified([
+		const picked = pickIdentified([
 			match({ score: 0.91, id: "second-best" }),
 			match({ score: 0.98, id: "best", rank: 1 }),
 		])
 
-		expect(winner?.id).toBe("best")
+		expect(picked.kind === "named" && picked.match.id).toBe("best")
 	})
 
-	it("picks the solo recording out of the captured AcoustID response", async () => {
+	it("names the solo recording out of the captured AcoustID response", async () => {
 		const body = readFileSync(
 			join(__dirname, "__fixtures__", "acoustid-lookup-response.json"),
 			"utf-8",
@@ -388,10 +406,16 @@ describe("pickIdentified", () => {
 		)
 
 		const outcome = await new AcoustId("test-client-key").lookup("AQADtMqS", 232.97)
-		const winner = outcome.kind === "matched" ? pickIdentified(outcome.matches) : null
+		if (outcome.kind !== "matched") throw new Error("the captured response is a match")
+		const picked = pickIdentified(outcome.matches)
 
-		expect(winner?.id).toBe("097cfb49-419c-4b00-97f3-cc86ef4d77c2")
-		expect(winner?.artists).toEqual(["Christian Nodal"])
+		// 0.9589 against 0.8551 for the duet that reuses the vocal take: the
+		// measured pair a naming floor exists to separate.
+		expect(picked.kind).toBe("named")
+		if (picked.kind !== "named") return
+		expect(picked.match.id).toBe("097cfb49-419c-4b00-97f3-cc86ef4d77c2")
+		expect(picked.match.title).toBe("Probablemente")
+		expect(picked.match.artists).toEqual(["Christian Nodal"])
 		vi.unstubAllGlobals()
 	})
 })

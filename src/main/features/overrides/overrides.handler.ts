@@ -51,6 +51,11 @@ async function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>): Promise
 	}
 }
 
+/** Not every correction carries one: a revert names no image and no words. */
+function coverOf(draft: OverrideDraft): string | undefined {
+	return "cover" in draft ? draft.cover : undefined
+}
+
 function isHttpUrl(value: string): boolean {
 	let parsed: URL
 	try {
@@ -143,8 +148,9 @@ export class Handler {
 	}
 
 	private async save(key: string, draft: OverrideDraft): Promise<OverrideSaveResult> {
-		if (draft.cover !== undefined) {
-			const failure = await checkCover(draft.cover)
+		const cover = coverOf(draft)
+		if (cover !== undefined) {
+			const failure = await checkCover(cover)
 			if (failure) {
 				return failure
 			}
@@ -163,7 +169,7 @@ export class Handler {
 		}
 
 		this.invalidate(key)
-		logger.info("Saved an override", { kind: draft.kind, hasCover: draft.cover !== undefined })
+		logger.info("Saved an override", { kind: draft.kind, hasCover: cover !== undefined })
 		return { saved: true }
 	}
 }

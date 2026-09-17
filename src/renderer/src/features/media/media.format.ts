@@ -1,5 +1,50 @@
-import type { ContentType } from "@shared/media/media.types"
+import type { ContentType, DetectedMediaInfo } from "@shared/media/media.types"
 import type { CorrectionActivity } from "./media.store"
+
+/**
+ * The row that declares an automatic match, and where possible the one thing it
+ * offers to do about it. It exists for a single reason: the words on screen did
+ * not come from the file, and a user who disagrees needs something to disagree
+ * with.
+ *
+ * `declared` is that row with no button. It is what a file already carrying a
+ * correction gets: refusing the match files a correction of its own, and there
+ * is one correction per file, so the click would take away a cover the user
+ * chose by hand. The form below the row is where that file is edited instead.
+ */
+export type MatchRow =
+	| { kind: "declared"; value: string }
+	| { kind: "decidable"; value: string; button: string; action: "refuse" | "restore" }
+
+/**
+ * Nothing at all for a name the user typed: the correction row already answers
+ * for that one, and two rows about one decision read as two decisions.
+ */
+export function audioMatchRow(
+	source: DetectedMediaInfo["content_name_source"] | null,
+	correctionSaved: boolean,
+): MatchRow | null {
+	switch (source) {
+		case "identification":
+			return correctionSaved
+				? { kind: "declared", value: "Matched from the audio" }
+				: {
+						kind: "decidable",
+						value: "Matched from the audio",
+						button: "Use what the file says",
+						action: "refuse",
+					}
+		case "as-is":
+			return {
+				kind: "decidable",
+				value: "Turned off for this file",
+				button: "Use the match again",
+				action: "restore",
+			}
+		default:
+			return null
+	}
+}
 
 const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
 	tv_show: "TV show",

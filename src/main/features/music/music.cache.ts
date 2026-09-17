@@ -1,13 +1,17 @@
 import type { Clock } from "@main/core/clock"
 import { Conf } from "electron-conf/main"
-import type { CacheEntry, MusicResult, UnresolvedReason } from "./music.types"
+import type { CacheEntry, IdentifiedName, MusicResult, UnresolvedReason } from "./music.types"
 
 // Its own counter, never the catalog cache's: the two features share no code
 // path, so a change to the video scorer must not silently wipe every cached
 // music lookup, and vice versa.
 // Bumped to 2 when unresolved entries began recording why: an entry written
 // before that carries no reason, and reading it as one would be a guess.
-const CACHE_VERSION = 2
+// Bumped to 3 when an acoustic answer began carrying the name it identified.
+// An entry written before that holds a cover and no name, and a resolved entry
+// never expires, so without this every file already identified would keep
+// reading as its own file name for as long as the entry survives.
+const CACHE_VERSION = 3
 const MAX_RESOLVED_ENTRIES = 200
 const TRANSIENT_TTL_MS = 5_000
 const STABLE_TTL_MS = 24 * 60 * 60_000
@@ -63,7 +67,12 @@ export class Cache {
 		this.conf.set("entries", entries)
 	}
 
-	public setUnresolved(key: string, reason: UnresolvedReason): void {
+	/**
+	 * The name is optional and only ever arrives with `no-cover`: the audio was
+	 * identified and the archive had no artwork for it, which is a miss the cover
+	 * has to remember and an answer the text can still use.
+	 */
+	public setUnresolved(key: string, reason: UnresolvedReason, name?: IdentifiedName): void {
 		const entries = this.conf.get("entries")
 		this.dropExpired(entries)
 		const ttl = reason === "provider-error" ? TRANSIENT_TTL_MS : STABLE_TTL_MS
@@ -73,6 +82,7 @@ export class Cache {
 			reason,
 			expiresAt: this.clock.now() + ttl,
 			lastAccessedAt: this.clock.now(),
+			...(name === undefined ? {} : { name }),
 		}
 		this.conf.set("entries", entries)
 	}

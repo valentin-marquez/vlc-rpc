@@ -71,11 +71,28 @@ export interface CoverArtSource {
 	coverFor(release: CandidateRelease): Promise<string | null>
 }
 
+/**
+ * What a confident acoustic match says the audio is, for a file whose own tags
+ * say nothing. Both halves or neither: a title over a blank credit reads as a
+ * song nobody recorded, which is worse than the file name it replaced.
+ */
+export interface IdentifiedName {
+	title: string
+	artist: string
+}
+
 export interface MusicResult {
 	cover: string
 	/** `override` is the user, who outranks both catalogs and is asked first. */
 	provider: "itunes" | "musicbrainz" | "override" | "acoustid"
 	id: string
+	/**
+	 * Present only when the audio was matched confidently enough to rename the
+	 * file, which is a higher bar than the one that produced this cover. It
+	 * rides along with the result because the presence text needs it on a later
+	 * poll, long after the lookup that learned it.
+	 */
+	name?: IdentifiedName | undefined
 }
 
 /** What one run of the fingerprinting binary produced. */
@@ -113,6 +130,17 @@ export interface FingerprintMatch {
 	/** 0-based position in the order the service returned, lower is better. */
 	rank: number
 }
+
+/**
+ * How far one acoustic answer is trusted. Two bars rather than one because the
+ * consequences differ: a cover that is refused shows nothing, which is honest,
+ * while text is always shown and replacing it is a claim about what the file
+ * is. `cover-only` is a match that earned the picture and not the words.
+ */
+export type Identification =
+	| { kind: "unidentified" }
+	| { kind: "cover-only"; match: FingerprintMatch }
+	| { kind: "named"; match: FingerprintMatch }
 
 /**
  * The same three channels the other providers use, as a union rather than an
@@ -156,7 +184,12 @@ export interface FileLocator {
 }
 
 export type IdentifyOutcome =
-	| { kind: "identified"; recording: RecordingCandidate }
+	| {
+			kind: "identified"
+			recording: RecordingCandidate
+			/** `null` when the match earned the cover and not the file's name. */
+			name: IdentifiedName | null
+	  }
 	/** The audio was read and nothing came back that could be trusted. */
 	| { kind: "unidentified"; reason: "no-results" | "no-match" }
 	/** Nothing was learned about the file, so the answer is worth retrying. */
@@ -192,4 +225,10 @@ export type CacheEntry =
 			reason: UnresolvedReason
 			expiresAt: number
 			lastAccessedAt: number
+			/**
+			 * A recording can be named and still have no artwork anywhere, which is
+			 * a miss for the cover and an answer for the text. Kept here so that
+			 * file reads as the song it is rather than as its own file name.
+			 */
+			name?: IdentifiedName | undefined
 	  }

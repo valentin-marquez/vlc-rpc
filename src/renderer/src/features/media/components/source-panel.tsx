@@ -5,9 +5,15 @@ import { vlcStatusStore } from "@renderer/features/vlc"
 import React from "react"
 
 import { useProxiedArtwork } from "../hooks/use-proxied-artwork"
-import { applyCorrection } from "../media.actions"
+import { applyCorrection, decideAudioMatch } from "../media.actions"
 import type { CorrectionRow } from "../media.format"
-import { contentTypeLabel, correctionSummary, formatDuration, formatEpisode } from "../media.format"
+import {
+	audioMatchRow,
+	contentTypeLabel,
+	correctionSummary,
+	formatDuration,
+	formatEpisode,
+} from "../media.format"
 import type { MediaState } from "../media.store"
 import { correctionStore, mediaStore } from "../media.store"
 import { OverrideForm } from "./override-form"
@@ -67,6 +73,9 @@ export function SourcePanel(): JSX.Element {
 
 	const isAudio = media.contentType === "audio"
 	const rows = sourceRows(media)
+	const match = audioMatchRow(media.nameSource, media.overrideActive)
+	// What `playingFile` holds, past the guard that proves there is a file.
+	const sourceFilename = media.fileTitle ?? media.title
 
 	return (
 		<div className="flex flex-col gap-3">
@@ -79,6 +88,28 @@ export function SourcePanel(): JSX.Element {
 						value={row.tabular ? <span className="tabular-nums">{row.value}</span> : row.value}
 					/>
 				))}
+
+				{overrideKey && match && (
+					<Row
+						kind="value"
+						label="Audio match"
+						value={<output className="block truncate">{match.value}</output>}
+						trailing={
+							match.kind === "decidable" && (
+								<Button
+									size="sm"
+									variant="secondary"
+									isLoading={applying}
+									onClick={() => {
+										void decideAudioMatch(overrideKey, sourceFilename, match.action)
+									}}
+								>
+									{match.button}
+								</Button>
+							)
+						}
+					/>
+				)}
 
 				{overrideKey && (
 					<Row
@@ -125,7 +156,7 @@ export function SourcePanel(): JSX.Element {
 				<div id={formId}>
 					<OverrideForm
 						overrideKey={overrideKey}
-						sourceFilename={media.fileTitle ?? media.title}
+						sourceFilename={sourceFilename}
 						isAudio={isAudio}
 						binding={media.overrideBinding ?? "metadata"}
 						deducedTitle={media.title}

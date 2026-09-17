@@ -34,6 +34,12 @@ export type OverrideDraft =
 			cover?: string | undefined
 			sourceFilename: string
 	  }
+	/**
+	 * The user refusing what the app matched a file to. It carries no fields
+	 * because the whole of what it says is that the file speaks for itself, and
+	 * it is still a correction: it is filed, listed and removed like any other.
+	 */
+	| { kind: "as-is"; sourceFilename: string }
 
 export type SavedOverride = OverrideDraft & { savedAt: number }
 

@@ -56,15 +56,34 @@ export interface UntaggedAudioOverride extends OverrideBase {
 	cover?: string | undefined
 }
 
-export type Override = VideoOverride | AudioOverride | UntaggedAudioOverride
+/**
+ * The user refusing what the app matched this file to, which is a correction
+ * like any other: it is filed, listed and removed the same way. It carries no
+ * fields because the whole of what it says is "stop deducing, the file speaks
+ * for itself", and that is also why it turns off the acoustic cover and not
+ * only the name. The two come from one recording, so a match whose name the
+ * user rejects is a match whose cover is another record's.
+ */
+export interface AsIsOverride extends OverrideBase {
+	kind: "as-is"
+}
+
+export type Override = VideoOverride | AudioOverride | UntaggedAudioOverride | AsIsOverride
 
 /**
- * What a correction says a file is, for audio that says nothing itself. The
- * presence text is built from tags, so these are the tags it reads instead.
+ * What a file should read as when its own tags name nothing, and who says so.
+ * The presence text is built from tags, so these are the tags it reads instead.
+ *
+ * The source travels with the words because the screen has to be able to name
+ * it. A user who never typed anything is owed the difference between what the
+ * file says and what the app worked out from the sound of it, otherwise there
+ * is nothing on screen to disagree with. `as-is` carries no words at all: it
+ * is the user having refused a match, which is why the file names itself again.
  */
 export interface CorrectedTags {
 	title?: string | undefined
 	artist?: string | undefined
+	source: "correction" | "identification" | "as-is"
 }
 
 // A plain Omit collapses to the fields shared by every branch, which would

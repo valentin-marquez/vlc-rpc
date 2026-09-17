@@ -54,6 +54,16 @@ export interface DetectedMediaInfo {
 	/** Whether a correction is already saved under that key. */
 	override_active?: boolean
 	/**
+	 * Where the audio name on screen came from, when it did not come from the
+	 * file's own tags. Absent is the ordinary case: the file named itself.
+	 *
+	 * `identification` is the app having recognized the audio, which is the one
+	 * source the user never asked for and therefore the one the screen has to
+	 * declare. `as-is` is that match refused, which is why the file names it
+	 * again.
+	 */
+	content_name_source?: "correction" | "identification" | "as-is"
+	/**
 	 * What that key is bound to, which the screen has to be able to say because
 	 * the two stop applying for different reasons. `metadata` is what the app
 	 * read out of the file, so it covers every file that reads the same and is

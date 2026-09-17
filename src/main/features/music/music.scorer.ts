@@ -1,5 +1,10 @@
 import { diceSimilarity, normalize } from "@main/core/similarity"
-import type { FingerprintMatch, RecordingCandidate, TrackQuery } from "./music.types"
+import type {
+	FingerprintMatch,
+	Identification,
+	RecordingCandidate,
+	TrackQuery,
+} from "./music.types"
 
 const IDENTITY_GATE_THRESHOLD = 0.92
 
@@ -157,34 +162,64 @@ const MIN_IDENTITY_SCORE = 0.9
  */
 const MIN_IDENTITY_MARGIN = 0.05
 
+/**
+ * The floor the same score has to clear before the answer also replaces the
+ * words the file would have shown.
+ *
+ * Higher than the cover's floor because the two mistakes are not the same
+ * shape. A refused cover leaves an empty frame, which is an honest thing to
+ * show; text has no empty state, something is always written, so putting the
+ * wrong name there is a confident lie rather than a gap, and it travels to
+ * everyone who reads the profile.
+ *
+ * Measured on the validated capture: the recording that is playing scored
+ * 0.9589, and the duet that reuses its vocal take, a different credit on a
+ * different album, scored 0.8551. This floor sits 0.0749 above that impostor,
+ * where the cover's floor sits 0.0449 above it, and still leaves 0.0289 of
+ * headroom under the one score confirmed correct. The headroom is the point of
+ * not putting it higher: the score falls with the encode, and a bar the
+ * validated file only just cleared would refuse the next rip of it.
+ */
+const MIN_NAMING_SCORE = 0.93
+
 /** Both credits come from MusicBrainz, so they either spell the same or differ. */
 function sameCredit(a: FingerprintMatch, b: FingerprintMatch): boolean {
 	return normalize(a.artists.join(" ")) === normalize(b.artists.join(" "))
 }
 
 /**
- * Which recording an acoustic match names, or nothing when the answer is not
- * clear enough to put a cover on screen.
+ * What an acoustic match is trusted for: nothing, the cover alone, or the
+ * cover and the file's name on screen.
  *
- * The three rules, in order: the best match clears the floor, it is far enough
- * ahead of the next one, and when it is not, the two at least credit the same
- * artist. That last case is the album take against the single or the live take:
- * both covers belong to the performer the file is actually playing, and the
- * release ordering downstream prefers the album. Two artists that close is the
- * case this returns nothing for, because there the wrong cover is a stranger's
- * record.
+ * The cover rules come first and are unchanged: the best match clears the
+ * lower floor, it is far enough ahead of the next one, and when it is not, the
+ * two at least credit the same artist. That last case is the album take
+ * against the single or the live take, where both covers belong to the
+ * performer being played and the release ordering downstream prefers the
+ * album. Two artists that close is the case that identifies nothing, because
+ * there the wrong cover is a stranger's record.
+ *
+ * Naming then asks for two more things. The score clears the higher floor, and
+ * the runner up is genuinely behind: the same credit rescue does not carry
+ * over, because it says the two candidates share a performer and says nothing
+ * about their titles, and the title is half of what naming would overwrite.
  */
-export function pickIdentified(matches: FingerprintMatch[]): FingerprintMatch | null {
+export function pickIdentified(matches: FingerprintMatch[]): Identification {
 	const confident = matches
 		.filter((match) => match.score >= MIN_IDENTITY_SCORE && match.id.length > 0)
 		.sort((a, b) => (a.score === b.score ? a.rank - b.rank : b.score - a.score))
 
 	const best = confident[0]
-	if (best === undefined) return null
+	if (best === undefined) return { kind: "unidentified" }
 
 	const runnerUp = confident[1]
-	if (runnerUp === undefined) return best
-	if (best.score - runnerUp.score >= MIN_IDENTITY_MARGIN) return best
+	if (runnerUp !== undefined && best.score - runnerUp.score < MIN_IDENTITY_MARGIN) {
+		return sameCredit(best, runnerUp)
+			? { kind: "cover-only", match: best }
+			: { kind: "unidentified" }
+	}
 
-	return sameCredit(best, runnerUp) ? best : null
+	return best.score >= MIN_NAMING_SCORE
+		? { kind: "named", match: best }
+		: { kind: "cover-only", match: best }
 }

@@ -161,7 +161,7 @@ describe("overrides:save", () => {
 		expect(result).toEqual({ saved: true })
 		const saved = store.entries.get("tv:Red River|1")
 		expect(saved?.kind === "video" ? saved.title : undefined).toBe("Sora wa Akai Kawa no Hotori")
-		expect(saved?.cover).toBe(COVER_URL)
+		expect(saved?.kind === "video" ? saved.cover : undefined).toBe(COVER_URL)
 	})
 
 	it("persists an audio override, whose cover is the only field it carries", async () => {
@@ -174,7 +174,8 @@ describe("overrides:save", () => {
 		})
 
 		expect(result).toEqual({ saved: true })
-		expect(store.entries.get("album:daft punk|discovery")?.cover).toBe(COVER_URL)
+		const audio = store.entries.get("album:daft punk|discovery")
+		expect(audio?.kind === "audio" ? audio.cover : undefined).toBe(COVER_URL)
 	})
 
 	it("persists a video override with no cover without reaching the network", async () => {

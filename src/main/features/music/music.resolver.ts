@@ -1,5 +1,6 @@
 import { logger } from "@main/core/logger"
 import type {
+	AsIsOverride,
 	AudioOverride,
 	CorrectedTags,
 	Override,
@@ -23,6 +24,7 @@ import type {
 	CandidateRelease,
 	CoverArtSource,
 	FileLocator,
+	IdentifiedName,
 	IdentifyOutcome,
 	MusicProvider,
 	MusicResult,
@@ -156,11 +158,13 @@ function orderReleases(
 		.map((entry) => entry.release)
 }
 
+type AudioCorrection = AudioOverride | UntaggedAudioOverride | AsIsOverride
+
 /**
  * The audio half of a correction, or `null` for a video one, which reaches this
  * feature only when a key from the other side is handed to it by mistake.
  */
-function audioCorrection(override: Override | null): AudioOverride | UntaggedAudioOverride | null {
+function audioCorrection(override: Override | null): AudioCorrection | null {
 	if (override === null || override.kind === "video") {
 		return null
 	}
@@ -168,9 +172,31 @@ function audioCorrection(override: Override | null): AudioOverride | UntaggedAud
 }
 
 /** Absent rather than empty, so "no cover typed" is one answer and not two. */
-function coverOf(correction: AudioOverride | UntaggedAudioOverride): string | undefined {
+function coverOf(correction: AudioCorrection): string | undefined {
+	if (correction.kind === "as-is") {
+		return undefined
+	}
 	const cover = correction.kind === "audio" ? correction.cover : (correction.cover ?? "")
 	return cover.length > 0 ? cover : undefined
+}
+
+/**
+ * What a correction says the file is called, or `null` when it named nothing.
+ * A correction that only picked a cover says nothing about the text, which is
+ * what leaves an acoustic match free to supply it.
+ */
+function typedTags(correction: AudioCorrection | null): CorrectedTags | null {
+	if (correction?.kind !== "untagged-audio") {
+		return null
+	}
+
+	const tags: CorrectedTags = { source: "correction" }
+	const title = correction.title?.trim() ?? ""
+	const artist = correction.artist?.trim() ?? ""
+	if (title.length > 0) tags.title = title
+	if (artist.length > 0) tags.artist = artist
+
+	return tags.title === undefined && tags.artist === undefined ? null : tags
 }
 
 /**
@@ -257,6 +283,14 @@ export class Resolver {
 			return null
 		}
 
+		// The user has refused what this file was matched to, and that is a verdict
+		// on the recording rather than on its name alone: the cover a match draws
+		// belongs to the same recording the name came from. Refusing it here also
+		// keeps a request the user does not want out of the shared budget.
+		if (correction?.kind === "as-is") {
+			return null
+		}
+
 		return await this.resolveByAudio(status, query)
 	}
 
@@ -281,12 +315,23 @@ export class Resolver {
 	}
 
 	/**
-	 * What the user typed this file is, for audio that carries no tags of its own.
+	 * What this file should read as, for audio that carries no tags of its own,
+	 * and who says so.
 	 *
 	 * The presence text is built from tags and there are none, so without this a
-	 * corrected file still reads as its own file name on Discord. `null` for
-	 * everything else, tagged audio included: the file already says what it is,
-	 * and a correction there carries only a cover by design.
+	 * file the app has already identified still reads as its own file name on
+	 * Discord. Two sources answer, in this order: what the user typed, then what
+	 * the audio was matched to, and the second only when the match cleared the
+	 * higher of the two fingerprint floors.
+	 *
+	 * Not merged field by field. A correction is the user having refused what the
+	 * app deduced, so filling the half they left blank from the same deduction
+	 * would put a credit on their profile they never agreed to, and it would
+	 * leave the screen with a name half typed and half guessed that no single
+	 * sentence could attribute.
+	 *
+	 * `null` for everything else, tagged audio included: the file already says
+	 * what it is, and a correction there carries only a cover by design.
 	 */
 	public async correctedTagsFor(status: VlcStatus): Promise<CorrectedTags | null> {
 		if (status.mediaType !== "audio") {
@@ -294,18 +339,45 @@ export class Resolver {
 		}
 
 		const target = await this.overrideKeyFor(status, buildQuery(status.media))
-		const correction = target === null ? null : audioCorrection(this.overrides.get(target.key))
-		if (correction?.kind !== "untagged-audio") {
+		// A file key is what audio gets when its tags name nothing the store can
+		// file a record under, which is the same audio whose text is not its own.
+		// Anything keyed by what the file claims to be already has a text.
+		if (target === null || target.kind !== "file") {
 			return null
 		}
 
-		const tags: CorrectedTags = {}
-		const title = correction.title?.trim() ?? ""
-		const artist = correction.artist?.trim() ?? ""
-		if (title.length > 0) tags.title = title
-		if (artist.length > 0) tags.artist = artist
+		const correction = audioCorrection(this.overrides.get(target.key))
+		if (correction?.kind === "as-is") {
+			return { source: "as-is" }
+		}
 
-		return tags.title === undefined && tags.artist === undefined ? null : tags
+		const typed = typedTags(correction)
+		if (typed !== null) {
+			return typed
+		}
+
+		const identified = await this.identifiedNameFor(status)
+		return identified === null ? null : { ...identified, source: "identification" }
+	}
+
+	/**
+	 * The name a fingerprint already filed for this file, read and never looked
+	 * up. The lookup is the last step of the cover chain and spends the one
+	 * budget every user of this app shares, so the text follows what that chain
+	 * learned rather than asking the service for it a second time.
+	 */
+	private async identifiedNameFor(status: VlcStatus): Promise<IdentifiedName | null> {
+		const file = await this.locator.fileFor(status)
+		if (file === null) {
+			return null
+		}
+
+		const cached = this.cache.get(fingerprintKey(file))
+		if (cached === null) {
+			return null
+		}
+
+		return (cached.status === "resolved" ? cached.result.name : cached.name) ?? null
 	}
 
 	/**
@@ -427,8 +499,8 @@ export class Resolver {
 	}
 
 	/** Cached with the reason it happened, and answered with the same one. */
-	private miss(key: string, reason: UnresolvedReason): StepOutcome {
-		this.cache.setUnresolved(key, reason)
+	private miss(key: string, reason: UnresolvedReason, name?: IdentifiedName): StepOutcome {
+		this.cache.setUnresolved(key, reason, name)
 		return { kind: "unresolved", reason }
 	}
 
@@ -492,16 +564,24 @@ export class Resolver {
 			return this.miss(key, outcome.reason)
 		}
 
+		// Absent unless the match cleared the naming floor, which is higher than
+		// the one that let it through at all.
+		const name = outcome.name ?? undefined
+
 		try {
 			const cover = await this.artworkFor(outcome.recording, album)
 			if (cover === null) {
-				return this.miss(key, "no-cover")
+				// The recording is named and has no artwork anywhere. That is a miss
+				// for the cover and an answer for the text, and both are this entry's
+				// to remember.
+				return this.miss(key, "no-cover", name)
 			}
 
 			const result: MusicResult = {
 				cover,
 				provider: "acoustid",
 				id: outcome.recording.id,
+				...(name === undefined ? {} : { name }),
 			}
 			this.cache.setResolved(key, result)
 			return { kind: "resolved", result }

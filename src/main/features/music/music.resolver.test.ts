@@ -16,6 +16,7 @@ import type {
 	CandidateRelease,
 	CoverArtSource,
 	FileLocator,
+	IdentifiedName,
 	IdentifyOutcome,
 	MusicProvider,
 	MusicResult,
@@ -49,7 +50,7 @@ function fakeCache() {
 			calls.setResolved++
 			store.set(key, { status: "resolved", version: 2, result, lastAccessedAt: 0 })
 		},
-		setUnresolved: (key: string, reason: UnresolvedReason) => {
+		setUnresolved: (key: string, reason: UnresolvedReason, name?: IdentifiedName) => {
 			calls.setUnresolved++
 			unresolvedReasons.push(reason)
 			store.set(key, {
@@ -58,6 +59,7 @@ function fakeCache() {
 				reason,
 				expiresAt: 999_999_999,
 				lastAccessedAt: 0,
+				...(name === undefined ? {} : { name }),
 			})
 		},
 		deleteWhere: (matches: (key: string) => boolean) => {
@@ -1125,8 +1127,14 @@ describe("Resolver.overrideTargetFor", () => {
 })
 
 describe("Resolver.correctedTagsFor", () => {
+	const FILE_KEY = "file:C:\\Music\\Ripped\\track01.mp3"
+	const REFUSED = ["audio:|jose arnero"]
+
+	/** What a confident fingerprint left behind on an earlier poll. */
+	const IDENTIFIED = { title: "Probablemente", artist: "Christian Nodal" }
+
 	function asking(entries: Record<string, Override> = {}, refused: readonly string[] = []) {
-		const { cache } = fakeCache()
+		const { cache, store } = fakeCache()
 		const { provider: itunes } = fakeProvider([candidate()])
 		const { provider: musicbrainz } = fakeProvider([])
 		const { source } = fakeCoverSource()
@@ -1135,13 +1143,16 @@ describe("Resolver.correctedTagsFor", () => {
 		return {
 			resolver: new Resolver(cache, itunes, musicbrainz, source, overrides, locator),
 			locatorCalls: calls,
+			store,
 		}
 	}
+
+	const untaggedFile = (): VlcStatus => status({ title: "Jose Arnero", album: "" })
 
 	it("hands back what the user typed, which is all the presence text has to read", async () => {
 		const { resolver } = asking(
 			{
-				"file:C:\\Music\\Ripped\\track01.mp3": {
+				[FILE_KEY]: {
 					kind: "untagged-audio",
 					title: "José Arnero",
 					artist: "El Baucha",
@@ -1149,29 +1160,134 @@ describe("Resolver.correctedTagsFor", () => {
 					savedAt: 0,
 				},
 			},
-			["audio:|jose arnero"],
+			REFUSED,
 		)
 
-		expect(await resolver.correctedTagsFor(status({ title: "Jose Arnero", album: "" }))).toEqual({
+		expect(await resolver.correctedTagsFor(untaggedFile())).toEqual({
 			title: "José Arnero",
 			artist: "El Baucha",
+			source: "correction",
 		})
 	})
 
 	it("hands back nothing for a correction that only picked a cover", async () => {
 		const { resolver } = asking(
 			{
-				"file:C:\\Music\\Ripped\\track01.mp3": {
+				[FILE_KEY]: {
 					kind: "untagged-audio",
 					cover: "https://example.com/by-hand.jpg",
 					sourceFilename: "Jose Arnero.mp3",
 					savedAt: 0,
 				},
 			},
-			["audio:|jose arnero"],
+			REFUSED,
 		)
 
-		expect(await resolver.correctedTagsFor(status({ title: "Jose Arnero", album: "" }))).toBeNull()
+		expect(await resolver.correctedTagsFor(untaggedFile())).toBeNull()
+	})
+
+	it("reads back the name a confident fingerprint filed for this file", async () => {
+		const { resolver, store } = asking({}, REFUSED)
+		store.set(fingerprintKey(RIPPED), {
+			status: "resolved",
+			version: 2,
+			result: {
+				cover: "https://example.com/fp.jpg",
+				provider: "acoustid",
+				id: "mbid",
+				name: IDENTIFIED,
+			},
+			lastAccessedAt: 0,
+		})
+
+		expect(await resolver.correctedTagsFor(untaggedFile())).toEqual({
+			...IDENTIFIED,
+			source: "identification",
+		})
+	})
+
+	it("keeps the name of a match that found no artwork anywhere", async () => {
+		// The cover missed and the recording is still known, which is exactly the
+		// file that would otherwise read as a YouTube rip with no picture.
+		const { resolver, store } = asking({}, REFUSED)
+		store.set(fingerprintKey(RIPPED), {
+			status: "unresolved",
+			version: 2,
+			reason: "no-cover",
+			expiresAt: 999_999_999,
+			lastAccessedAt: 0,
+			name: IDENTIFIED,
+		})
+
+		expect(await resolver.correctedTagsFor(untaggedFile())).toEqual({
+			...IDENTIFIED,
+			source: "identification",
+		})
+	})
+
+	it("hands back nothing for a match that only earned the cover", async () => {
+		const { resolver, store } = asking({}, REFUSED)
+		store.set(fingerprintKey(RIPPED), {
+			status: "resolved",
+			version: 2,
+			result: { cover: "https://example.com/fp.jpg", provider: "acoustid", id: "mbid" },
+			lastAccessedAt: 0,
+		})
+
+		expect(await resolver.correctedTagsFor(untaggedFile())).toBeNull()
+	})
+
+	it("puts what the user typed over what the audio was matched to", async () => {
+		// A correction is the user having already refused what the app deduced.
+		// Filling the half they left blank with the same deduction puts a credit
+		// on their profile they never agreed to.
+		const { resolver, store } = asking(
+			{
+				[FILE_KEY]: {
+					kind: "untagged-audio",
+					title: "José Arnero",
+					sourceFilename: "Jose Arnero.mp3",
+					savedAt: 0,
+				},
+			},
+			REFUSED,
+		)
+		store.set(fingerprintKey(RIPPED), {
+			status: "resolved",
+			version: 2,
+			result: {
+				cover: "https://example.com/fp.jpg",
+				provider: "acoustid",
+				id: "mbid",
+				name: IDENTIFIED,
+			},
+			lastAccessedAt: 0,
+		})
+
+		expect(await resolver.correctedTagsFor(untaggedFile())).toEqual({
+			title: "José Arnero",
+			source: "correction",
+		})
+	})
+
+	it("says the file speaks for itself once the user has refused the match", async () => {
+		const { resolver, store } = asking(
+			{ [FILE_KEY]: { kind: "as-is", sourceFilename: "Jose Arnero.mp3", savedAt: 0 } },
+			REFUSED,
+		)
+		store.set(fingerprintKey(RIPPED), {
+			status: "resolved",
+			version: 2,
+			result: {
+				cover: "https://example.com/fp.jpg",
+				provider: "acoustid",
+				id: "mbid",
+				name: IDENTIFIED,
+			},
+			lastAccessedAt: 0,
+		})
+
+		expect(await resolver.correctedTagsFor(untaggedFile())).toEqual({ source: "as-is" })
 	})
 
 	it("hands back nothing for audio that carries its own tags", async () => {
@@ -1315,6 +1431,7 @@ describe("Resolver.resolve, by fingerprint", () => {
 		answer: (file: AudioFileIdentity) => IdentifyOutcome = () => ({
 			kind: "identified",
 			recording: recording(),
+			name: null,
 		}),
 	) {
 		const calls = { fileFor: 0, identify: 0 }
@@ -1406,6 +1523,7 @@ describe("Resolver.resolve, by fingerprint", () => {
 				file.path === FIRST_FILE.path
 					? recording()
 					: recording({ id: "other", releases: [{ title: "Ahora", releaseGroupId: "rg-2" }] }),
+			name: null,
 		}))
 		const resolver = new Resolver(
 			cache,
@@ -1715,5 +1833,94 @@ describe("Resolver.resolve, by fingerprint", () => {
 
 		expect(result?.provider).toBe("override")
 		expect(calls.fileFor).toBe(0)
+	})
+
+	it("files the name beside the cover, so a later poll can read it", async () => {
+		const { cache, store } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource({ "Me dejé llevar": "https://example.com/fp.jpg" })
+		const { identifier } = fakeIdentifier({ 1: FIRST_FILE }, () => ({
+			kind: "identified",
+			recording: recording(),
+			name: { title: "Probablemente", artist: "Christian Nodal" },
+		}))
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
+
+		const result = await resolver.resolve(playing(untagged, 1))
+
+		expect(result?.name).toEqual({ title: "Probablemente", artist: "Christian Nodal" })
+		expect(store.get(fingerprintKey(FIRST_FILE))).toMatchObject({
+			status: "resolved",
+			result: { name: { title: "Probablemente", artist: "Christian Nodal" } },
+		})
+	})
+
+	it("remembers the name even when the archive had no artwork for it", async () => {
+		const { cache, store, unresolvedReasons } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource()
+		const { identifier } = fakeIdentifier({ 1: FIRST_FILE }, () => ({
+			kind: "identified",
+			recording: recording(),
+			name: { title: "Probablemente", artist: "Christian Nodal" },
+		}))
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			noOverrides(),
+			noLocator(),
+			identifier,
+		)
+
+		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
+		expect(unresolvedReasons).toEqual(["insufficient-tags", "no-cover"])
+		expect(store.get(fingerprintKey(FIRST_FILE))).toMatchObject({
+			status: "unresolved",
+			name: { title: "Probablemente", artist: "Christian Nodal" },
+		})
+	})
+
+	it("never reaches the audio for a file the user told it to leave alone", async () => {
+		// The revert is a verdict on the match itself, so the step that would
+		// spend a shared request to reproduce it does not run at all.
+		const { cache } = fakeCache()
+		const { provider: itunes } = fakeProvider([])
+		const { provider: musicbrainz } = fakeProvider([])
+		const { source } = fakeCoverSource({ "Me dejé llevar": "https://example.com/fp.jpg" })
+		const { identifier, calls } = fakeIdentifier({ 1: FIRST_FILE })
+		const { overrides } = fakeOverrides(
+			{
+				"file:C:\\Music\\youtube-rip-01.mp3": {
+					kind: "as-is",
+					sourceFilename: "youtube-rip-01.mp3",
+					savedAt: 0,
+				},
+			},
+			["audio:|unknown"],
+		)
+		const resolver = new Resolver(
+			cache,
+			itunes,
+			musicbrainz,
+			source,
+			overrides,
+			fakeLocator(FIRST_FILE).locator,
+			identifier,
+		)
+
+		expect(await resolver.resolve(playing(untagged, 1))).toBeNull()
+		expect(calls.identify).toBe(0)
 	})
 })

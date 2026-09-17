@@ -87,7 +87,7 @@ describe("Store", () => {
 		})
 
 		const saved = store.get("movie:Heat|1995")
-		expect(saved?.cover).toBe("https://example.com/heat.jpg")
+		expect(saved?.kind === "video" ? saved.cover : undefined).toBe("https://example.com/heat.jpg")
 		expect(saved?.kind === "video" ? saved.title : undefined).toBeUndefined()
 		expect(saved?.kind === "video" ? saved.mediaKind : undefined).toBeUndefined()
 	})
@@ -110,6 +110,21 @@ describe("Store", () => {
 		})
 		expect(saved && !("title" in saved)).toBe(true)
 		expect(saved && !("mediaKind" in saved)).toBe(true)
+	})
+
+	it("round trips a refused match, which is a correction that names nothing", () => {
+		const store = new Store(new FakeClock())
+
+		store.save("file:C:\\Music\\Ripped\\track01.mp3", {
+			kind: "as-is",
+			sourceFilename: "Jose Arnero.mp3",
+		})
+
+		expect(store.get("file:C:\\Music\\Ripped\\track01.mp3")).toEqual({
+			kind: "as-is",
+			sourceFilename: "Jose Arnero.mp3",
+			savedAt: 0,
+		})
 	})
 
 	it("stops returning an override the user deleted", () => {

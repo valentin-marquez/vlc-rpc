@@ -1,4 +1,4 @@
-import type { ContentType, MediaStatus } from "@shared/media/media.types"
+import type { ContentType, DetectedMediaInfo, MediaStatus } from "@shared/media/media.types"
 import type { LastSentPresence } from "@shared/presence/presence.types"
 import { atom } from "nanostores"
 
@@ -43,6 +43,11 @@ export interface MediaState {
 	 * because it stops applying the day the file moves.
 	 */
 	overrideBinding: "metadata" | "file" | null
+	/**
+	 * Where the title and the artist above came from, when they did not come from
+	 * the file. Null is the ordinary case, the file naming itself.
+	 */
+	nameSource: DetectedMediaInfo["content_name_source"] | null
 }
 
 const INITIAL_STATE: MediaState = {
@@ -64,6 +69,7 @@ const INITIAL_STATE: MediaState = {
 	overrideKey: null,
 	overrideActive: false,
 	overrideBinding: null,
+	nameSource: null,
 }
 
 export const mediaStore = atom<MediaState>(INITIAL_STATE)

@@ -171,7 +171,9 @@ function EmptyCorrections(): JSX.Element {
 
 /** What the row leads with: what the user typed, or failing that the key's own name for the thing. */
 function headlineFor(entry: OverrideListEntry, match: OverrideMatch): string {
-	const title = entry.override.kind === "audio" ? undefined : entry.override.title
+	const { override } = entry
+	const title =
+		override.kind === "video" || override.kind === "untagged-audio" ? override.title : undefined
 	if (title !== undefined && title.length > 0) {
 		return title
 	}
@@ -181,6 +183,12 @@ function headlineFor(entry: OverrideListEntry, match: OverrideMatch): string {
 function describeChanges(override: SavedOverride): string {
 	if (override.kind === "audio") {
 		return "Sets the cover art."
+	}
+
+	// A refusal names nothing, so the row says what it stops rather than what it
+	// sets. "Corrected to nothing" would be the sentence to avoid.
+	if (override.kind === "as-is") {
+		return "Ignores what the app matched this audio to, so the file speaks for itself."
 	}
 
 	if (override.kind === "untagged-audio") {

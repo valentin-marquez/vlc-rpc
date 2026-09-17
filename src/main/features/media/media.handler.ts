@@ -44,9 +44,11 @@ function toContentType(mediaKind: CatalogResult["mediaKind"]): ContentType {
 export interface OverrideTargets {
 	overrideTargetFor(status: VlcStatus): Promise<OverrideTarget | null>
 	/**
-	 * What a correction says a file is, for audio that carries no tags. Reported
-	 * so the form opens on what the user last typed rather than on the file name,
-	 * which is the same reason the cover's own address is reported beside it.
+	 * What a file reads as when its own tags name nothing, and who says so.
+	 * Reported so the form opens on what the user last typed rather than on the
+	 * file name, which is the same reason the cover's own address is reported
+	 * beside it, and so the screen can say when the words were matched from the
+	 * audio instead.
 	 */
 	correctedTagsFor(status: VlcStatus): Promise<CorrectedTags | null>
 }
@@ -146,7 +148,13 @@ export class MediaInfoHandler {
 
 				const corrected = await this.music.correctedTagsFor(vlcStatus)
 				if (corrected) {
-					mediaInfo.content_metadata = toAudioMetadata(corrected)
+					mediaInfo.content_name_source = corrected.source
+					// A refused match names nothing, so it reports the source alone:
+					// an empty metadata object would read on the screen as a title and
+					// an artist the app has and is not showing.
+					if (corrected.title !== undefined || corrected.artist !== undefined) {
+						mediaInfo.content_metadata = toAudioMetadata(corrected)
+					}
 				}
 			}
 

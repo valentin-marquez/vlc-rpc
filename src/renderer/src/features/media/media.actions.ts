@@ -51,6 +51,7 @@ export async function refreshMediaInfo(): Promise<void> {
 				overrideKey: null,
 				overrideActive: false,
 				overrideBinding: null,
+				nameSource: null,
 			})
 			return
 		}
@@ -86,6 +87,7 @@ export async function refreshMediaInfo(): Promise<void> {
 			overrideKey: mediaInfo.override_key || null,
 			overrideActive: mediaInfo.override_active === true,
 			overrideBinding: mediaInfo.override_binding ?? null,
+			nameSource: mediaInfo.content_name_source ?? null,
 		})
 
 		logger.info("Media information updated")
@@ -124,6 +126,37 @@ export async function applyCorrection(key: string, outcome: "saved" | "removed")
 			correctionStore.set({ kind: "settled" })
 		}
 	}
+}
+
+/**
+ * The user's verdict on a name the app matched from the audio: refuse it, and
+ * the file speaks for itself again, or take that refusal back.
+ *
+ * Both go through the correction store, because a refusal is a correction. It
+ * is listed in Settings beside the ones the user typed and it is removed the
+ * same way, which is the only reason it can be trusted to be temporary.
+ */
+export async function decideAudioMatch(
+	key: string,
+	sourceFilename: string,
+	action: "refuse" | "restore",
+): Promise<void> {
+	try {
+		if (action === "restore") {
+			await window.api.overrides.remove(key)
+		} else {
+			const result = await window.api.overrides.save(key, { kind: "as-is", sourceFilename })
+			if (!result.saved) {
+				logger.error(`The store refused to file the decision: ${result.reason}`)
+				return
+			}
+		}
+	} catch (error) {
+		logger.error(`Failed to file a decision about the audio match: ${error}`)
+		return
+	}
+
+	await applyCorrection(key, action === "restore" ? "removed" : "saved")
 }
 
 /**

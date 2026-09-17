@@ -145,7 +145,49 @@ describe("Identifier.identify", () => {
 				releases: [{ title: "Me dejé llevar", releaseGroupId: "rg-1" }],
 				rank: 0,
 			},
+			name: { title: "Probablemente", artist: "Christian Nodal" },
 		})
+	})
+
+	it("carries no name for a match that only cleared the cover floor", async () => {
+		const { locator } = fakeLocator(null)
+		const { fingerprinter } = fakeFingerprinter(FINGERPRINTED)
+		const { lookup } = fakeLookup({ kind: "matched", matches: [match({ score: 0.91 })] })
+		const identifier = new Identifier(locator, fingerprinter, lookup)
+
+		const outcome = await identifier.identify(FILE)
+
+		expect(outcome.kind).toBe("identified")
+		expect(outcome.kind === "identified" && outcome.name).toBeNull()
+	})
+
+	it("carries no name when the match credits nobody", async () => {
+		// Half a name is not a name: replacing the file's own words with a title
+		// and a blank credit reads as a song nobody recorded.
+		const { locator } = fakeLocator(null)
+		const { fingerprinter } = fakeFingerprinter(FINGERPRINTED)
+		const { lookup } = fakeLookup({ kind: "matched", matches: [match({ artists: [] })] })
+		const identifier = new Identifier(locator, fingerprinter, lookup)
+
+		const outcome = await identifier.identify(FILE)
+
+		expect(outcome.kind === "identified" && outcome.name).toBeNull()
+	})
+
+	it("joins a credit of several names into the one the presence reads", async () => {
+		const { locator } = fakeLocator(null)
+		const { fingerprinter } = fakeFingerprinter(FINGERPRINTED)
+		const { lookup } = fakeLookup({
+			kind: "matched",
+			matches: [match({ artists: ["Christian Nodal", "David Bisbal"] })],
+		})
+		const identifier = new Identifier(locator, fingerprinter, lookup)
+
+		const outcome = await identifier.identify(FILE)
+
+		expect(outcome.kind === "identified" && outcome.name?.artist).toBe(
+			"Christian Nodal, David Bisbal",
+		)
 	})
 
 	it("does not spend a lookup when the audio could not be fingerprinted", async () => {

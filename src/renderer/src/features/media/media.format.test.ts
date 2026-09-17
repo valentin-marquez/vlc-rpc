@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { type CorrectionRow, correctionSummary } from "./media.format"
+import { audioMatchRow, type CorrectionRow, correctionSummary } from "./media.format"
 
 const SETTLED = { kind: "settled" } as const
 
@@ -45,5 +45,44 @@ describe("correctionSummary", () => {
 		} as const
 
 		expect(correctionSummary(BY_FILE, applying)).toBe("Not set, held against this file")
+	})
+})
+
+describe("audioMatchRow", () => {
+	it("says nothing for a file that names itself", () => {
+		expect(audioMatchRow(null, false)).toBeNull()
+	})
+
+	it("says nothing when the words on screen are the ones the user typed", () => {
+		// The correction row above already answers for those, and two rows about
+		// one decision read as two decisions.
+		expect(audioMatchRow("correction", true)).toBeNull()
+	})
+
+	it("declares a name the app matched from the audio, and offers to refuse it", () => {
+		expect(audioMatchRow("identification", false)).toEqual({
+			kind: "decidable",
+			value: "Matched from the audio",
+			button: "Use what the file says",
+			action: "refuse",
+		})
+	})
+
+	it("declares the match without a button when the file already carries a correction", () => {
+		// Refusing files a correction, and a file has one: the click would take
+		// away the cover this user went and found by hand.
+		expect(audioMatchRow("identification", true)).toEqual({
+			kind: "declared",
+			value: "Matched from the audio",
+		})
+	})
+
+	it("offers the way back once the match has been refused", () => {
+		expect(audioMatchRow("as-is", true)).toEqual({
+			kind: "decidable",
+			value: "Turned off for this file",
+			button: "Use the match again",
+			action: "restore",
+		})
 	})
 })

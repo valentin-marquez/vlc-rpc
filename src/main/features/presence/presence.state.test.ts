@@ -173,12 +173,13 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 			const { service } = build({ kind: "no-artwork" }, catalogHit, null, {
 				title: "José Arnero",
 				artist: "El Baucha",
+				source: "correction",
 			})
 
 			const presence = await service.getDiscordPresence(untaggedStatus(state), timeline)
 
-			expect(presence?.details).toBe("José Arnero")
-			expect(presence?.state).toBe("by El Baucha")
+			expect(presence?.name).toBe("José Arnero")
+			expect(presence?.details).toBe("by El Baucha")
 		})
 
 		it("keeps the file's own tags when nothing was corrected", async () => {
@@ -186,8 +187,8 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 
 			const presence = await service.getDiscordPresence(status(state), timeline)
 
-			expect(presence?.details).toBe("Probablemente")
-			expect(presence?.state).toBe("by Christina Aguilera")
+			expect(presence?.name).toBe("Probablemente")
+			expect(presence?.details).toBe("by Christina Aguilera")
 		})
 	},
 )
@@ -363,14 +364,23 @@ describe.each([{ state: "playing" as const }, { state: "paused" as const }])(
 			expect(presence?.state).toBe("Probablemente by Christina Aguilera")
 		})
 
-		it("names the activity after the app when the file carries no artist", async () => {
+		it("shows the file name alone when the file carries no tags", async () => {
+			const { service } = build({ kind: "no-artwork" }, null)
+
+			const presence = await service.getDiscordPresence(untagged(), timeline)
+
+			expect(presence?.name).toBe("track01")
+			expect(presence?.details).toBe("")
+			expect(presence?.state).toBe("")
+		})
+
+		it("names the activity after the app when the layout has nothing to name it after", async () => {
+			withPresets({ layoutPreset: "album-focused" })
 			const { service } = build({ kind: "no-artwork" }, null)
 
 			const presence = await service.getDiscordPresence(untagged(), timeline)
 
 			expect(presence?.name).toBe("VLC")
-			expect(presence?.details).toBe("track01")
-			expect(presence?.state).toBe("")
 		})
 	},
 )

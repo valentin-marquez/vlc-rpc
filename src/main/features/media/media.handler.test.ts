@@ -295,13 +295,46 @@ describe("MediaInfoHandler override key", () => {
 			catalogHit,
 			{ kind: "file", key: "file:C:\\Music\\Ripped\\track01.mp3", active: true },
 			null,
-			{ title: "José Arnero", artist: "El Baucha" },
+			{ title: "José Arnero", artist: "El Baucha", source: "correction" },
 		)
 
 		const info = await handler.getMediaInfo(status())
 
 		expect(info?.content_metadata?.clean_title).toBe("José Arnero")
 		expect(info?.content_metadata?.artist).toBe("El Baucha")
+		expect(info?.content_name_source).toBe("correction")
+	})
+
+	it("says when the name on screen was matched from the audio rather than read", async () => {
+		// The screen has to be able to name the source, otherwise a user who
+		// disagrees with the words has nothing to disagree with.
+		const { handler } = build(
+			{ kind: "no-artwork" },
+			catalogHit,
+			{ kind: "file", key: "file:C:\\Music\\Ripped\\track01.mp3", active: false },
+			null,
+			{ title: "Probablemente", artist: "Christian Nodal", source: "identification" },
+		)
+
+		const info = await handler.getMediaInfo(status())
+
+		expect(info?.content_metadata?.clean_title).toBe("Probablemente")
+		expect(info?.content_name_source).toBe("identification")
+	})
+
+	it("reports a refused match with no metadata to go with it", async () => {
+		const { handler } = build(
+			{ kind: "no-artwork" },
+			catalogHit,
+			{ kind: "file", key: "file:C:\\Music\\Ripped\\track01.mp3", active: true },
+			null,
+			{ source: "as-is" },
+		)
+
+		const info = await handler.getMediaInfo(status())
+
+		expect(info?.content_name_source).toBe("as-is")
+		expect(info?.content_metadata).toBeUndefined()
 	})
 
 	it("reports no metadata for audio nobody has corrected", async () => {
