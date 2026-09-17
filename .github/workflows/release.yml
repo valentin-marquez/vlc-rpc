@@ -54,6 +54,10 @@ jobs:
         run: bun run build:win
         env:
           GH_TOKEN: ""
+          # Baked into the bundle at build time. Without it the published build
+          # simply skips identifying audio by its sound, silently, so a missing
+          # secret costs a feature rather than a failed build.
+          MAIN_VITE_ACOUSTID_KEY: ${{ secrets.ACOUSTID_CLIENT_KEY }}
 
       - name: Create git tag and release
         env:

@@ -42,9 +42,16 @@ cover than the wrong one, so a weak match is discarded.
 | Content | Source | Needs an account |
 | --- | --- | --- |
 | Audio with cover art in the file | The file itself | No |
-| Audio without it | iTunes Search, then MusicBrainz and the Cover Art Archive | No |
+| Audio with usable tags | iTunes Search, then MusicBrainz and the Cover Art Archive | No |
+| Audio with no usable tags | The sound itself, see below | No |
 | Anime | AniList | No |
 | Films and western television | Nothing automatic, see Limitations | No |
+
+A file ripped from YouTube usually has no artist and a title that is really its
+filename, so no text search can find it. For those the app computes an acoustic
+fingerprint of the audio and asks AcoustID which recording it is, which does not
+care what the file is called. That step runs last, only for what nothing else
+could identify, and you do not need an account for it.
 
 Artwork embedded in an audio file cannot be handed to Discord directly, because Discord fetches
 images by URL and knows nothing about your disk. The app uploads that image to a temporary public
@@ -173,6 +180,13 @@ bun run typecheck  # main and renderer
 bun run lint       # biome, writes fixes
 bun run build      # typecheck, then bundle
 ```
+
+Audio fingerprinting needs two things a clone does not have. `bun install` fetches
+Chromaprint's `fpcalc` for your platform into `resources/bin/`, which is git ignored, and the
+AcoustID client key is read at build time from `MAIN_VITE_ACOUSTID_KEY`. Copy `.env.example` to
+`.env` and put your own key there if you want that step to run; see
+[acoustid.org/new-application](https://acoustid.org/new-application). Without a key the app skips
+it and everything else behaves exactly as it does in a release.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) documents the conventions the codebase actually follows,
 including file naming, the barrel rules, and the logging rules that keep your VLC password out of
