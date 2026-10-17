@@ -26,6 +26,7 @@ export interface AppConfig {
 	/** Keyed by file path. */
 	fileMetadata: Record<string, FileMetadata>
 	rpcEnabled: boolean
+	hideWhenPaused: boolean
 	/** While this stands in the future, the presence is off whatever `rpcEnabled` says. */
 	rpcDisabledUntil?: number
 	/**

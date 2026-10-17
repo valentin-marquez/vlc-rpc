@@ -17,6 +17,7 @@ export const DEFAULT_CONFIG: AppConfig = {
 	startWithSystem: true,
 	fileMetadata: {},
 	rpcEnabled: true,
+	hideWhenPaused: false,
 	// A name rather than a copy of the lines, so a later release can improve the
 	// arrangement a fresh install starts on.
 	layoutPreset: DEFAULT_MUSIC_CHOICE,

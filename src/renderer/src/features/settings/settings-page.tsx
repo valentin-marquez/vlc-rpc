@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { AboutPanel } from "./components/about-panel"
 import { AppSettingsPanel } from "./components/app-settings-panel"
 import { OverridesPanel } from "./components/overrides-panel"
+import { PresenceSettingsPanel } from "./components/presence-settings-panel"
 import { VlcConfigForm } from "./components/vlc-config-form"
 import { type SystemInfo, readSystemInfo } from "./system-info"
 
@@ -37,6 +38,7 @@ export function SettingsPage(): JSX.Element {
 				canStartWithSystem={system.kind === "ready" && !system.isPortable}
 			/>
 			<VlcConfigForm initialConfig={config.vlc} />
+			<PresenceSettingsPanel hideWhenPaused={config.hideWhenPaused} />
 			<OverridesPanel />
 			<AboutPanel info={system} />
 		</div>

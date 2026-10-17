@@ -150,6 +150,10 @@ export class DiscordRpcHandler {
 			}
 
 			const window = this.timeline.update(vlcStatus)
+			if (vlcStatus.status === "paused" && configService.get("hideWhenPaused")) {
+				return this.pushClear("playback-paused")
+			}
+
 			const key = presenceKey(vlcStatus, this.timeline.currentEpoch)
 
 			if (!force && !justReconnected && key === this.lastSentKey) {
