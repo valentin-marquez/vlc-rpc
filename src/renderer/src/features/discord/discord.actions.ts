@@ -37,7 +37,7 @@ export async function tryReconnect(): Promise<void> {
 	logger.info("Attempting to reconnect to Discord")
 
 	try {
-		const reconnected = await window.api.discord.reconnect()
+		const reconnected = await window.api.discord.connect()
 		if (reconnected) {
 			discordStatusStore.set("connected")
 			logger.info("Successfully reconnected to Discord")

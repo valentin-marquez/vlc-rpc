@@ -14,10 +14,9 @@ export class Client {
 	private rpc: RpcClient | null = null
 	private connected = false
 	private readonly clientId = "1345358480671772683"
-	private connecting = false
+	private connectPromise: Promise<boolean> | null = null
 	private reconnectTimer: NodeJS.Timeout | null = null
 	private reconnectAttempts = 0
-	private maxReconnectAttempts = 10
 	private reconnectDelay = 5000 // 5 seconds
 	private appName: string | null = null
 
@@ -75,7 +74,7 @@ export class Client {
 	}
 
 	public isConnected(): boolean {
-		return this.connected
+		return this.connected && this.rpc?.isConnected === true
 	}
 
 	/**
@@ -88,75 +87,97 @@ export class Client {
 		return this.appName
 	}
 
-	public async connect(): Promise<boolean> {
-		if (this.connected) {
-			return true
+	public connect(): Promise<boolean> {
+		if (this.isConnected()) {
+			return Promise.resolve(true)
 		}
 
-		if (this.connecting) {
-			return false
+		if (this.connectPromise) {
+			return this.connectPromise
 		}
 
-		this.connecting = true
-		this.stopReconnectTimer()
+		if (this.reconnectTimer) {
+			return Promise.resolve(false)
+		}
+
+		this.connectPromise = this.openConnection().finally(() => {
+			this.connectPromise = null
+		})
+		return this.connectPromise
+	}
+
+	private async openConnection(): Promise<boolean> {
+		const previous = this.rpc
+		const rpc = new RpcClient({ clientId: this.clientId })
+		this.rpc = rpc
+		this.connected = false
+		this.appName = null
 
 		try {
-			this.rpc = new RpcClient({
-				clientId: this.clientId,
-			})
+			if (previous) await this.destroyRpc(previous)
+			if (this.rpc !== rpc) return false
 
-			this.rpc.on("ready", () => {
+			rpc.on("ready", () => {
+				if (this.rpc !== rpc) return
 				logger.info("Connected to Discord")
 				this.connected = true
 				this.reconnectAttempts = 0
 			})
 
-			this.rpc.on("disconnected", () => {
+			rpc.on("disconnected", () => {
+				if (this.rpc !== rpc) return
 				logger.info("Disconnected from Discord")
 				this.connected = false
 				this.startReconnectTimer()
 			})
 
-			this.rpc.on("error", (err) => {
+			rpc.on("error", (err) => {
+				if (this.rpc !== rpc) return
 				logger.error(`Discord RPC error: ${err}`)
 				this.connected = false
 				this.startReconnectTimer()
 			})
 
-			await this.rpc.login()
+			await rpc.login()
+			if (this.rpc !== rpc) {
+				await this.destroyRpc(rpc)
+				return false
+			}
 			this.connected = true
 			logger.info("Connected to Discord RPC")
 			return true
 		} catch (error) {
+			if (this.rpc !== rpc) {
+				await this.destroyRpc(rpc)
+				return false
+			}
 			logger.error(`Failed to connect to Discord: ${error}`)
 			this.connected = false
+			this.rpc = null
+			const cleanup = this.destroyRpc(rpc)
 			this.startReconnectTimer()
+			await cleanup
 			return false
-		} finally {
-			this.connecting = false
 		}
 	}
 
 	private startReconnectTimer(): void {
-		this.stopReconnectTimer()
-
-		if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-			logger.warn(`Exceeded maximum Discord reconnection attempts (${this.maxReconnectAttempts})`)
-			return
-		}
+		if (this.reconnectTimer) return
 
 		logger.info(`Scheduling Discord reconnection attempt in ${this.reconnectDelay / 1000} seconds`)
 
 		this.reconnectTimer = setTimeout(async () => {
+			this.reconnectTimer = null
 			this.reconnectAttempts++
 			logger.info(`Attempting to reconnect to Discord (attempt ${this.reconnectAttempts})`)
 
 			try {
-				if (!this.connected) {
+				if (!this.isConnected()) {
 					await this.connect()
 				}
 			} catch (error) {
 				logger.error(`Reconnection attempt failed: ${error}`)
+				this.startReconnectTimer()
 			}
 		}, this.reconnectDelay)
 	}
@@ -168,20 +189,13 @@ export class Client {
 		}
 	}
 
-	/** Drops the connection before reconnecting, so a stale socket cannot answer. */
-	public async forceReconnect(): Promise<boolean> {
-		if (this.rpc) {
-			try {
-				await this.rpc.destroy()
-			} catch (error) {
-				logger.error(`Error destroying previous connection: ${error}`)
-			}
-			this.rpc = null
-		}
-
+	/** Joins an active login, otherwise replaces the previous connection. */
+	public forceReconnect(): Promise<boolean> {
+		if (this.connectPromise) return this.connectPromise
+		this.stopReconnectTimer()
 		this.connected = false
 		this.reconnectAttempts = 0
-		return await this.connect()
+		return this.connect()
 	}
 
 	public async update(presenceData: DiscordPresenceData): Promise<boolean> {
@@ -190,11 +204,13 @@ export class Client {
 			return false
 		}
 
-		if (!this.connected && !(await this.connect())) {
+		// Polling must not queue stale activities behind an in-flight login.
+		if (!this.isConnected() && (this.connectPromise !== null || !(await this.connect()))) {
 			return false
 		}
 
-		if (!this.rpc || !this.rpc.user) {
+		const rpc = this.rpc
+		if (!rpc?.user) {
 			return false
 		}
 
@@ -261,7 +277,8 @@ export class Client {
 				activity.type = 0
 			}
 
-			const drawn: SetActivityResponse | undefined = await this.rpc.user.setActivity(activity)
+			const drawn: SetActivityResponse | undefined = await rpc.user.setActivity(activity)
+			if (this.rpc !== rpc) return false
 
 			// Discord answers with the activity as it registered it, and its name is the
 			// header line. When the arrangement names nothing, that name is whatever this
@@ -274,47 +291,66 @@ export class Client {
 			return true
 		} catch (error) {
 			logger.error(`Error updating Discord presence: ${error}`)
-			this.connected = false
+			// A rejected activity does not disconnect an otherwise healthy IPC socket.
+			if (this.rpc === rpc && !rpc.isConnected) {
+				this.connected = false
+				this.startReconnectTimer()
+			}
 			return false
 		}
 	}
 
 	public async clear(): Promise<boolean> {
-		if (!this.connected) {
+		if (!this.isConnected()) {
 			return false
 		}
 
-		if (!this.rpc || !this.rpc.user) {
+		const rpc = this.rpc
+		if (!rpc?.user) {
 			return false
 		}
 
 		try {
-			await this.rpc.user.clearActivity()
+			await rpc.user.clearActivity()
+			if (this.rpc !== rpc) return false
 			logger.info("Cleared Discord Rich Presence")
 			return true
 		} catch (error) {
 			logger.error(`Error clearing Discord presence: ${error}`)
-			this.connected = false
+			if (this.rpc === rpc && !rpc.isConnected) {
+				this.connected = false
+				this.startReconnectTimer()
+			}
 			return false
 		}
 	}
 
 	public async close(): Promise<void> {
 		this.stopReconnectTimer()
-
-		if (this.connected && this.rpc) {
+		const rpc = this.rpc
+		const wasConnected = this.connected
+		this.rpc = null
+		this.connected = false
+		this.appName = null
+		if (rpc) {
 			try {
-				if (this.rpc.user) {
-					await this.rpc.user.clearActivity()
+				if (wasConnected && rpc.user) {
+					await rpc.user.clearActivity()
 				}
-				await this.rpc.destroy()
-				this.connected = false
 				logger.info("Closed Discord connection")
 			} catch (error) {
 				logger.error(`Error closing Discord connection: ${error}`)
 			} finally {
-				this.rpc = null
+				await this.destroyRpc(rpc)
 			}
+		}
+	}
+
+	private async destroyRpc(rpc: RpcClient): Promise<void> {
+		try {
+			await rpc.destroy()
+		} catch (error) {
+			logger.error(`Error destroying Discord connection: ${error}`)
 		}
 	}
 }
