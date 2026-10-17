@@ -133,7 +133,8 @@ abstract class MediaState {
 		if (text.length > maxLength) {
 			return `${text.substring(0, maxLength - 3)}...`
 		}
-		return text
+		// Discord requires at least two characters; invisible padding preserves single-letter labels.
+		return text.padEnd(2, "\u200b")
 	}
 
 	public abstract updatePresence(
