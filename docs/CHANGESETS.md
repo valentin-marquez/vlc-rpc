@@ -44,22 +44,30 @@ Two workflows, and neither one publishes by itself.
 `ci.yml` runs on every push and pull request to `main`: `lint:check`, both typechecks, the suite and
 a Windows build. It does not check whether a changeset exists, so that part is on the author.
 
-`release.yml` runs only when a maintainer dispatches it by hand from the Actions tab. One run does
-the whole thing: it applies the pending changesets with `changeset:version`, commits the new version
-and changelog, builds the Windows binaries, tags the commit and creates the GitHub release with the
-installers attached. There is no Version Packages pull request, and merging to `main` releases
-nothing.
+`release.yml` runs when a `v*` tag reaches GitHub. It checks the tag against `package.json`, builds
+the Windows binaries and creates the GitHub release with the installers attached. It never versions,
+commits or tags: the repository lives on Forgejo and GitHub is a push mirror, which deletes any tag
+Forgejo does not have, so a tag created by the workflow would vanish and leave the release as a draft.
+Merging to `main` releases nothing.
+
+To release, from an up to date `main`:
+
+```bash
+bun run changeset:version
+git commit -am "chore: release vX.Y.Z"
+git tag vX.Y.Z
+git push origin main vX.Y.Z   # origin is Forgejo; the mirror carries both to GitHub
+```
 
 ## Scripts
 
 ```bash
 bun run changeset          # write a new changeset
 bun run changeset:version  # apply the pending ones, bump the version, write the changelog
-bun run changeset:publish  # publish, which the release workflow does not use
+bun run changeset:publish  # publish, which the release does not use
 ```
 
-`changeset:version` is what the release workflow runs. Running it locally is useful to see what the
-next version would be, but the version commit belongs to the workflow.
+`changeset:version` is part of the release steps above and is run locally.
 
 ## Links
 

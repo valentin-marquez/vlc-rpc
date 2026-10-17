@@ -1,7 +1,12 @@
 name: Release
 
+# Runs when a v* tag reaches GitHub. The tag is created and pushed to Forgejo, and its push mirror
+# brings it here. Creating the tag from this workflow would put it only on GitHub, and the next
+# mirror run would delete it and turn the release back into a draft.
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
@@ -10,45 +15,24 @@ jobs:
   release:
     name: Build and Release
     runs-on: windows-latest
+    env:
+      TAG: ${{ github.ref_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+
+      - name: Check the tag matches package.json
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          if ("v$version" -ne $env:TAG) { throw "Tag $env:TAG does not match package.json version $version" }
+          echo "VERSION=$version" >> $env:GITHUB_ENV
+        shell: pwsh
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
         run: bun install
-
-      - name: Version packages with Changesets
-        run: |
-          bun changeset:version
-
-          $packageJson = Get-Content package.json | ConvertFrom-Json
-          $version = $packageJson.version
-          $tag = "v$version"
-
-          Write-Host "::notice::Version: $version"
-          Write-Host "::notice::Tag: $tag"
-
-          echo "VERSION=$version" >> $env:GITHUB_ENV
-          echo "TAG=$tag" >> $env:GITHUB_ENV
-        shell: pwsh
-
-      - name: Commit version changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json CHANGELOG.md .changeset
-          try {
-            git commit -m "chore: release v${{ env.VERSION }}"
-            git push
-          } catch {
-            Write-Host "No changes to commit"
-          }
-        shell: pwsh
 
       - name: Build Windows binaries
         run: bun run build:win
@@ -59,19 +43,16 @@ jobs:
           # secret costs a feature rather than a failed build.
           MAIN_VITE_ACOUSTID_KEY: ${{ secrets.ACOUSTID_CLIENT_KEY }}
 
-      - name: Create git tag and release
+      - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git tag "${{ env.TAG }}" -f
-          git push origin "${{ env.TAG }}" -f
-
-          gh release create "${{ env.TAG }}" `
-            --title "VLC Discord RP ${{ env.TAG }}" `
+          gh release create "$env:TAG" `
+            --title "VLC Discord RP $env:TAG" `
             --notes "See [CHANGELOG.md](https://github.com/valentin-marquez/vlc-rpc/blob/main/CHANGELOG.md) for detailed changes." `
-            "dist/vlc-rpc-${{ env.VERSION }}-setup.exe" `
-            "dist/vlc-rpc-${{ env.VERSION }}-setup.exe.blockmap" `
-            "dist/vlc-rpc-${{ env.VERSION }}-portable.exe" `
+            "dist/vlc-rpc-$env:VERSION-setup.exe" `
+            "dist/vlc-rpc-$env:VERSION-setup.exe.blockmap" `
+            "dist/vlc-rpc-$env:VERSION-portable.exe" `
             dist/latest.yml `
             --latest
         shell: pwsh
