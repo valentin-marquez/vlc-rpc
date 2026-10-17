@@ -7,12 +7,13 @@ import { useLastPresence } from "../hooks/use-last-presence"
 import { usePresenceArtwork } from "../hooks/use-presence-artwork"
 import { presenceContent } from "../presence.mapper"
 
-// Four different facts, and the user acts on each of them differently, so they
+// Different facts, and the user acts on each of them differently, so they
 // are never folded into one empty state.
 const CLEARED_BECAUSE: Record<PresenceClearReason, string> = {
 	"rpc-disabled": "Rich Presence is turned off",
 	"vlc-unavailable": "VLC is not reachable",
 	"playback-stopped": "VLC has nothing playing",
+	"playback-paused": "Activity hidden while paused",
 	"loop-stopped": "Presence updates are stopped",
 }
 

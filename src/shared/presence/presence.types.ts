@@ -29,6 +29,7 @@ export type PresenceClearReason =
 	| "rpc-disabled"
 	| "vlc-unavailable"
 	| "playback-stopped"
+	| "playback-paused"
 	| "loop-stopped"
 
 /**
